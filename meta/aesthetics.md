@@ -25,6 +25,7 @@ What the client uses today (`client/src/style.css`, `client/src/pov.ts`). Deep n
 | Their side | `#ff5d6c` | Warm red |
 | Embers (the resource; `elixir` in code) | `#ff8a3d` | Warm amber, between the enemy red and the gold. **Proposal for Cindy** |
 | Gold accents | `#ffd27a`, `#ffb02e` | Firelight; the wordmark and the one main action |
+| Frost on towers | `#dbe9f4` lit, `#9cc3e0` shadow, `#6f97bd` deep | The ice coat, shards and icicles; lit and shadow facets of each tower face |
 
 ## Sound
 
@@ -77,6 +78,16 @@ The board sits in a snowy valley at night (`client/src/scenery.ts`), all low-pol
 - **Red standards:** swallowtail flags beside the enemy's half, rippling. There are none on your side: near the camera the poles foreshorten into sticks.
 - Text drawn on the board uses Cinzel.
 
+## Tower frost
+
+Designed in Paper ("Arena — UI design systems", page "Tower frost"; picked direction C, *Frozen shell*, over a plain coat and shards alone) and built in `client/src/frost.ts`.
+
+- **Frost from the base:** a flat ice coat climbs each tower as it loses health, from a thin rime at full health to near the top one hit from falling. Its top edge is saw-cut (three teeth a face), and each face's coat splits on a diagonal into a lit and a shadow facet. Ice shards ring the foot and grow with the frost; past 70% icicles hang off the crown and the gem's fire dims. No soft gradients.
+- **Overtime:** in the last 30 seconds the frost line on every tower creeps up with the clock, whatever its health, so the cold is visibly closing in. A hurt tower keeps its higher line.
+- **Crumble:** a destroyed tower breaks into low-poly chunks of stone, crown (in its team colour) and ice that fly out, fall, bounce and settle as rubble round a frosted stump, with ice shards and dust in the burst. Under reduced motion the rubble is laid down without the fall.
+- **Cost:** the coat is painted in the tower's own stone shader; all shards and icicles are one instanced mesh, all rubble another (two draw calls in all). Towers are now flat-shaded, so their eight faces read like the menu art.
+- **Home island:** every tower carries a rime and a ring of shards; the red side's towers show the frost climbing (one half-frosted, one near-frozen with icicles).
+
 
 
 Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones-style heraldry inspires the look.
@@ -118,4 +129,5 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** Things react when poked (`client/src/react.ts`, rule in `pokes.ts`): buttons squish on press and brighten or tilt on hover with a soft thock; the home tapestry, plaque and result banners swing and throw embers, the wordmark flares. On the board your troops hop with an emote or call their name, enemy troops flinch, towers shudder and shed frost, and the opponent's ground puffs snow with a few embers; hovering a unit (mouse or fingertip) lights it with its name and cost. A click on your own half still deploys. All motion stops under reduced motion; M mutes the sounds.
 - **2026-10-24:** Home banners: picked direction 2 from the Paper "Banner workshop" page (hung from above). The tapestry flutters; the red banner is gone from home, its last match moved to a hung plaque.
 - **2026-10-24:** Core loop juice (`client/src/juice.ts`): cost revealed on landing as a rolling reel tinted gold (bargain) or red (pricey), size-scaled landing impact with snow bursts, an amber-to-gold summoning circle under each drop, Cinzel names that stamp in, the opponent's words in a frost-white chamfered bubble with a red edge, a gold coin that shatters for a refused troop, and an MVP card on the result screen in the chronicle's stone.
+- **2026-10-24:** Tower frost (Paper "Tower frost", direction C): towers frost up from the base as they're hurt, every tower frosts slowly through overtime, and a destroyed tower crumbles into rubble round a frosted stump. The home island's towers show the frost.
 - **2026-10-24:** The resource is called embers wherever players see it (code keeps `elixir`). The bar is a kindling pile whose sticks glow brighter as it refills, the count sits in a flame, costs carry a small flame, spent sticks fly as embers to the summoning circle, and the banner reads DOUBLE EMBERS, "the fire roars". The amber `#ff8a3d` is a proposal for Cindy. Rank points stay "Points".
