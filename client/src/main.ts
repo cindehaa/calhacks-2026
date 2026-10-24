@@ -17,7 +17,7 @@ import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } f
 import { crownSvg, shieldSvg } from './art';
 import { clock, reasons, type RoundSummary } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
-import { hubFx } from './hubfx';
+import { hubFx, resultFx } from './hubfx';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -55,6 +55,7 @@ function netMsg(s: string) {
   $('hubNet').title = s;
 }
 hubFx(document.querySelector('#title .hubSky')!);
+resultFx($<HTMLCanvasElement>('resultSky'), () => ($('result').classList.contains('win') ? 'win' : $('result').classList.contains('lose') ? 'lose' : 'draw'));
 // The home scene leans a little toward the cursor: ranges least, the island most.
 $('lobby').addEventListener('pointermove', e => {
   $('lobby').style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(3));
@@ -403,7 +404,7 @@ function renderResult() {
   const tone = outcome === 'lose' ? 'ice' : 'gold';
   $('crowns').innerHTML = [0, 1, 2].map(i => crownSvg(i < summary.towersTaken ? tone : `empty-${tone}`, 64)).join('');
   $('erIcon').innerHTML = outcome === 'lose' ? SNOW_ICON : FLAME_ICON;
-  $('emberDelta').textContent = delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : '0';
+  countUp($('emberDelta'), delta);
   const rk = rankOf(embers);
   $('erRank').textContent = rk.name;
   $('erNext').textContent = rk.next ? `${embers.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${embers.toLocaleString('en-US')} points`;
@@ -425,6 +426,20 @@ function renderResult() {
   $('resFoeTag').textContent = tag(outcome === 'lose');
   $('rematchText').textContent = 'Rematch';
   $('rematchSub').textContent = local ? `Same bot, ${local.level}` : 'Same opponent';
+}
+
+// The points tick up (or down) once the crowns have landed.
+function countUp(el: HTMLElement, delta: number) {
+  const fmt = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !delta) return void (el.textContent = fmt(delta));
+  const start = performance.now() + 1100, dur = 700;
+  el.textContent = '0';
+  const step = (now: number) => {
+    const k = Math.min(1, Math.max(0, (now - start) / dur));
+    el.textContent = fmt(Math.round(delta * (1 - (1 - k) ** 3)));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // ---------- versus card, pause and forfeit ----------
