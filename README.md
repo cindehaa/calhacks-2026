@@ -55,6 +55,12 @@ To use Maincloud instead of a local server: `spacetime login`, `spacetime publis
 
 `npm run bench` compares troop-designer backends on the same descriptions: cold start, p50/p90 latency, valid-JSON rate and 9 judgement checks from the prompt's rules (size words, abuse, consistency). It runs every provider that has a key in `.env` (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `GROQ_API_KEY`). With Claude plus another provider, it also reports cost agreement with Claude and what racing the two would give. Options: `--n 40`, `--providers claude,cerebras`, `--dry` (offline designer only). Set `DESIGNER=gemini|cerebras|groq` in `.env` to play with another backend; the default is Claude.
 
+## Play logs
+
+Every round is logged to private SpacetimeDB tables that only the database owner can read: `match_log` (one row per round, online or vs Bot), `generation` (one per deploy attempt: transcript, description, design before and after clamping, designer source and timings, when the art arrived, outcome), `utterance` (every finished speech segment, including words said between deploys), `troop_log` (what each troop did in the fight) and `event` (setup, camera and mic, speech errors, mismatch flags). Players flag a troop that isn't what they asked for by saying "that's wrong" or pressing <kbd>X</kbd>.
+
+`npm run logs` prints the last rounds as timelines (each deploy next to what the player said after it) plus a summary: input mix, outcomes and cancel reasons, design wait p50/p90, art on time, mismatch rate, damage per elixir. `npm run logs -- --jsonl > attempts.jsonl` writes one joined line per attempt for tuning the prompt and the art. Options: `--last 20`, `--server maincloud --db <name>`.
+
 ## Checks
 
 ```sh

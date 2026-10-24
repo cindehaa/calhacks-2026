@@ -59,9 +59,19 @@ export interface SimState {
   towers: SimTower[];
 }
 
+// One unit's hit this step, for the per-troop logs. damage is what actually landed (capped at
+// the target's remaining health); kill means it finished the unit or tower off.
+export interface Hit {
+  by: number; // attacking unit id
+  tower: boolean;
+  damage: number;
+  kill: boolean;
+}
+
 // winner: 0 or 1, -1 for a draw, null while the match is running.
 export interface StepResult {
   deadUnitIds: number[];
+  hits: Hit[];
   over: boolean;
   winner: Side | -1 | null;
 }
@@ -141,7 +151,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
   if (s.time < 0) {
     s.time += dt;
     if (s.time > -1e-6) s.time = 0; // snap float drift, so 60 ticks of 0.05 s end exactly at 0
-    return { deadUnitIds: [], over: false, winner: null };
+    return { deadUnitIds: [], hits: [], over: false, winner: null };
   }
   s.time += dt;
   const rate = ELIXIR_PER_SEC * (s.time >= DOUBLE_ELIXIR_AT ? 2 : 1);
@@ -150,6 +160,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
   for (const u of s.units) if (u.delay > 0) u.delay = Math.max(0, u.delay - dt);
   const active = s.units.filter(u => u.delay <= 0 && u.hp > 0);
   const live = s.towers.filter(t => t.hp > 0);
+  const hits: Hit[] = [];
 
   // Units: nearest enemy unit within aggro range, else the nearest enemy tower.
   for (const u of active) {
@@ -174,8 +185,13 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
     const gap = dist(u.x, u.y, tx(target), ty(target)) - radius(target) - UNIT_RADIUS;
     if (gap <= reach(u.range)) {
       if (u.cooldown <= 0) {
-        if (target.kind === 'unit') target.u.hp -= u.damage;
-        else target.t.hp = Math.max(0, target.t.hp - u.damage);
+        if (target.kind === 'unit') {
+          hits.push({ by: u.id, tower: false, damage: Math.min(u.damage, target.u.hp), kill: target.u.hp <= u.damage });
+          target.u.hp -= u.damage;
+        } else {
+          hits.push({ by: u.id, tower: true, damage: Math.min(u.damage, target.t.hp), kill: target.t.hp <= u.damage });
+          target.t.hp = Math.max(0, target.t.hp - u.damage);
+        }
         u.cooldown = 1 / u.attackSpeed;
         u.attackSeq++;
       }
@@ -236,7 +252,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
   // Losing the king takes the whole side down: three towers.
   for (const side of [0, 1] as Side[]) if (kingDown(s, side)) for (const t of s.towers) if (t.side === side) t.hp = 0;
   const over = s.time >= MATCH_SECONDS || kingDown(s, 0) || kingDown(s, 1);
-  return { deadUnitIds, over, winner: over ? judge(s) : null };
+  return { deadUnitIds, hits, over, winner: over ? judge(s) : null };
 }
 
 // Most enemy towers destroyed wins; tie-break on total tower health left.

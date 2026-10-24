@@ -1,9 +1,9 @@
 import { ANCHORS } from '../../shared/anchors';
 import { ELIXIR_MAX, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
-import type { TroopDesign } from '../../shared/troop';
+import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
-import { InputController } from './input/controller';
+import { InputController, type DeployHow } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
@@ -12,6 +12,7 @@ import { Board, type DrawUnit, type View } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { readySprite, spriteFor } from './sprites';
+import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -65,6 +66,7 @@ connect(
   n => {
     net = n;
     online = new OnlineMatch(n);
+    attachLogs(n);
     $('netStatus').textContent = '';
   },
   s => ($('netStatus').textContent = s)
@@ -96,12 +98,31 @@ $<HTMLFormElement>('joinForm').onsubmit = e => {
   call(net?.conn.reducers.joinRoom({ code: $<HTMLInputElement>('codeInput').value }));
 };
 $('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}));
-$('rematchBtn').onclick = () => call(match()?.rematch());
-$('leaveBtn').onclick = $('lobbyBtn').onclick = () => call(match()?.leave());
+$('rematchBtn').onclick = () => {
+  call(match()?.rematch());
+  if (local) botStarted(local.level);
+};
+$('leaveBtn').onclick = $('lobbyBtn').onclick = () => {
+  if (local?.status === 'playing') botEnded('left');
+  call(match()?.leave());
+};
 $('botBtn').onclick = () => {
   lock = null;
   local = new LocalMatch($<HTMLSelectElement>('botLevel').value as BotLevel, () => (local = null));
+  botStarted(local.level);
 };
+
+// Bot rounds never reach the server, so they're reported from here.
+let botOpen = false; // a bot round logged as started and not yet as ended
+function botStarted(level: string) {
+  logBotStart(level);
+  botOpen = true;
+}
+function botEnded(reason: 'over' | 'left') {
+  if (!local || !botOpen) return;
+  botOpen = false;
+  logBotEnd(local.report(), reason);
+}
 $<HTMLInputElement>('nameInput').onchange = e => {
   const name = (e.target as HTMLInputElement).value;
   if (name.trim()) call(net?.conn.reducers.setName({ name }));
@@ -154,17 +175,38 @@ function status(msg: string, bad = false) {
   $('status').classList.toggle('bad', bad);
 }
 
+// Deploy attempts in flight, by nonce, for the logs. Each is logged once it settles.
+const attempts = new Map<number, Attempt>();
+let lastDeployed: Attempt | null = null; // what "that's wrong" flags
+
+function attempt(nonce: number, by: string): Attempt {
+  const a = new Attempt(nonce, by);
+  attempts.set(nonce, a);
+  return a;
+}
+
+function settle(nonce: number, outcome: string) {
+  const a = attempts.get(nonce);
+  if (!a) return;
+  attempts.delete(nonce);
+  a.settle(outcome);
+  if (outcome === 'deployed') lastDeployed = a;
+}
+
 // The sprite rides along if it's already here, else it's attached once both have landed.
 function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign) {
   const m = match();
-  if (!m) return;
+  if (!m) return settle(nonce, 'no match');
   const art = spriteFor(description);
+  attempts.get(nonce)?.waitForArt(art);
   const ready = readySprite(description);
   const deployed = m.deployTroop(nonce, x, y, description, d, ready);
+  deployed.then(() => settle(nonce, 'deployed'), () => {});
   if (!ready) Promise.all([art, deployed]).then(([url]) => (url ? m.attachSprite(description, url) : undefined)).catch(() => {});
   call(
     deployed,
     msg => {
+      settle(nonce, msg);
       call(match()?.cancelDeploy(nonce), () => {});
       sfx.play('buzz');
       const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
@@ -180,28 +222,38 @@ function deployAnchor(i: number) {
   const spot = spotOrDefault();
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
+  const at = attempt(nonce, 'key');
+  at.released(a.description, 'anchor');
+  at.gotDesign({ design: a, cost: price(a), ms: 0, source: 'anchor' });
   sendDeploy(nonce, spot, a.description, a);
   status(`${a.name}`);
 }
 
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
-function beginAt(spot: [number, number]): number | null {
+function beginAt(spot: [number, number], by: string): number | null {
   if (match()?.status !== 'playing') return null;
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
+  attempt(nonce, by);
   return nonce;
 }
 
-function cancelAt(nonce: number, msg: string) {
+function cancelAt(nonce: number, msg: string, transcript = '') {
+  const a = attempts.get(nonce);
+  if (a) a.transcript ||= transcript;
+  settle(nonce, msg);
   call(match()?.cancelDeploy(nonce), () => {});
   status(msg, true);
 }
 
-async function designAt(nonce: number, spot: [number, number], description: string) {
+async function designAt(nonce: number, spot: [number, number], description: string, how?: DeployHow) {
   status(`designing “${description}”…`);
+  attempts.get(nonce)?.released(description, how?.from ?? 'typed', how?.transcript, how?.by);
   spriteFor(description); // in parallel with the design
   try {
-    const { design, cost, ms, source, early } = await designTroop(description);
+    const d = await designTroop(description);
+    attempts.get(nonce)?.gotDesign(d);
+    const { design, cost, ms, source, early } = d;
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
     status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms${tags ? ` (${tags})` : ''}`);
     sendDeploy(nonce, spot, description, design);
@@ -212,7 +264,7 @@ async function designAt(nonce: number, spot: [number, number], description: stri
 
 async function deployDescription(description: string) {
   const spot = spotOrDefault();
-  const nonce = beginAt(spot);
+  const nonce = beginAt(spot, lock ? 'mouse' : 'form');
   if (nonce !== null) await designAt(nonce, spot, description);
 }
 
@@ -228,7 +280,18 @@ const input = new InputController(board.canvas, {
   typedText: () => $<HTMLInputElement>('descInput').value,
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
   prefetch: prefetchDesign,
+  heard: (text, nonce) => logUtterance(text, nonce),
+  mismatch: flagMismatch,
+  event: (kind, detail) => logEvent(kind, detail),
 });
+
+// "That's wrong" (or X): the last troop isn't what the player asked for. The best signal the
+// logs get for tuning the designer and the art.
+function flagMismatch() {
+  const a = lastDeployed;
+  logEvent('mismatch', a ? `${a.description} → ${a.design?.name ?? '?'}` : '', a?.nonce ?? 0);
+  status(a ? `noted: ${a.design?.name ?? 'that troop'} wasn't what you asked for` : 'noted');
+}
 
 // First visit: camera and mic, then the how-to card.
 const setup = initSetup(input, showTutorialOnce);
@@ -260,6 +323,7 @@ addEventListener('keydown', e => {
   if (/^[0-9]$/.test(e.key)) {
     if (input.mouseKeys) deployAnchor((Number(e.key) + 9) % 10);
   }
+  else if (e.key === 'x' || e.key === 'X') flagMismatch();
   else if (e.key === 'Escape') lock = null;
   else if (e.key === 'v' || e.key === 'V') cycleView();
   else if (e.key === 'Enter' || e.key === '/') {
@@ -293,6 +357,7 @@ function frame() {
     return;
   }
   const side = m.side;
+  if (local?.status === 'done') botEnded('over');
   if (m.status === 'playing' && warmedFor !== m.key) {
     warmedFor = m.key;
     warmDesigner();

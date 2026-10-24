@@ -21,7 +21,7 @@ const TIMEOUT_MS = Number(opt('timeout', '8000'));
 
 const offline: Provider = {
   name: 'offline' as never, model: 'keyword lexicon', hasKey: () => true,
-  design: async d => designOffline(d),
+  design: async d => ({ design: designOffline(d), raw: '' }),
 };
 const chosen: Provider[] = flag('dry')
   ? [offline]
@@ -70,7 +70,7 @@ interface Sample { ms: number; ok: boolean; design?: TroopDesign; error?: string
 async function timed(p: Provider, d: string): Promise<Sample> {
   const t0 = performance.now();
   try {
-    const design = await p.design(d, TIMEOUT_MS);
+    const { design } = await p.design(d, TIMEOUT_MS);
     return { ms: performance.now() - t0, ok: true, design };
   } catch (e) {
     return { ms: performance.now() - t0, ok: false, error: e instanceof Error ? e.message.slice(0, 160) : String(e) };

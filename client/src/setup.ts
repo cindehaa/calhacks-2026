@@ -2,6 +2,7 @@
 // once (remembered in localStorage); after that the controller turns the camera and mic back on
 // by itself. "Run setup again" in the camera panel's ⋯ menu reopens it.
 import type { InputController } from './input/controller';
+import { logEvent } from './telemetry';
 
 const DONE_KEY = 'arena.setupDone';
 
@@ -26,7 +27,8 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     render();
   }
 
-  function close() {
+  function close(how: string) {
+    logEvent(`setup:${how}`);
     el.hidden = true;
     cancelAnimationFrame(raf);
     markDone();
@@ -51,8 +53,8 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     if (act === 'devices') void turnOn();
     else if (act === 'skip') {
       input.setMouseKeys(true);
-      close();
-    } else if (act === 'done') close();
+      close(act);
+    } else if (act === 'done') close(act);
   });
 
   function step(name: string, done: boolean, msg: string) {
