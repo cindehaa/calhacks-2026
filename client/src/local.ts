@@ -9,6 +9,7 @@ import { newMatch, step, type SimState } from '../../shared/sim';
 import type { TroopDesign } from '../../shared/troop';
 import { Glide, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
 import type { DrawPending, DrawTroop } from './render';
+import { readySprite, spriteFor } from './sprites';
 
 const DT = 1 / TICK_HZ;
 const PENDING_TTL = 15; // seconds; a lock nobody followed up on (same as the server)
@@ -67,6 +68,10 @@ export class LocalMatch implements MatchSource {
     this.deploy(this.side, nonce, x, y, description, d, spriteUrl);
   }
   async cancelDeploy(nonce: number) { this.unlock(this.side, nonce); }
+  // Both sides: the bot's anchors get art the same way.
+  async attachSprite(description: string, url: string) {
+    for (const t of this.troopRows.values()) if (t.description === description && !t.spriteUrl) t.spriteUrl = url;
+  }
   async rematch() { if (this.status !== 'playing') this.reset(); }
   async leave() {
     cancelAnimationFrame(this.raf);
@@ -120,7 +125,9 @@ export class LocalMatch implements MatchSource {
       this.botMove = null;
       const a = ANCHORS[move.anchor];
       try {
-        this.deploy(BOT, nonce, move.x, move.y, a.description, a, '');
+        const url = readySprite(a.description);
+        this.deploy(BOT, nonce, move.x, move.y, a.description, a, url);
+        if (!url) spriteFor(a.description).then(u => { if (u) this.attachSprite(a.description, u); });
       } catch {
         this.unlock(BOT, nonce);
       }

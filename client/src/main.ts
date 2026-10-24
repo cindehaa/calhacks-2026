@@ -11,6 +11,7 @@ import { PovBoard, type Eye } from './pov';
 import { Board, type DrawUnit, type View } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
+import { readySprite, spriteFor } from './sprites';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -153,9 +154,16 @@ function status(msg: string, bad = false) {
   $('status').classList.toggle('bad', bad);
 }
 
+// The sprite rides along if it's already here, else it's attached once both have landed.
 function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign) {
+  const m = match();
+  if (!m) return;
+  const art = spriteFor(description);
+  const ready = readySprite(description);
+  const deployed = m.deployTroop(nonce, x, y, description, d, ready);
+  if (!ready) Promise.all([art, deployed]).then(([url]) => (url ? m.attachSprite(description, url) : undefined)).catch(() => {});
   call(
-    match()?.deployTroop(nonce, x, y, description, d),
+    deployed,
     msg => {
       call(match()?.cancelDeploy(nonce), () => {});
       sfx.play('buzz');
@@ -191,6 +199,7 @@ function cancelAt(nonce: number, msg: string) {
 
 async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
+  spriteFor(description); // in parallel with the design
   try {
     const { design, cost, ms, source, early } = await designTroop(description);
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
