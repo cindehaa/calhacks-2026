@@ -55,7 +55,7 @@ function netMsg(s: string) {
   $('hubNet').title = s;
 }
 hubFx(document.querySelector('#title .hubSky')!);
-hubFx(document.querySelector('#lobby .hubSky')!, { embers: { x: 0.5, y: 0.5, w: 0.3 } });
+hubFx(document.querySelector('#lobby .hubSky')!, { embers: document.querySelector<HTMLElement>('#lobby .islandWrap')! });
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
 // The first designer call is 2–3 s cold. Warm it now, not at match start, so the lobby absorbs it.
@@ -79,11 +79,19 @@ function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
 // ---------- title and hub ----------
 
 // The title screen's press also unlocks audio, so the menu music can start.
-let entered = false;
+let entered = false, entering = false;
 function enter() {
-  if (entered) return;
-  entered = true;
-  $('title').hidden = true;
+  if (entering) return;
+  entering = true;
+  // The title's wordmark glides up into the home screen's (view-transition-name: wordmark). The
+  // home screen stays hidden until the transition has its snapshot of the title.
+  const show = () => {
+    entered = true;
+    $('title').hidden = true;
+    renderLobby();
+  };
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(show);
+  else show();
   sfx.unlock();
   if (setupDone()) showTutorialOnce();
   else setup.open();
@@ -151,6 +159,21 @@ function renderEmbers() {
   $('emberNext').textContent = rank.nextAt === null ? 'The highest rank' : `${rank.nextAt - embers} more to ${rank.next}`;
 }
 renderEmbers();
+
+// The last match, shown on the red banner between matches.
+const LAST_KEY = 'arena.lastMatch';
+interface LastMatch { foe: string; outcome: Outcome; score: string }
+function renderLast() {
+  let last: LastMatch | null = null;
+  try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? 'null') } catch { /* private mode or junk */ }
+  $('lastMatch').hidden = !last;
+  (document.querySelector('#lobby .bWait') as HTMLElement).hidden = !!last;
+  if (!last) return;
+  $('lastFoe').textContent = last.foe;
+  $('lastScore').textContent = `${{ win: 'Won', lose: 'Lost', draw: 'Drew' }[last.outcome]} ${last.score}`;
+  $('lastScore').className = `bLastScore ${last.outcome}`;
+}
+renderLast();
 
 $('botBtn').onclick = () => startBot(botLevel);
 // No matchmaking yet: Play online and Join a room open the same room pop-up; Join starts at the code boxes.
@@ -364,6 +387,8 @@ function renderResult() {
     theirKingFellAt: round.theirKingFellAt, myKingFellAt: round.myKingFellAt, cappedSecs: round.cappedSecs, myBest, theirBest,
   };
 
+  remember(LAST_KEY, JSON.stringify({ foe: foeName(m), outcome, score: `${summary.towersTaken}–${summary.towersLost}` } satisfies LastMatch));
+  renderLast();
   const res = $('result');
   res.className = `screen gScreen result ${outcome}`;
   $<HTMLImageElement>('resultBg').src = `/ui/${outcome === 'win' ? 'gold' : outcome === 'lose' ? 'ice' : 'home'}.svg`;

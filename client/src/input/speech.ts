@@ -125,7 +125,7 @@ export class WebSpeechSource implements SpeechSource {
   }
 }
 
-// Words heard since the current lock began: finished segments plus the one in progress.
+// Words heard since the last fire: finished segments plus the one in progress.
 export class Transcript {
   private segments: string[] = [];
   private partial = '';
@@ -139,6 +139,9 @@ export class Transcript {
   }
   interim(text: string): void {
     this.partial = text;
+  }
+  get pending(): boolean {
+    return !!this.partial;
   }
   get text(): string {
     return [...this.segments, this.partial].filter(Boolean).join(' ').trim();
@@ -159,8 +162,8 @@ export function isMismatch(text: string): boolean {
 
 export type Description = { ok: true; text: string; from: 'typed' | 'voice' } | { ok: false; reason: 'cancel' | 'empty' };
 
-// What a pinch or voice deploy uses: a spoken cancel wins, then typed text (so typing keeps
-// working with pinch), then the transcript.
+// What a fire sends: a spoken cancel wins, then typed text (so typing keeps working with the
+// hand), then the transcript.
 export function chooseDescription(typed: string, transcript: string): Description {
   if (isCancel(transcript)) return { ok: false, reason: 'cancel' };
   if (typed.trim()) return { ok: true, text: typed.trim(), from: 'typed' };

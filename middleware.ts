@@ -48,16 +48,17 @@ function page(error: string, status: number): Response {
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex"><title>Arena</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Cinzel:wght@800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@500;700&family=Cinzel+Decorative:wght@700&display=swap">
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 30%, #171b2e, #05060c 70%); color: #e8ebf5; font-family: 'Chakra Petch', system-ui, sans-serif; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 30%, #141a36, #05060c 70%); color: #e8ebf5; font-family: 'Alegreya Sans', system-ui, sans-serif; }
   form { display: grid; gap: 14px; width: min(320px, calc(100vw - 32px)); text-align: center; }
-  h1 { margin: 0 0 8px; font: 800 56px 'Cinzel', Georgia, serif; letter-spacing: .08em; background: linear-gradient(#f3d58a, #ff8a2e); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  input, button { font: inherit; font-size: 16px; font-weight: 600; padding: 12px 14px; border-radius: 10px; }
-  input { background: #171b2e; border: 1px solid #2a3050; color: inherit; outline: none; }
-  input:focus { border-color: #f3d58a; }
-  button { border: 0; background: linear-gradient(#ffb02e, #f39200); color: #2a1600; cursor: pointer; }
-  p { margin: 0; min-height: 1.2em; color: #ff5d6c; font-size: 14px; }
+  h1 { margin: 0 0 14px; font: 700 64px/1.05 'Cinzel Decorative', Georgia, serif; letter-spacing: .08em; background: linear-gradient(180deg, #ffd27a 0 50%, #ffb02e 50% 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 0 #8a4a00) drop-shadow(0 3px 0 #000) drop-shadow(0 0 24px #ff8a2e55); }
+  input, button { font: inherit; font-size: 17px; font-weight: 700; padding: 13px 14px; border: 0; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+  input { background: #10152c; border-bottom: 4px solid #2a3266; color: inherit; outline: none; }
+  input:focus { border-bottom-color: #ffb02e; }
+  button { background: linear-gradient(160deg, #ffb02e 0 56%, #f39200 56% 100%); border-bottom: 5px solid #8a4a00; color: #1a0e00; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  p { margin: 0; min-height: 1.2em; color: #ff7a86; font-size: 15px; }
 </style></head>
 <body><form method="post" action="${LOGIN}">
   <h1>ARENA</h1>

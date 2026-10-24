@@ -1,40 +1,25 @@
-// Hand cursor, locked spot, drag-off ring and live transcript, drawn over the board in screen px.
-import type { LockBy } from './lock';
+// Hand cursor, the words waiting to be sent, and fire / cancel flashes, drawn over the board in
+// screen px.
+
+export type CursorState = 'open' | 'fire' | 'fist';
 
 export interface InputView {
-  cursor: { x: number; y: number; pinched: boolean } | null; // hand cursor only; the mouse has its own ring
-  lock: {
-    x: number;
-    y: number;
-    by: LockBy;
-    out: boolean; // outside the drag-off ring: letting go now cancels
-    radius: number;
-    transcript: string;
-    speaking: boolean;
-  } | null;
+  cursor: { x: number; y: number; state: CursorState } | null; // hand cursor only; the mouse has its own ring
+  prompt: { x: number; y: number; text: string; speaking: boolean } | null; // at the cursor, hand or mouse
   flashes: { x: number; y: number; kind: 'deploy' | 'cancel'; label: string; t: number }[];
   hint: string;
 }
 
-const C = { mine: '#4aa3ff', voice: '#c56cf0', bad: '#ff5d6c', good: '#4ade80', text: '#e8ebf5', muted: '#8e96b3' };
+const C = { mine: '#4aa3ff', voice: '#c56cf0', bad: '#ff5d6c', good: '#4ade80', warn: '#fbbf24', text: '#e8ebf5', muted: '#8e96b3' };
 export const FLASH_MS = 700;
 
 export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = performance.now()): void {
   g.save();
-  const l = v.lock;
-  if (l) {
-    const col = l.out ? C.bad : l.by === 'voice' ? C.voice : C.mine;
-    if (l.radius) {
-      g.setLineDash([8, 8]);
-      circle(g, l.x, l.y, l.radius, l.out ? C.bad : 'rgba(142,150,179,0.45)', 2);
-      g.setLineDash([]);
-    }
-    const pulse = l.speaking ? 3 * Math.sin(now / 90) : 0;
-    circle(g, l.x, l.y, 16 + pulse, col, 3, l.out ? 'rgba(255,93,108,0.15)' : 'rgba(74,163,255,0.15)');
-    const words = l.transcript ? `“${clip(l.transcript, 40)}”` : l.by === 'voice' ? 'listening…' : 'say the troop…';
-    pill(g, words, l.x, l.y - 30, l.transcript ? C.text : C.muted);
-    if (l.out) text(g, l.by === 'voice' ? 'stop talking to cancel' : l.by === 'key' ? 'let go of Space to cancel' : 'let go to cancel', l.x, l.y + 36, 13, C.bad);
-    else text(g, l.by === 'voice' ? 'go quiet to deploy' : l.by === 'key' ? 'let go of Space to deploy' : 'let go to deploy', l.x, l.y + 36, 12, C.muted);
+  const p = v.prompt;
+  if (p) {
+    const dot = p.speaking ? 1 + 0.3 * Math.sin(now / 90) : 1;
+    pill(g, p.text ? `“${clip(p.text, 40)}”` : 'listening…', p.x, p.y - 34, p.text ? C.text : C.muted);
+    if (p.speaking) circle(g, p.x + 26, p.y - 46, 3.5 * dot, null, 0, C.voice);
   }
   for (const f of v.flashes) {
     const a = (now - f.t) / FLASH_MS;
@@ -45,18 +30,18 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
     if (f.label) text(g, f.label, f.x, f.y - 30 - a * 10, 13, f.kind === 'deploy' ? C.good : C.bad);
     g.globalAlpha = 1;
   }
-  if (v.cursor) drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.pinched);
-  if (v.hint) text(g, v.hint, innerWidth / 2, 70, 13, '#fbbf24');
+  if (v.cursor) drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.state);
+  if (v.hint) text(g, v.hint, innerWidth / 2, 70, 13, C.warn);
   g.restore();
 }
 
-// The hand cursor: a soft glow, a ring, and a filled centre while pinched.
-export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, pinched: boolean): void {
+// The hand cursor: a soft glow, a ring, a filled centre just after a flick, amber while a fist.
+export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, state: CursorState): void {
   const glow = g.createRadialGradient(x, y, 0, x, y, 42);
-  glow.addColorStop(0, 'rgba(74,163,255,0.5)');
+  glow.addColorStop(0, state === 'fist' ? 'rgba(251,191,36,0.5)' : 'rgba(74,163,255,0.5)');
   glow.addColorStop(1, 'rgba(74,163,255,0)');
   circle(g, x, y, 42, null, 0, glow);
-  circle(g, x, y, 14, '#bfe0ff', 2.5, pinched ? C.mine : 'rgba(13,16,32,0.35)');
+  circle(g, x, y, 14, state === 'fist' ? C.warn : '#bfe0ff', 2.5, state === 'fire' ? C.mine : 'rgba(13,16,32,0.35)');
   circle(g, x, y, 3, null, 0, '#fff');
 }
 

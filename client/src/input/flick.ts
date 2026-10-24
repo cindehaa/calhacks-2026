@@ -1,7 +1,7 @@
 // Flick = the fingertips snap down while the wrist stays put: a flick of the wrist, not a swing of
 // the arm, so the aim (taken from before the flick) isn't thrown off. Speeds are in hand sizes per
 // second, so distance from the camera doesn't matter.
-import { handSize, type Landmark } from './pinch';
+import { handSize, type Landmark } from './pose';
 
 export interface FlickOptions {
   speed: number; // fingertips moving down relative to the wrist, hand sizes / s

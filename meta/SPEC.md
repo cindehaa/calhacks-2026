@@ -63,15 +63,14 @@ Two players on different browsers join a room and fight a 90-second match; destr
 
 ## Controls
 
-Aim with the index knuckle, click with a thumb and middle-finger pinch or by starting to speak, and drag off the locked spot to cancel. Placement is free, with no tile snapping. Prototyped in the finger lab on Oct 22–23; Isaac says it "works pretty well".
+Two actions, aim and fire, with the mic always listening. Whatever you said since the last fire is the troop. Placement is free, with no tile snapping. (Changed on Oct 24 from knuckle aim + pinch to lock + drag-off cancel, which playtesters found unintuitive.)
 
-1. **Aim:** a cursor follows the index knuckle, which is steadier than the fingertip and doesn't move when you click. Place anywhere on your half, or in a pocket you've opened.
-2. **Lock:** pinch thumb and middle finger, or just start speaking (mic loudness locks the spot at once). Say what the troop is.
-3. **Deploy:** release the pinch, or go quiet for about 500 ms. Deploy fires on release with no wait.
-4. **Cancel:** while still pinched, pull your hand outside a ring around the locked spot (about 150 px) and let go, like dragging a card back. Or say "cancel". Losing the hand for over 250 ms also cancels.
-5. **Fallbacks:** typed description and mouse click.
+1. **Say:** the mic listens the whole time it's on; the words so far show above the cursor.
+2. **Aim:** a cursor follows the index fingertip, whatever the rest of the hand is doing. Place anywhere on your half, or in a pocket you've opened.
+3. **Fire:** flick the wrist down (fingertips snap down while the wrist stays put). The troop goes where the finger pointed just before the flick, so the flick itself doesn't skew the aim. Fallbacks: Space, or a click with words waiting.
+4. **Clear:** close the hand into a fist (held about 120 ms), press Esc or say "cancel" to throw the words away.
 
-The fist cancel is dropped because a cancel must be possible while the pinch is still held. Any gesture made after letting go makes every deploy wait about 150 ms to see whether a cancel is coming, and a fist passes through a pinch on the way.
+A flick only counts with the fingers straight and not within 400 ms of a fist, because curling into a fist snaps the fingertips down just like a flick.
 
 **Known issues:**
 - Voice "cancel" can lose the race with the quiet timer (raise it to about 700 ms).

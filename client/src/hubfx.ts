@@ -5,7 +5,7 @@ interface Flake { x: number; y: number; r: number; v: number; a: number; ph: num
 interface Ember { x: number; y: number; vx: number; vy: number; life: number; age: number; r: number; ph: number }
 
 export interface HubFxOpts {
-  embers?: { x: number; y: number; w: number } // where embers rise from, as fractions of the screen
+  embers?: HTMLElement // embers rise from the middle of this element
 }
 
 export function hubFx(canvas: HTMLCanvasElement, opts: HubFxOpts = {}): void {
@@ -20,9 +20,9 @@ export function hubFx(canvas: HTMLCanvasElement, opts: HubFxOpts = {}): void {
     return { x: Math.random() * w, y: y ?? -4, r: 0.5 + depth * 1.9, v: 14 + depth * 46, a: 0.18 + depth * 0.55, ph: Math.random() * 6.28 };
   };
   const ember = (): Ember => {
-    const s = opts.embers!;
+    const r = opts.embers!.getBoundingClientRect(), c = canvas.getBoundingClientRect();
     return {
-      x: (s.x + (Math.random() - 0.5) * s.w) * w, y: s.y * h,
+      x: r.left - c.left + r.width * (0.5 + (Math.random() - 0.5) * 0.55), y: r.top - c.top + r.height * (0.25 + Math.random() * 0.35),
       vx: (Math.random() - 0.5) * 10, vy: -(18 + Math.random() * 30),
       life: 2.5 + Math.random() * 3.5, age: 0, r: 0.8 + Math.random() * 1.4, ph: Math.random() * 6.28,
     };
