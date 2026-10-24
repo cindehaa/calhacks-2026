@@ -288,6 +288,8 @@ function renderLobby() {
 
 let ravenOpen = false;
 let hadGuest = false;
+let hadAway = false; // the other player in the room had dropped their connection
+let wasGuest = false; // in someone else's room, still in its lobby
 const ravenErr = (msg: string) => ($('ravenError').textContent = msg);
 const codeIns = [...document.querySelectorAll<HTMLInputElement>('.codeIn')];
 
@@ -335,6 +337,15 @@ $('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}), ravenErr);
 
 function renderRaven() {
   const r = myRoom();
+  // The host closing the room clears the guest's room too; say so instead of showing blank code slabs.
+  // Skipped until my player row is in, so a redial's empty tables don't read as the room closing.
+  if (me()) {
+    if (!r && wasGuest && ravenOpen) {
+      ravenOpen = false;
+      notice('The other player left the room', { tone: 'warn', key: 'foeLeft' });
+    }
+    wasGuest = r?.status === 'lobby' && !!net && !r.host.isEqual(net.identity);
+  }
   const show = entered && !local && (ravenOpen || r?.status === 'lobby');
   $('raven').hidden = !show;
   if (!!r?.guest !== hadGuest) {
@@ -352,11 +363,16 @@ function renderRaven() {
   setHtml('slotMe', `${shieldSvg('raven', initial(meName), 50)}<div><span class="hName">${escapeHtml(meName)}</span><span class="hHouse">Blue side</span></div>`);
   const foeId = r ? (hosting ? r.guest : r.host) : undefined;
   const foe = foeId && net ? net.conn.db.player.identity.find(foeId) : undefined;
+  const foeAway = !!foe && !foe.online;
+  if (foe && foeAway !== hadAway) notice(foeAway ? `${foe.name} disconnected` : `${foe.name} is back`, { tone: foeAway ? 'warn' : 'good', key: 'foeAway' });
+  hadAway = foeAway;
+  $('slotFoe').classList.toggle('away', foeAway);
   setHtml('slotFoe', foe
-    ? `<div><span class="hName">${escapeHtml(foe.name)}</span><span class="hHouse">Red side${foe.online ? '' : ' · away'}</span></div>${shieldSvg('sun', initial(foe.name), 50)}`
+    ? `<div><span class="hName">${escapeHtml(foe.name)}</span><span class="hHouse">${foeAway ? 'Disconnected' : 'Red side'}</span></div>${shieldSvg('sun', initial(foe.name), 50)}`
     : `<div><span class="hName waiting">Waiting for a friend…</span><span class="hHouse">Red side</span></div>${shieldSvg('sun', '', 50, true)}`);
-  $<HTMLButtonElement>('startBtn').disabled = !r?.guest;
-  $('startSub').textContent = r?.guest ? 'Both players are here' : 'Waiting for your friend to join';
+  $<HTMLButtonElement>('startBtn').disabled = !r?.guest || foeAway;
+  $('startSub').textContent = foeAway ? 'Your friend disconnected. Waiting for them to come back'
+    : r?.guest ? 'Both players are here' : 'Waiting for your friend to join';
   $<HTMLButtonElement>('copyBtn').disabled = !r;
   $<HTMLButtonElement>('answerBtn').disabled = !net;
 }
