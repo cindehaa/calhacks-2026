@@ -1,7 +1,7 @@
 // System prompt for the troop designer. Built from ANCHORS and CLAMPS so the numbers in the
 // prompt can't drift from the ones the game enforces. Keep it stable: any change is a new prompt.
-import { ANCHORS } from './anchors';
-import { CLAMPS, VOICE_STYLES } from './troop';
+import { ANCHORS } from './anchors.js';
+import { CLAMPS, VOICE_STYLES } from './troop.js';
 
 const r = (k: keyof typeof CLAMPS) => `${CLAMPS[k][0]} to ${CLAMPS[k][1]}`;
 

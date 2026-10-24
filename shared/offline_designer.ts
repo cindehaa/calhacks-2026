@@ -2,8 +2,8 @@
 // and is the fallback when Claude or the venue wifi fails. Pure and deterministic: the same
 // text always gives the same troop. It follows the rules of the Claude prompt (shared/prompt.ts):
 // scale from an anchor, ignore numbers and stat words, weak harmless troop for junk.
-import { ANCHORS, type Anchor } from './anchors';
-import { CLAMPS, power, sanitizeDesign, type TroopDesign, type TroopStats, type VoiceStyle } from './troop';
+import { ANCHORS, type Anchor } from './anchors.js';
+import { CLAMPS, power, sanitizeDesign, type TroopDesign, type TroopStats, type VoiceStyle } from './troop.js';
 
 type Arch = 'goblin' | 'swarm' | 'knight' | 'archers' | 'wizard' | 'ninja' | 'bomber' | 'charger' | 'sniper' | 'golem';
 

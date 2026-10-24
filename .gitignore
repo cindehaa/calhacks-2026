@@ -13,3 +13,4 @@ dist/
 # balance sim output
 sim/out/
 bench/out/
+.vercel

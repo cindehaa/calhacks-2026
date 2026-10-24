@@ -15,17 +15,20 @@ const prompt = (description: string) =>
 export const hasFalKey = () => !!process.env.FAL_KEY?.trim();
 
 // Same description, same sprite, across matches and api restarts (fal's URLs are long-lived).
-const cacheFile = new URL('../.cache/sprites.json', import.meta.url);
+const cacheFile = new URL('../../.cache/sprites.json', import.meta.url);
 const cache = new Map<string, Promise<string>>();
 const saved: Record<string, string> = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, 'utf8')) : {};
 for (const [k, url] of Object.entries(saved)) cache.set(k, Promise.resolve(url));
 
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ').trim();
 
+// Vercel's filesystem is read-only, so there the cache only lasts as long as the function instance.
 function save(key: string, url: string) {
   saved[key] = url;
-  mkdirSync(new URL('.', cacheFile), { recursive: true });
-  writeFileSync(cacheFile, JSON.stringify(saved, null, 1));
+  try {
+    mkdirSync(new URL('.', cacheFile), { recursive: true });
+    writeFileSync(cacheFile, JSON.stringify(saved, null, 1));
+  } catch {}
 }
 
 export interface Sprite {

@@ -2,8 +2,8 @@
 // them by name. Every provider gets the same system prompt and JSON schema, and every answer goes
 // through sanitizeDesign, so they only differ in speed and judgement.
 import Anthropic from '@anthropic-ai/sdk';
-import { SYSTEM_PROMPT } from '../shared/prompt';
-import { TROOP_SCHEMA, sanitizeDesign, type TroopDesign } from '../shared/troop';
+import { SYSTEM_PROMPT } from '../../shared/prompt.js';
+import { TROOP_SCHEMA, sanitizeDesign, type TroopDesign } from '../../shared/troop.js';
 
 export type ProviderName = 'claude' | 'gemini' | 'cerebras' | 'groq';
 export const PROVIDERS: ProviderName[] = ['claude', 'gemini', 'cerebras', 'groq'];

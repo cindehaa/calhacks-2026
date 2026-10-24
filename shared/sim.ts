@@ -22,7 +22,7 @@ import {
   towerRadius,
   towerY,
   type Side,
-} from './arena';
+} from './arena.js';
 
 export interface SimUnit {
   id: number;

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANCHORS } from './anchors';
-import { BRIDGE_X, MID_Y, onOwnHalf, type Side } from './arena';
-import { BOT_LEVELS, botDecide, newBotMemory, weakestBridge, type BotMemory } from './bot';
-import { newMatch, type SimState } from './sim';
+import { ANCHORS } from './anchors.js';
+import { BRIDGE_X, MID_Y, onOwnHalf, type Side } from './arena.js';
+import { BOT_LEVELS, botDecide, newBotMemory, weakestBridge, type BotMemory } from './bot.js';
+import { newMatch, type SimState } from './sim.js';
 
 const normal = BOT_LEVELS.normal;
 const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;

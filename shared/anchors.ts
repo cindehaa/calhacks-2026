@@ -1,4 +1,4 @@
-import type { TroopDesign } from './troop';
+import type { TroopDesign } from './troop.js';
 
 // Reference troops. Claude sees them as few-shot points to scale from, players get them as
 // starter suggestions (keys 1–0), and the balance sim pits generated troops against them.
