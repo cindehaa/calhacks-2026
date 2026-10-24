@@ -57,6 +57,14 @@ const CHECKS: Check[] = [
   { name: 'no trademark echo', inputs: ['Pikachu'], pass: ([d]) => !/pika/i.test(`${d.name} ${d.flavor}`) },
   { name: 'nothing over 10 elixir', inputs: ['the strongest dragon king ever', 'an army of 50 giants'], pass: ds => ds.every(d => cost(d) <= 10) },
 ];
+// Element as a soft default for on_hit: a named element picks the effect, a stated effect wins,
+// and the element never touches stats.
+const ELEMENT_CHECKS: Check[] = [
+  { name: 'fire knight burns', inputs: ['a fire knight'], pass: ([d]) => d.on_hit === 'burn' },
+  { name: 'speedy ice wizard is fast and slows', inputs: ['a speedy ice wizard'], pass: ([d]) => d.on_hit === 'slow' && d.move_speed > 1.2 },
+  { name: 'ice wizard that stuns stuns', inputs: ['an ice wizard that stuns'], pass: ([d]) => d.on_hit === 'stun' },
+];
+CHECKS.push(...ELEMENT_CHECKS);
 
 const pct = (xs: number[], p: number) => {
   if (!xs.length) return NaN;
@@ -66,12 +74,12 @@ const pct = (xs: number[], p: number) => {
 const sec = (ms: number) => (Number.isFinite(ms) ? (ms / 1000).toFixed(2) : '–');
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-interface Sample { ms: number; ok: boolean; design?: TroopDesign; error?: string }
+interface Sample { ms: number; ok: boolean; design?: TroopDesign; raw?: string; error?: string }
 async function timed(p: Provider, d: string): Promise<Sample> {
   const t0 = performance.now();
   try {
-    const { design } = await p.design(d, TIMEOUT_MS);
-    return { ms: performance.now() - t0, ok: true, design };
+    const { design, raw } = await p.design(d, TIMEOUT_MS);
+    return { ms: performance.now() - t0, ok: true, design, raw };
   } catch (e) {
     return { ms: performance.now() - t0, ok: false, error: e instanceof Error ? e.message.slice(0, 160) : String(e) };
   }
@@ -92,9 +100,13 @@ for (let i = 0; i < N; i++) {
 process.stdout.write('\n');
 // 3. Judgement checks.
 const checkResults: boolean[][] = chosen.map(() => []);
+const checkSamples: { input: string; samples: Sample[] }[] = [];
 for (const c of CHECKS) {
   const per: Sample[][] = [];
-  for (const input of c.inputs) per.push(await all(input));
+  for (const input of c.inputs) {
+    per.push(await all(input));
+    checkSamples.push({ input, samples: per[per.length - 1] });
+  }
   chosen.forEach((_, pi) => {
     const samples = per.map(r => r[pi]);
     checkResults[pi].push(samples.every(s => s.ok) && c.pass(samples.map(s => s.design!)));
@@ -125,6 +137,20 @@ for (const r of rows) {
   if (r.failed.length) console.log(`  ${r.provider} failed: ${r.failed.join('; ')}`);
   if (r.errors.length) console.log(`  ${r.provider} errors: ${r.errors.join(' | ')}`);
 }
+
+// Answer size (a proxy for output tokens, which is most of the latency), the element cases, and
+// every wish: what the designer would have picked if a list had it.
+chosen.forEach((p, pi) => {
+  const raws = rounds.map(r => r[pi].raw ?? '').filter(Boolean);
+  console.log(`\n${p.name}: answer ${Math.round(raws.reduce((a, r) => a + r.length, 0) / (raws.length || 1))} chars on average`);
+  for (const c of ELEMENT_CHECKS) for (const input of c.inputs) {
+    const d = checkSamples.find(x => x.input === input)?.samples[pi].design;
+    if (d) console.log(`  “${input}” → ${d.name}: on_hit ${d.on_hit}, element ${d.element}, move_speed ${d.move_speed}, cost ${cost(d)}`);
+  }
+  const wishes = [...rounds.map((r, i) => ({ input: LATENCY_SET[i % LATENCY_SET.length], s: r[pi] })), ...checkSamples.map(x => ({ input: x.input, s: x.samples[pi] }))]
+    .filter(x => x.s.design?.wish);
+  console.log(`  wishes: ${wishes.length ? wishes.map(x => `“${x.input}” → ${x.s.design!.wish}`).join(' · ') : 'none'}`);
+});
 
 // Agreement with Claude on cost, and what racing Claude against each other provider would give.
 const ci = chosen.findIndex(p => p.name === 'claude');

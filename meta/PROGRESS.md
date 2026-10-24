@@ -2,7 +2,7 @@
 
 Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the top, decisions dated at the bottom. Update it whenever something lands, changes or gets cut.
 
-**Last updated:** 2026-10-24 (about 3 AM) · **Submission:** Devpost, 9:00 AM PT Sun Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Sun Oct 25
+**Last updated:** 2026-10-24 (about 10 AM) · **Submission:** Devpost, 9:00 AM PT Sun Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Sun Oct 25
 
 **Team plan:** soft deadline 12 PM Sat Oct 24 for the build. After that, playtest with people, gather their feedback and iterate on it, and record a montage video of people playing for the submission.
 
@@ -47,6 +47,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Overnight cleanup (2026-10-24, branch `cleanup/overnight`): removed the 2D board's leftover drawing code and other dead code; one shared `normalise()`, sprite keyer and api art cache; the 3D board no longer renders behind the opaque title, home and result screens; `OnlineMatch` stops rescanning the player table (the SpacetimeDB client's `find()` is a full scan) dozens of times a frame; Claude no longer writes battle cries (about 0.1 s off every design); the balance sim rates buildings-only troops by tower runs only. Checked with tests, typecheck, a bot match and a two-tab online room on a local server.
 - [x] Warmth-and-frost sound pass (2026-10-24): menu, battle and overtime music regenerated with a crackling fireplace under wintry instruments, and the 11 match sounds and arena ambience redone with snow, ice, wind, embers and braziers (`tools/audio/prompts.mjs`). Troop sound sets unchanged. The vision lives in [aesthetics.md](aesthetics.md). Not yet listened to in game.
 - [x] Sprite and pose art on Vercel (2026-10-24, branch `isaac/sprites-blob`): art was cached in the function's temp dir, so a GET that reached another instance 404'd. With `BLOB_READ_WRITE_TOKEN` set, PNGs now go to Vercel Blob (public, `sprites/<id>.png` and `poses/<id>.png`, so repeat descriptions still hit the cache) and the api serves them from there at the same `/api/sprite/<id>.png` URL; local dev keeps `.cache/`. Unit tests use a stand-in for `put`/`head`/`get`; the local path was checked with one real sprite. Not yet checked against a real Blob store or on Vercel.
+- [x] Wish log, the data-collection half of learnable attributes (2026-10-24, about 10 AM, branch `isaac/wish-log`): designs carry an optional `wish`, at most 3 words, `""` when the lists fit, naming the mechanic or look Claude would have picked if a list had it ("teleport", "lifesteal", "poison cloud"). The game never reads it and it doesn't change the price. The server takes it from the design JSON into a new `generation.wish` column with a default, so the reducer, the browser and the bindings are unchanged and publishing over Maincloud needs no `--delete-data` (checked locally: main's module, one row, then this one over it, row kept). `npm run logs` shows wishes on the timeline and `npm run logs -- --wishes` counts them by times and distinct players, with mismatch flags per `on_hit`, `trait` and `element`. The prompt now also makes element a soft default for on_hit (fire burn, ice slow, lightning stun, poison burn, holy and shadow none), a stated effect wins and stats don't move; "a fire wizard" now burns, so it costs 7 instead of 6. `npm run bench` (Haiku, 20 rounds): p50 1.41 → 1.45 s, p90 1.77 → 1.80 s, answers about 270 characters; "a fire knight" burns, "a speedy ice wizard" slows at move_speed 1.7, "an ice wizard that stuns" stuns. Wishes were rare on bench text (2 of 35). Checked end to end with a typed deploy in headless Chrome against a local publish: `wish = "teleport"` for "a wizard who teleports behind enemies".
 
 ## Next up
 
@@ -55,6 +56,8 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [ ] Fix the two prompt rules Claude still misses (checked 2026-10-24 night with `npm run bench` and three calls each): "a god that kills everything instantly" comes back golem-strength (cost 8–15, the rule says mini-tank or caster), and "an army of 50 giants" is always three giants at cost 13–15, which the game refuses. "1000 ants" (an 8-ant swarm, cost 3), Pikachu and injection pass.
 
 **Can do now**
+- [ ] Cindy, after merging `isaac/wish-log`: publish the module to Maincloud (`spacetime publish --module-path server --server maincloud calhacks-arena -y`) so playtest rows get the `wish` column. No `--delete-data`.
+- [ ] Learnable attributes, next step: once playtests have produced wishes, an offline, approved `npm run learn` that clusters them (`npm run logs -- --wishes`) and proposes new presets as parent + deltas on `on_hit`, `trait`, `element` and `motion` (burn, poison and bleed as one damage-over-time engine with different numbers). Later it generates pose prompts, colours and sounds for approved ones, and a "New element discovered" banner.
 - [ ] Cindy: create a Blob store in the Vercel project (Storage → Create → Blob, connect it to `calhacks-2026`), which adds `BLOB_READ_WRITE_TOKEN`, then redeploy. Until then deployed sprites and poses 404 whenever the GET reaches a different function instance.
 - [ ] Deploy: publish the module to Maincloud (`spacetime publish --module-path server --server maincloud calhacks-arena -y`; no `--delete-data` needed now), make sure `CARTESIA_API_KEY` and `FAL_KEY` are set in Vercel, and check the production site plays with voice and art from two machines.
 - [ ] Real-webcam and real-mic test on two laptops on one network or Maincloud: hand tracking (no calibration step now), Cartesia STT in hall noise (prep test 6), push to talk.
@@ -213,6 +216,8 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Aesthetic theme is warmth and frost, kept in `meta/aesthetics.md`. Music and match sounds follow it; troop sound sets stay literal to what the player describes. |
 | 2026-10-24 | Claude no longer writes `battle_cry` or `voice_style` (unused since the cries were cut): `sanitizeDesign` fills them in, so tables and reducers are unchanged. Measured with `npm run bench` (Haiku, 40 rounds): p50 1.50 → 1.41 s, p90 2.12 → 1.69 s, judgement checks unchanged. |
 | 2026-10-24 | Deployed art lives in Vercel Blob, read back through `/api/sprite/<id>.png` rather than handing out Blob URLs, so `spriteUrl` stays short and the client's same-origin check and CORS stay as they are. |
+| 2026-10-24 | Element is a soft default for on_hit, in the prompt only: a named element sets the effect unless the description states another, and never changes stats. The engine still treats element as colour. |
+| 2026-10-24 | The designer logs a `wish` (what it would have picked if a list had it) as the input for learnable attributes; it is read from the design JSON on the server, so no reducer or client change. |
 
 ## Open questions
 

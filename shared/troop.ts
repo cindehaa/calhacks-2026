@@ -45,7 +45,7 @@ export interface TroopQuirks {
 
 export interface TroopLook {
   motion: Motion; // attack animation
-  element: Element; // effect colour; cosmetic, a fire troop burns only with on_hit burn
+  element: Element; // effect colour; cosmetic in the engine (a fire troop burns only with on_hit burn), though the prompt uses it to default on_hit
   flavor: string; // what the attack looks like, 10 words or fewer
 }
 
@@ -55,6 +55,9 @@ export type TroopDesign = TroopStats & TroopQuirks & TroopLook & {
   name: string;
   battle_cry: string;
   voice_style: VoiceStyle;
+  // What the designer would have picked if a list had it ("teleport", "poison cloud"); '' when the
+  // lists fit. Logged for `npm run learn` to propose new presets from; the game never reads it.
+  wish?: string;
 };
 
 export const STAT_KEYS = ['health', 'damage', 'attack_speed', 'move_speed', 'range', 'count'] as const;
@@ -155,8 +158,12 @@ export function sanitizeDesign(raw: Partial<TroopDesign>): TroopDesign {
   return {
     ...stats, ...sanitizeQuirks(raw), ...sanitizeLook(raw),
     name, battle_cry: trimWords(String(raw.battle_cry ?? '')).slice(0, 80), voice_style: voice,
+    wish: sanitizeWish(raw.wish),
   };
 }
+
+// At most 3 words, lowercase, so "Poison Cloud!" and "poison cloud" count as one wish in the logs.
+export const sanitizeWish = (v: unknown) => trimWords(normalise(typeof v === 'string' ? v : ''), 3).slice(0, 40);
 
 const oneOf = <T extends string>(list: readonly T[], v: unknown): T => (list.includes(v as T) ? (v as T) : list[0]);
 
@@ -198,10 +205,11 @@ export const TROOP_SCHEMA = {
     motion: { type: 'string', enum: [...MOTIONS] },
     element: { type: 'string', enum: [...ELEMENTS] },
     flavor: { type: 'string' },
+    wish: { type: 'string' }, // last and usually "", so it costs a handful of output tokens
   },
   required: [
     'name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count',
-    'attack', 'targets', 'on_hit', 'windup', 'trait', 'motion', 'element', 'flavor',
+    'attack', 'targets', 'on_hit', 'windup', 'trait', 'motion', 'element', 'flavor', 'wish',
   ],
   additionalProperties: false,
 } as const;

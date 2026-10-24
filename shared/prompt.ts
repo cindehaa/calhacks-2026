@@ -38,7 +38,8 @@ windup: true only for an attack that visibly charges up first (cannons, big spel
 trait, at most one, none unless the description clearly calls for it: flying (wings; melee units can't hit it). shield (carries a shield or barrier that soaks hits). spawner (summons or builds small minions). death_burst (explodes when it dies). heal_aura (heals allies around it). charge (rushes in and hits hard after a run-up).
 These only change the look, cost nothing, and always follow the description:
 motion: slash (swords, claws), smash (hammers, fists, stomps), stab (spears, daggers), shoot (bows, guns), lob (thrown bombs, catapults), cast (spells), breathe (breath attacks), bite (jaws, stings), charge (rams, tackles, mounted lances), other (anything else).
-element: none, fire, ice, lightning, poison, holy or shadow. It is only colour: a fire troop burns only if on_hit is burn.
+element: none, fire, ice, lightning, poison, holy or shadow. It sets colour, and a default on_hit: if the description names an element and no other on-hit effect, use fire burn, ice slow, lightning stun, poison burn, holy and shadow none, even where a reference troop above shows on_hit none. An effect the description states wins ("an ice wizard that stuns" stuns). The element never changes stats or other quirks: "a speedy ice wizard" is still fast.
 flavor: 10 words or fewer describing what the attack looks like, e.g. "swings a flaming sword" or "hurls forked lightning". If the description has an attack no list fits, pick the closest mechanics and put the real look in motion other and flavor.
 
-name: 1 to 3 words, title case.`;
+name: 1 to 3 words, title case.
+wish: "" when the lists fit. Otherwise 1 to 3 words naming the mechanic or look you would have picked if a list had it ("teleport", "lifesteal", "poison cloud", "spin attack"). It changes nothing in game.`;

@@ -6,7 +6,7 @@ import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, canDeploy, clampDeploy,
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, newUnit, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import { newTally, tallyStep, troopsHit, type TroopTally } from '../../shared/tally';
-import type { Attack, Element, Motion, OnHit, Targets, Trait, VoiceStyle } from '../../shared/troop';
+import { sanitizeWish, type Attack, type Element, type Motion, type OnHit, type Targets, type Trait, type VoiceStyle } from '../../shared/troop';
 
 const TICK_MICROS = BigInt(Math.round(1_000_000 / TICK_HZ));
 const PENDING_TTL_MICROS = 15_000_000n; // a lock nobody followed up on
@@ -219,8 +219,23 @@ const generation = table(
     design: t.string(), // JSON, after clamping
     cost: t.u8(),
     spriteUrl: t.string(),
+    // What the designer would have picked if a list had it (shared/troop.ts); '' = the lists fit.
+    // Read from the design JSON, so the reducer and the browser didn't change. The default lets a
+    // database from before it take the column without wiping its rows, like the quirk columns.
+    wish: t.string().default(''),
   }
 );
+
+// The design's wish, or the model's raw answer's for a client that dropped it; '' if neither parses.
+function wishOf(design: string, raw: string): string {
+  for (const s of [design, raw]) {
+    try {
+      const w = sanitizeWish(JSON.parse(s)?.wish);
+      if (w) return w;
+    } catch { /* not JSON: an empty or cut-off field */ }
+  }
+  return '';
+}
 
 // Every finished speech segment, including ones said between deploys: that's where complaints are.
 const utterance = table(
@@ -667,6 +682,7 @@ export const logGeneration = spacetimedb.reducer(
       raw: cut(a.raw, 2000),
       design: cut(a.design, 1000),
       spriteUrl: cut(a.spriteUrl, 2048),
+      wish: wishOf(a.design, a.raw),
     });
   }
 );
