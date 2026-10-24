@@ -1,8 +1,9 @@
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, ELIXIR_MAX, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
+import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, type DeployHow } from './input/controller';
 import { LocalMatch } from './local';
@@ -202,6 +203,7 @@ $('botLevel').onclick = e => {
   openPractice(false);
   startBot(level);
 };
+initDevSettings();
 $('practiceBack').onclick = () => openPractice(false);
 $('practice').onclick = e => { if (e.target === e.currentTarget) openPractice(false) };
 
@@ -261,7 +263,7 @@ $('lobbyBtn').onclick = () => {
 function startBot(level: BotLevel) {
   lock = null;
   ravenOpen = false;
-  local = new LocalMatch(level, () => (local = null));
+  local = new LocalMatch(level, () => (local = null), true, Math.random, elixirRules());
   botStarted(level);
 }
 
@@ -407,7 +409,7 @@ function trackRound(m: MatchSource) {
   const dt = lastTick ? Math.min(0.25, (now - lastTick) / 1000) : 0;
   lastTick = now;
   if (m.status !== 'playing' || m.time < 0) return;
-  if (m.elixir >= ELIXIR_MAX - 1e-6 && !local?.paused) round.cappedSecs += dt;
+  if (m.elixir >= m.rules.max - 1e-6 && !local?.paused) round.cappedSecs += dt;
   for (const t of m.towers()) {
     if (t.lane !== KING_LANE || t.hp > 0) continue;
     if (t.side === m.side) round.myKingFellAt ??= m.time;
@@ -689,15 +691,15 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
 // overtime), rounded up.
 function elixirWait(need: number, have: number): number {
   const m = match();
-  const rate = elixirRate(m?.time ?? 0);
+  const rate = elixirRate(m?.time ?? 0, m?.rules.perSec);
   return Math.max(1, Math.ceil((need - have) / rate));
 }
 
 // The elixir bar flashes and shivers, and a gold marker shows where it has to fill to.
 let starveTimer: ReturnType<typeof setTimeout> | undefined;
 function starve(need: number) {
-  const row = $('elixirRow');
-  $('elixirNeed').style.left = `${(Math.min(ELIXIR_MAX, need) / ELIXIR_MAX) * 100}%`;
+  const row = $('elixirRow'), max = match()?.rules.max ?? ELIXIR.max;
+  $('elixirNeed').style.left = `${(Math.min(max, need) / max) * 100}%`;
   row.classList.remove('starved');
   void row.offsetWidth;
   row.classList.add('starved');
@@ -895,9 +897,9 @@ function frame() {
   // The raw connection state only matters online, and only when something is wrong.
   $('netStatus').hidden = !!local || !$('netStatus').textContent || droppedAt > 0; // the reconnect banner says it plainly
   const elixir = m.elixir;
-  $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
+  $('elixirFill').style.width = `${(elixir / m.rules.max) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
-  updateKindling($('elixirRow'), elixir, ELIXIR_MAX);
+  updateKindling($('elixirRow'), elixir, m.rules.max);
 
   showTimings();
   const units = m.units();

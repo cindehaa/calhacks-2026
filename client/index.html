@@ -142,6 +142,15 @@
         <button data-level="normal" class="slab stone"><span class="face"><b>Normal</b></span></button>
         <button data-level="hard" class="slab stone"><span class="face"><b>Hard</b></span></button>
       </div>
+      <details class="devSettings">
+        <summary>Dev settings</summary>
+        <p class="devNote">Elixir rules for Practice only. Online matches use the defaults.</p>
+        <label>Max elixir <input id="devMax" type="number" min="1" max="30" step="1"></label>
+        <label>Starting elixir <input id="devStart" type="number" min="0" max="30" step="0.5"></label>
+        <label>Elixir per second <input id="devRate" type="number" min="0.05" max="5" step="0.05"></label>
+        <p class="devNote">Doubles in the last 30 s, triples in overtime. Troops still cost at most 10. <span id="devDefaults"></span></p>
+        <div class="devFoot"><span id="devStatus" class="devNote"></span><button id="devReset" type="button" class="textBtn">Reset</button></div>
+      </details>
       <button id="practiceBack" class="textBtn">Back</button>
     </div></div>
   </div>

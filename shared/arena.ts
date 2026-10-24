@@ -23,10 +23,14 @@ export const DOUBLE_ELIXIR_AT = 60; // last 30 s
 export const OVERTIME_SECONDS = 30;
 export const TIEBREAK_AT = MATCH_SECONDS + OVERTIME_SECONDS;
 export const DRAIN_PER_SEC = 1200; // a full king tower drains in 3 s
-export const ELIXIR_MAX = 10;
-export const ELIXIR_START = 5;
-export const ELIXIR_PER_SEC = 0.5;
-export const elixirRate = (time: number) => ELIXIR_PER_SEC * (time >= MATCH_SECONDS ? 3 : time >= DOUBLE_ELIXIR_AT ? 2 : 1);
+// Elixir: where each side starts, the cap, and the base refill per second (doubled from
+// DOUBLE_ELIXIR_AT, tripled in overtime). Troop costs don't scale with the cap: MAX_COST stays 10.
+// A parameter of the match, so Practice can try other numbers (the dev settings in client/src/dev.ts).
+export interface ElixirRules { max: number; start: number; perSec: number }
+export const ELIXIR: ElixirRules = { max: 15, start: 5, perSec: 0.75 };
+export const ELIXIR_MAX = ELIXIR.max;
+export const ELIXIR_START = ELIXIR.start;
+export const elixirRate = (time: number, perSec = ELIXIR.perSec) => perSec * (time >= MATCH_SECONDS ? 3 : time >= DOUBLE_ELIXIR_AT ? 2 : 1);
 
 export const DEPLOY_DELAY = 2.5; // release → arrival; hides troop generation
 export const MIN_DEPLOY_DELAY = 0.3; // if generation ran long, still telegraph the drop

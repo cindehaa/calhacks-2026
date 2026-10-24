@@ -1,21 +1,14 @@
-// The embers bar drawn as a kindling pile: ten sticks over a bed of coals, glowing brighter as it
-// refills. Firing burns the spent sticks: they catch light and fly as embers to the summoning
+// The embers bar drawn as a kindling pile: one stick per elixir over a bed of coals, glowing
+// brighter as it refills. Firing burns the spent sticks: they catch light and fly as embers to the summoning
 // circle. Display only; the resource is still `elixir` in code.
-const STICKS = 10;
 let sticks: HTMLElement[] = [];
+let pile: HTMLElement | null = null;
 let layer: HTMLElement | null = null;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function initKindling(bar: HTMLElement): void {
   bar.classList.add('kindling');
-  sticks = Array.from({ length: STICKS }, (_, i) => {
-    const s = document.createElement('i');
-    s.className = 'stick';
-    s.style.left = `${(i / STICKS) * 100}%`;
-    s.style.setProperty('--tilt', `${((i * 37) % 11) - 5}deg`); // a little untidy, like a real pile
-    bar.appendChild(s);
-    return s;
-  });
+  pile = bar;
   layer = document.createElement('div');
   layer.id = 'emberFlight';
   document.body.appendChild(layer);
@@ -23,15 +16,30 @@ export function initKindling(bar: HTMLElement): void {
 
 // Lit sticks at full heat, the one catching at its fraction, the rest cold; the row glows with the total.
 export function updateKindling(row: HTMLElement, elixir: number, max: number): void {
+  if (sticks.length !== Math.ceil(max)) lay(Math.ceil(max));
   row.style.setProperty('--heat', (Math.max(0, Math.min(max, elixir)) / max).toFixed(3));
   for (let i = 0; i < sticks.length; i++) sticks[i].style.setProperty('--lit', Math.max(0, Math.min(1, elixir - i)).toFixed(2));
+}
+
+// Rebuilt when the cap changes (Practice can run on other elixir rules).
+function lay(n: number) {
+  for (const s of sticks) s.remove();
+  sticks = Array.from({ length: n }, (_, i) => {
+    const s = document.createElement('i');
+    s.className = 'stick';
+    s.style.left = `${(i / n) * 100}%`;
+    s.style.width = `${100 / n}%`;
+    s.style.setProperty('--tilt', `${((i * 37) % 11) - 5}deg`); // a little untidy, like a real pile
+    pile?.appendChild(s);
+    return s;
+  });
 }
 
 // Burn `cost` sticks starting at `from` (the whole embers left after paying) and send their embers
 // to the screen point (tx, ty).
 export function burnSticks(from: number, cost: number, tx: number, ty: number): void {
   if (!layer) return;
-  const lo = Math.max(0, Math.floor(from)), hi = Math.min(STICKS, lo + Math.max(1, Math.round(cost)));
+  const lo = Math.max(0, Math.floor(from)), hi = Math.min(sticks.length, lo + Math.max(1, Math.round(cost)));
   const calm = reduced();
   for (let i = lo; i < hi; i++) {
     const r = sticks[i].getBoundingClientRect();

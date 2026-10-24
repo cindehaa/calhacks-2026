@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors.js';
-import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, TIEBREAK_AT, formation, type Side } from './arena.js';
+import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, TIEBREAK_AT, formation, type Side } from './arena.js';
 import { newMatch, newUnit, step, type SimState } from './sim.js';
 import { MAX_COST, TROOP_SCHEMA, clampStats, price, sanitizeDesign, sanitizeWish, type TroopStats } from './troop.js';
 import { SYSTEM_PROMPT } from './prompt.js';
@@ -81,7 +81,7 @@ test('an empty match goes to overtime, then the tiebreaker, and draws', () => {
   const s = newMatch();
   let r = run(s, MATCH_SECONDS + 1);
   assert.ok(!r.over);
-  assert.equal(s.elixir[0], 10);
+  assert.equal(s.elixir[0], ELIXIR.max);
   r = run(s, TIEBREAK_AT - s.time + 10);
   assert.ok(r.over);
   assert.equal(r.winner, -1);
@@ -113,7 +113,17 @@ test('overtime elixir runs at triple rate', () => {
   run(s, MATCH_SECONDS + 1);
   s.elixir = [0, 0];
   run(s, 2);
-  assert.ok(Math.abs(s.elixir[0] - 3) < 0.01);
+  assert.ok(Math.abs(s.elixir[0] - ELIXIR.perSec * 3 * 2) < 0.01);
+});
+
+test('a match can run on other elixir rules', () => {
+  const rules = { max: 8, start: 2, perSec: 1 };
+  const s = newMatch(undefined, rules);
+  assert.equal(s.elixir[0], 2);
+  for (let i = 0; i < 2 * TICK_HZ; i++) step(s, 1 / TICK_HZ, undefined, rules);
+  assert.ok(Math.abs(s.elixir[0] - 4) < 0.01);
+  for (let i = 0; i < 20 * TICK_HZ; i++) step(s, 1 / TICK_HZ, undefined, rules);
+  assert.equal(s.elixir[0], 8);
 });
 
 test('in the tiebreaker the weakest tower falls first and loses', () => {
