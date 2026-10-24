@@ -35,12 +35,12 @@ export function reasons(s: RoundSummary): string[] {
     if (s.myKingDown) out.push(`Your king tower fell${s.myKingFellAt !== null ? ` at ${clock(s.myKingFellAt)}` : ''}`);
     else if (s.towersLost > 0) out.push(`They took ${s.towersLost === 1 ? 'one' : s.towersLost} of your towers`);
     if (s.theirBest && s.theirBest.towerDamage > 0) out.push(`Their ${s.theirBest.name} did ${num(s.theirBest.towerDamage)} to your towers`);
-    if (s.cappedSecs >= 5) out.push(`You sat on full elixir for ${Math.round(s.cappedSecs)} s`);
+    if (s.cappedSecs >= 5) out.push(`You sat on full embers for ${Math.round(s.cappedSecs)} s`);
     if (!s.forfeit && !s.myKingDown) out.push('They held more towers when time ran out');
   } else {
     out.push('Neither king fell');
     out.push(`Towers even at ${s.towersTaken}–${s.towersLost}`);
-    if (s.cappedSecs >= 5) out.push(`You sat on full elixir for ${Math.round(s.cappedSecs)} s`);
+    if (s.cappedSecs >= 5) out.push(`You sat on full embers for ${Math.round(s.cappedSecs)} s`);
   }
   return out.slice(0, 3);
 }

@@ -415,7 +415,7 @@ function renderResult() {
   $('whyList').innerHTML = reasons(summary).map(r => `<li>${escapeHtml(r)}</li>`).join('');
   const damage = theirs.reduce((n, t) => n + Math.max(0, t.maxHp - Math.max(0, t.hp)), 0);
   $('stats').innerHTML = [[`${summary.towersTaken}–${summary.towersLost}`, 'Towers'], [Math.round(damage).toLocaleString('en-US'), 'Tower damage'],
-    [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Elixir']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
+    [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Embers']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
   const banner = (id: string, house: 'raven' | 'sun', frosted: boolean) => {
     $(id).classList.toggle('frosted', frosted);
     $(id).querySelector('img')!.src = `/ui/banner-${house}${frosted ? '-frosted' : ''}.svg`;
@@ -582,7 +582,7 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     sfx.play('buzz');
     const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
     if (m?.[1] === 'not enough elixir') sfx.play('tooExpensive');
-    status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
+    status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : `need ${m[2]} embers, have ${Math.floor(match()?.elixir ?? 0)}`}` : msg, true);
     drops.refused(nonce, m ? `would cost ${m[2]}${m[1] === 'too expensive' ? ', over 10' : ''}` : 'refused', performance.now());
     return false;
   }
@@ -786,7 +786,7 @@ function frame() {
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = clockText(m);
   const double = left <= 30 && m.status === 'playing';
-  $('roomInfo').textContent = double ? 'Double elixir' : m.label;
+  $('roomInfo').textContent = double ? 'Double embers' : m.label;
   $('roomInfo').classList.toggle('double', double);
   $('dock').classList.toggle('double', double);
   // The raw connection state only matters online, and only when something is wrong.

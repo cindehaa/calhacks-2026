@@ -36,7 +36,7 @@ const C = {
   mineLight: '#cfe6ff',
   theirsLight: '#ffd0d5',
   text: '#e8ebf5',
-  elixir: '#c56cf0',
+  elixir: '#ff8a3d', // embers: warm amber, a proposal for Cindy (meta/aesthetics.md)
 };
 const FONT = "'Cinzel', Georgia, serif"; // the menus' title face; its figures are lining, unlike Alegreya Sans's
 const DROP_HEIGHT = 3; // tiles; troops hang here until the last 0.3 s of the deploy delay
@@ -1116,9 +1116,9 @@ export class PovBoard {
       if (u.delay > 0) this.pill(u.delay.toFixed(1), x, py, 11 * s, 'rgba(13,16,32,0.9)', mine ? C.mine : C.theirs, C.text);
       else if (cost) {
         if (cost.glow) { g.shadowColor = cost.glow; g.shadowBlur = 14 }
-        this.pill(cost.text, x, py, 11 * s * cost.scale, cost.fill, cost.stroke, cost.ink);
+        this.pill(cost.text, x, py, 11 * s * cost.scale, cost.fill, cost.stroke, cost.ink, EMBER);
         g.shadowColor = 'transparent'; g.shadowBlur = 0;
-      } else this.pill(String(troop.cost), x, py, 11 * s, 'rgba(48,16,76,0.94)', C.elixir, '#f3dcff');
+      } else this.pill(String(troop.cost), x, py, 11 * s, 'rgba(58,24,8,0.94)', C.elixir, '#ffe2c4', EMBER);
       if (!placed) boxes.push(x - 10, py - ph / 2, x + 10, py + ph / 2);
     }
   }
@@ -1185,22 +1185,45 @@ export class PovBoard {
     g.fillText(s, x, y);
   }
 
-  private pill(text: string, x: number, y: number, size: number, fill: string, stroke: string, ink: string): void {
+  // A rounded label. With `flame`, a small flame sits before the number: costs are paid in embers.
+  private pill(text: string, x: number, y: number, size: number, fill: string, stroke: string, ink: string, flame?: string): void {
     const g = this.g;
     g.font = `800 ${size.toFixed(1)}px ${FONT}`;
-    const w = g.measureText(text).width + size * 0.9, h = size * 1.35;
+    const tw = g.measureText(text).width, fw = flame ? size * 0.75 : 0;
+    const w = tw + fw + size * 0.9, h = size * 1.35;
     roundRect(g, x - w / 2, y - h / 2, w, h, h / 2);
     g.fillStyle = fill;
     g.fill();
     g.strokeStyle = stroke;
     g.lineWidth = 1.5;
     g.stroke();
+    if (flame) flameGlyph(g, x - (tw + fw) / 2 + fw * 0.4, y, size * 0.95, flame);
     g.fillStyle = ink;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(text, x, y + size * 0.05);
+    g.fillText(text, x + fw / 2, y + size * 0.05);
     g.textBaseline = 'alphabetic';
   }
+}
+
+const EMBER = '#ff8a3d'; // the embers amber; proposal, see meta/aesthetics.md
+
+// A small two-tone flame, h tall, centred on (x, y): the embers icon beside costs.
+export function flameGlyph(g: CanvasRenderingContext2D, x: number, y: number, h: number, color: string): void {
+  const r = h / 2;
+  const tongue = (k: number) => {
+    g.beginPath();
+    g.moveTo(x, y - r * k);
+    g.bezierCurveTo(x + r * 0.15 * k, y - r * 0.35 * k, x + r * 0.62 * k, y - r * 0.1 * k, x + r * 0.5 * k, y + r * 0.45 * k);
+    g.bezierCurveTo(x + r * 0.42 * k, y + r * 0.85 * k, x - r * 0.42 * k, y + r * 0.85 * k, x - r * 0.5 * k, y + r * 0.45 * k);
+    g.bezierCurveTo(x - r * 0.6 * k, y + r * 0.05 * k, x - r * 0.2 * k, y - r * 0.3 * k, x, y - r * k);
+    g.closePath();
+    g.fill();
+  };
+  g.fillStyle = color;
+  tongue(1);
+  g.fillStyle = '#ffe9a8';
+  const yy = y; y = yy + r * 0.28; tongue(0.5); y = yy;
 }
 
 // Same rule as the sim: the king sleeps until it is hit or loses a princess tower.

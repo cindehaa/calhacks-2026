@@ -28,7 +28,7 @@ test('a win on towers explains itself', () => {
 
 test('a loss names the king tower and the troop that did it', () => {
   const r = reasons({ ...base, outcome: 'lose', towersTaken: 1, towersLost: 3, myKingDown: true, myKingFellAt: 38, cappedSecs: 14, theirBest: { name: 'Stone Golem', towerDamage: 3100 } });
-  assert.deepEqual(r, ['Your king tower fell at 0:38', 'Their Stone Golem did 3,100 to your towers', 'You sat on full elixir for 14 s']);
+  assert.deepEqual(r, ['Your king tower fell at 0:38', 'Their Stone Golem did 3,100 to your towers', 'You sat on full embers for 14 s']);
 });
 
 test('a forfeit says so first', () => {

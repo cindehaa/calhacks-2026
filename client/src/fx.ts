@@ -18,7 +18,7 @@ const COLORS = {
   mineLight: '#a8d4ff',
   theirsLight: '#ffb0b8',
   tower: '#ffd27a',
-  elixir: '#c56cf0',
+  elixir: '#ff8a3d', // embers amber (proposal)
   dust: '#9aa3c2',
 };
 
@@ -805,7 +805,7 @@ export class Fx {
 
   // ---------- drawing ----------
 
-  // Centre-screen announcements: 3-2-1-FIGHT and DOUBLE ELIXIR.
+  // Centre-screen announcements: 3-2-1-FIGHT and DOUBLE EMBERS.
   drawBanners(g: CanvasRenderingContext2D, cx: number, cy: number, width: number): void {
     const now = this.now;
     const ct = now - this.countdownAt;
@@ -824,18 +824,18 @@ export class Fx {
       const size = Math.min(width * 0.1, 40) * (0.8 + 0.2 * inn);
       g.globalAlpha = Math.min(inn, out);
       const w = Math.min(width * 0.9, size * 9), h = size * 2.2;
-      g.fillStyle = 'rgba(20,10,34,0.82)';
+      g.fillStyle = 'rgba(34,14,6,0.84)';
       roundRect(g, cx - w / 2, cy - h / 2, w, h, h / 2);
       g.fill();
       g.strokeStyle = COLORS.elixir;
       g.lineWidth = 2;
       g.stroke();
       g.globalAlpha = 1;
-      this.bigText(g, 'DOUBLE ELIXIR', cx, cy - size * 0.12, size, '#e7b6ff', Math.min(inn, out));
+      this.bigText(g, 'DOUBLE EMBERS', cx, cy - size * 0.12, size, '#ffc58a', Math.min(inn, out));
       g.font = `700 ${Math.round(size * 0.36)}px 'Alegreya Sans', system-ui, sans-serif`;
-      g.fillStyle = '#c9b3d9';
+      g.fillStyle = '#e8b892';
       g.globalAlpha = Math.min(inn, out);
-      g.fillText('last 30 seconds', cx, cy + size * 0.62);
+      g.fillText('the fire roars', cx, cy + size * 0.62);
       g.globalAlpha = 1;
     }
   }
