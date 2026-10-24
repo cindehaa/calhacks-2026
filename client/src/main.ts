@@ -2,7 +2,7 @@ import { ANCHORS } from '../../shared/anchors';
 import { ARENA_W, ELIXIR_MAX, MATCH_SECONDS, MID_Y, onOwnHalf, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import type { TroopDesign } from '../../shared/troop';
-import { designTroop, warmDesigner } from './designer';
+import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { InputController } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
@@ -154,8 +154,9 @@ function cancelAt(nonce: number, msg: string) {
 async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
   try {
-    const { design, cost, ms } = await designTroop(description);
-    status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms`);
+    const { design, cost, ms, source, early } = await designTroop(description);
+    const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
+    status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms${tags ? ` (${tags})` : ''}`);
     sendDeploy(nonce, spot, description, design);
   } catch (e) {
     cancelAt(nonce, `designer failed: ${(e as Error).message}`);
@@ -179,6 +180,7 @@ const input = new InputController(board.canvas, {
   status,
   typedText: () => $<HTMLInputElement>('descInput').value,
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
+  prefetch: prefetchDesign,
 });
 
 $<HTMLFormElement>('describe').onsubmit = e => {

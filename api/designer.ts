@@ -25,7 +25,8 @@ async function designWithClaude(description: string): Promise<TroopDesign> {
   const msg = await anthropic().messages.create({
     model: MODEL,
     max_tokens: 400,
-    system: SYSTEM_PROMPT,
+    // Cached: the prompt is ~1.6k tokens, over Haiku's 512-token minimum, and identical every call.
+    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     thinking: { type: 'disabled' },
     output_config: { effort: 'low', format: { type: 'json_schema', schema: TROOP_SCHEMA } },
     messages: [{ role: 'user', content: `<description>${description}</description>` }],

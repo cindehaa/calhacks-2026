@@ -27,6 +27,7 @@ export interface InputHost {
   status(msg: string, bad?: boolean): void;
   typedText(): string;
   clearTyped(): void;
+  prefetch?(words: string): void; // start designing from words heard so far
 }
 
 interface Prefs { preview: boolean; vadDb: number; vadEndMs: number }
@@ -226,7 +227,10 @@ export class InputController {
     if (!a) return;
     // Act on interim words too: waiting for the final result adds most of a second.
     if (isCancel(a.words.text)) return this.machine.cancel('cancelled');
-    if (a.words.text) this.host.status(`“${a.words.text}”`);
+    if (a.words.text) {
+      this.host.status(`“${a.words.text}”`);
+      this.host.prefetch?.(a.words.text);
+    }
   }
 
   private flash(p: Pt, kind: 'deploy' | 'cancel', label: string): void {
