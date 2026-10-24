@@ -20,7 +20,8 @@ export type MusicTrack = 'menu' | 'battle' | 'overtime';
 
 const AUDIO = '/audio/';
 const GAME = ['deploy_land', 'deploy_pending', 'double_elixir', 'match_end', 'match_start', 'tower_destroyed', 'tower_hit_1', 'tower_hit_2', 'victory', 'defeat'];
-const VOICE = ['double_elixir', 'draw', 'last_ten', 'match_start', 'too_expensive', 'tower_down'];
+// The announcer's "Double elixir!" and "Not enough elixir!" lines are left out: players hear embers now.
+const VOICE = ['draw', 'last_ten', 'match_start', 'tower_down'];
 const UNIT = ['spawn', 'attack_1', 'attack_2', 'hit_1', 'hit_2', 'death'];
 const SAMPLES = [
   ...GAME.map(n => `sfx/game/${n}`),
@@ -41,9 +42,9 @@ function samplesFor(name: SfxName, kind?: SoundKind): { pick: string[]; voice?: 
     case 'towerHit': return { pick: ['sfx/game/tower_hit_1', 'sfx/game/tower_hit_2'], gain: 0.6 };
     case 'towerDown': return { pick: ['sfx/game/tower_destroyed'], voice: 'tower_down', gain: 1 };
     case 'fight': return { pick: ['sfx/game/match_start'], voice: 'match_start', gain: 0.9 };
-    case 'double': return { pick: ['sfx/game/double_elixir'], voice: 'double_elixir', gain: 0.9 };
+    case 'double': return { pick: ['sfx/game/double_elixir'], gain: 0.9 };
     case 'lastTen': return { pick: [], voice: 'last_ten', gain: 1 };
-    case 'tooExpensive': return { pick: [], voice: 'too_expensive', gain: 1 };
+    case 'tooExpensive': return { pick: [], gain: 1 }; // the buzz already plays; no spoken line
     case 'win': return { pick: ['sfx/game/victory'], gain: 1 };
     case 'lose': return { pick: ['sfx/game/defeat'], gain: 1 };
     case 'draw': return { pick: ['sfx/game/defeat'], voice: 'draw', gain: 0.8 };

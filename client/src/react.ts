@@ -7,6 +7,7 @@
 // tiny synth sound that goes through sfx's output, so M mutes it, and every motion is dropped
 // under prefers-reduced-motion (the sound and a plain highlight stay).
 import { sfx } from './sfx';
+import { flameGlyph } from './pov';
 import type { Fx } from './fx';
 import type { DrawTower, DrawTroop, DrawUnit } from './render';
 import { pokeReaction, type PokeHit, type Reaction } from './pokes';
@@ -289,7 +290,9 @@ export class BoardReactions {
   }
 
   // Name pops and the hover label. `head` gives the screen point just above a unit, by id.
-  drawOverlay(g: CanvasRenderingContext2D, head: (id: bigint) => [number, number] | null, ground: (x: number, y: number, h: number) => [number, number] | null, font: string): void {
+  drawOverlay(g: CanvasRenderingContext2D, head: (id: bigint) => [number, number] | null, ground: (x: number, y: number, h: number) => [number, number] | null, font: string, quiet = false): void {
+    // quiet: a failure message is up (notice slab or "didn't catch that"), so labels wait: one message at a time.
+    if (quiet) return;
     const now = this.now, still = reduced();
     g.save();
     g.textAlign = 'center';
@@ -339,16 +342,9 @@ export class BoardReactions {
       g.fillStyle = '#e8ebf5';
       g.textAlign = 'left';
       g.fillText(name, x + 9, y + ht / 2 + 1);
-      // The cost in a violet gem, like the elixir count.
+      // The cost on a small flame, like the embers count.
       const gx = x + w - cw / 2 - 5, gy = y + ht / 2;
-      g.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = Math.PI / 6 + (i * Math.PI) / 3;
-        g.lineTo(gx + Math.cos(a) * 8, gy + Math.sin(a) * 8);
-      }
-      g.closePath();
-      g.fillStyle = '#c56cf0';
-      g.fill();
+      flameGlyph(g, gx, gy, 19, '#ff8a3d');
       g.fillStyle = '#ffffff';
       g.textAlign = 'center';
       g.font = `800 10px ${font}`;
