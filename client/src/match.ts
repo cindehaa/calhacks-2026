@@ -11,6 +11,7 @@ export interface MatchUnit extends DrawUnit {
   attackSeq: number; // bumps on every hit
 }
 export interface MatchTower extends DrawTower {
+  lane: number;
   attackSeq: number;
 }
 

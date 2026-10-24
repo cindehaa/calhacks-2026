@@ -1,5 +1,5 @@
 import { ANCHORS } from '../../shared/anchors';
-import { ARENA_W, ELIXIR_MAX, MATCH_SECONDS, MID_Y, onOwnHalf, type Side } from '../../shared/arena';
+import { ELIXIR_MAX, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import type { TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
@@ -75,6 +75,7 @@ const myRoom = () => online?.room();
 // What the HUD and deploys talk to: the bot match if one is open, else the online room.
 const match = (): MatchSource | null => local ?? (myRoom() ? online : null);
 const mySide = (): Side => match()?.side ?? 0;
+const canDeployAt = (x: number, y: number) => canDeploy(mySide(), x, y, match()?.towers() ?? []);
 
 function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
   p?.catch((e: Error) => {
@@ -208,7 +209,7 @@ async function deployDescription(description: string) {
 // Camera and mic: pinch or start talking to lock (beginDeploy), let go or go quiet to deploy.
 const input = new InputController(board.canvas, {
   playing: () => match()?.status === 'playing',
-  side: mySide,
+  canDeploy: ([x, y]) => canDeployAt(x, y),
   toWorld: (px, py) => board.toWorld(px, py),
   begin: beginAt,
   deploy: designAt,
@@ -260,7 +261,7 @@ addEventListener('keydown', e => {
 board.canvas.addEventListener('mousemove', e => {
   if (!input.mouseKeys) return void (aim = lock = null);
   const [x, y] = board.toWorld(e.clientX, e.clientY);
-  aim = onOwnHalf(mySide(), y) && x > 0 && x < ARENA_W ? [x, y] : null;
+  aim = canDeployAt(x, y) ? [x, y] : null;
 });
 board.canvas.addEventListener('mouseleave', () => (aim = null));
 board.canvas.addEventListener('click', () => {

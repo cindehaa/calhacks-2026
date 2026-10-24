@@ -1,5 +1,7 @@
 // Canvas drawing. World units are tiles; the board is rotated so your side is at the bottom.
-import { ARENA_H, ARENA_W, DEPLOY_DELAY, LANE_X, MID_Y, TOWER_RADIUS, UNIT_RADIUS, type Side } from '../../shared/arena';
+import {
+  ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, deployZones, towerRadius, type Side,
+} from '../../shared/arena';
 import { drawInput, type InputView } from './input/draw';
 import { Fx, roundRect, towerKey } from './fx';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
@@ -16,7 +18,7 @@ export interface DrawUnit {
   attackSeq?: number; // bumps on every hit; drives lunges and shots
   range?: number; // > 1 shoots projectiles
 }
-export interface DrawTower { side: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
+export interface DrawTower { side: number; lane?: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
 export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string }
 export interface DrawPending { side: number; x: number; y: number; age: number }
 
@@ -55,8 +57,11 @@ const C = {
   bg: '#0d1020',
   myHalf: '#121834',
   theirHalf: '#1a1426',
-  lane: 'rgba(255,255,255,0.035)',
-  mid: '#2a3050',
+  pocket: 'rgba(74,163,255,0.10)',
+  river: '#14304a',
+  riverEdge: '#2a5a82',
+  bridge: '#3a3550',
+  bridgeEdge: '#5a5478',
   mine: '#4aa3ff',
   theirs: '#ff5d6c',
   text: '#e8ebf5',
@@ -131,21 +136,16 @@ export class Board {
     g.save();
     g.translate(shx, shy);
 
-    // Halves, lanes, midline.
+    // Halves, the pockets you've opened, the river and its two bridges.
     const [, myTop] = this.toScreen(0, MID_Y);
     g.fillStyle = C.theirHalf;
     g.fillRect(this.ox, this.oy, ARENA_W * T, myTop - this.oy);
     g.fillStyle = C.myHalf;
     g.fillRect(this.ox, myTop, ARENA_W * T, ARENA_H * T - (myTop - this.oy));
-    g.fillStyle = C.lane;
-    for (const lx of LANE_X) {
-      const [sx] = this.toScreen(lx, 0);
-      g.fillRect(sx - T, this.oy, 2 * T, ARENA_H * T);
-    }
-    g.fillStyle = C.mid;
-    g.fillRect(this.ox, myTop - 1, ARENA_W * T, 2);
+    if (v.status === 'playing') this.drawPockets(v);
+    this.drawRiver();
 
-    v.towers.forEach((tw, i) => this.drawTower(tw, tw.side === v.mySide, this.fx.towerFlash(towerKey(tw, i))));
+    v.towers.forEach((tw, i) => this.drawTower(tw, tw.side === v.mySide, this.fx.towerFlash(towerKey(tw, i)), sleeping(tw, v.towers)));
     this.fx.drawGround(g, this.toScreenFn, T);
 
     // Pending locks: where a troop is about to land.
@@ -166,10 +166,76 @@ export class Board {
     if (v.input) drawInput(g, v.input);
   }
 
-  private drawTower(tw: DrawTower, mine: boolean, flash: number): void {
+  // Water across the middle; the bridges are the only way over.
+  private drawRiver(): void {
+    const g = this.ctx, T = this.tile;
+    const [, y0] = this.toScreen(0, MID_Y + RIVER_HALF);
+    const [, y1] = this.toScreen(0, MID_Y - RIVER_HALF);
+    const top = Math.min(y0, y1), h = Math.abs(y1 - y0);
+    g.fillStyle = C.river;
+    g.fillRect(this.ox, top, ARENA_W * T, h);
+    g.fillStyle = C.riverEdge;
+    g.fillRect(this.ox, top, ARENA_W * T, 1.5);
+    g.fillRect(this.ox, top + h - 1.5, ARENA_W * T, 1.5);
+    // A few slow ripples so it reads as water.
+    const t = performance.now() / 1000;
+    g.save();
+    g.beginPath();
+    g.rect(this.ox, top, ARENA_W * T, h);
+    g.clip();
+    g.strokeStyle = 'rgba(120,180,230,0.18)';
+    g.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const x = this.ox + ((i * 3.1 + t * 0.6) % ARENA_W) * T;
+      const y = top + h * (0.3 + 0.4 * ((i * 0.37) % 1));
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + T * 0.9, y);
+      g.stroke();
+    }
+    g.restore();
+    for (const bx of BRIDGE_X) {
+      const [sx] = this.toScreen(bx, 0);
+      const w = BRIDGE_HALF * T;
+      g.fillStyle = C.bridge;
+      g.fillRect(sx - w, top - T * 0.25, 2 * w, h + T * 0.5);
+      g.strokeStyle = 'rgba(0,0,0,0.25)'; // planks
+      for (let k = 1; k < 5; k++) {
+        const py = top - T * 0.25 + ((h + T * 0.5) * k) / 5;
+        g.beginPath();
+        g.moveTo(sx - w, py);
+        g.lineTo(sx + w, py);
+        g.stroke();
+      }
+      g.fillStyle = C.bridgeEdge; // rails
+      g.fillRect(sx - w, top - T * 0.25, 2, h + T * 0.5);
+      g.fillRect(sx + w - 2, top - T * 0.25, 2, h + T * 0.5);
+    }
+  }
+
+  // Taking a princess tower opens that side of their half for your drops.
+  private drawPockets(v: View): void {
+    const g = this.ctx;
+    for (const z of deployZones(v.mySide, v.towers.map(t => ({ side: t.side, lane: t.lane ?? -1, hp: t.hp }))).slice(1)) {
+      const [ax, ay] = this.toScreen(z.x0, z.y0);
+      const [bx, by] = this.toScreen(z.x1, z.y1);
+      const x = Math.min(ax, bx), y = Math.min(ay, by), w = Math.abs(bx - ax), h = Math.abs(by - ay);
+      g.fillStyle = C.pocket;
+      g.fillRect(x, y, w, h);
+      g.save();
+      g.setLineDash([6, 5]);
+      g.strokeStyle = 'rgba(74,163,255,0.45)';
+      g.lineWidth = 1.5;
+      g.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      g.restore();
+    }
+  }
+
+  private drawTower(tw: DrawTower, mine: boolean, flash: number, asleep: boolean): void {
     const g = this.ctx, T = this.tile;
     const [sx, sy] = this.toScreen(tw.x, tw.y);
-    const s = TOWER_RADIUS * T;
+    const king = tw.lane === KING_LANE;
+    const s = towerRadius(tw.lane ?? 0) * T;
     const col = mine ? C.mine : C.theirs;
     if (tw.hp > 0) {
       g.fillStyle = mine ? '#24508a' : '#8a2a36';
@@ -179,12 +245,18 @@ export class Board {
         g.fillRect(sx - s, sy - s, 2 * s, 2 * s);
       }
       g.strokeStyle = col;
-      g.lineWidth = 2;
+      g.lineWidth = king ? 3 : 2;
       g.strokeRect(sx - s, sy - s, 2 * s, 2 * s);
       g.fillStyle = 'rgba(255,255,255,0.12)'; // a lighter top edge reads as a roof
       g.fillRect(sx - s + 2, sy - s + 2, 2 * s - 4, s * 0.35);
+      if (king) this.crown(sx, sy - s * 0.35, s * 0.55, asleep ? 'rgba(232,235,245,0.35)' : '#ffd166');
+      if (asleep) {
+        g.fillStyle = 'rgba(13,16,32,0.35)';
+        g.fillRect(sx - s, sy - s, 2 * s, 2 * s);
+        this.label('z z', sx + s * 0.7, sy - s * 0.6, 10, C.muted);
+      }
       this.bar(sx - s, sy - s - 7, 2 * s, 4, tw.hp / tw.maxHp, col);
-      this.label(String(Math.ceil(tw.hp)), sx, sy + 4, 11, C.text);
+      this.label(String(Math.ceil(tw.hp)), sx, sy + (king ? s * 0.45 : 4), 11, C.text);
     } else {
       // Rubble: a squat dark slab with a dashed outline.
       g.fillStyle = '#23263a';
@@ -490,6 +562,21 @@ export class Board {
     g.fillText(s, x, y);
   }
 
+  private crown(cx: number, cy: number, w: number, color: string): void {
+    const g = this.ctx, h = w * 0.6;
+    g.fillStyle = color;
+    g.beginPath();
+    g.moveTo(cx - w / 2, cy + h / 2);
+    g.lineTo(cx - w / 2, cy - h / 2);
+    g.lineTo(cx - w / 4, cy);
+    g.lineTo(cx, cy - h / 2);
+    g.lineTo(cx + w / 4, cy);
+    g.lineTo(cx + w / 2, cy - h / 2);
+    g.lineTo(cx + w / 2, cy + h / 2);
+    g.closePath();
+    g.fill();
+  }
+
   private sprite(url: string): HTMLImageElement | null {
     let img = this.sprites.get(url);
     if (!img) {
@@ -499,4 +586,10 @@ export class Board {
     }
     return img.complete && img.naturalWidth ? img : null;
   }
+}
+
+// Same rule as the sim: the king sleeps until it is hit or loses a princess tower.
+function sleeping(tw: DrawTower, all: DrawTower[]): boolean {
+  if (tw.lane !== KING_LANE || tw.hp <= 0 || tw.hp < tw.maxHp) return false;
+  return !all.some(o => o.side === tw.side && o.lane !== undefined && o.lane !== KING_LANE && o.hp <= 0);
 }

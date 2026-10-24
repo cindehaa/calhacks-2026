@@ -4,9 +4,9 @@ Spec as of 22 Oct 2026. This file is the repo copy of the spec; progress against
 
 ## Overview
 
-A real-time, two-player lane battler where you never touch a card. You point at a spot with your hand and say what the troop is. AI turns your words into a fighting unit with stats, a price, artwork and its own voice.
+A real-time, two-player arena battler where you never touch a card. You point at a spot with your hand and say what the troop is. AI turns your words into a fighting unit with stats, a price, artwork and its own voice.
 
-- **One-line pitch:** a lane battler where your deck is whatever you can describe.
+- **One-line pitch:** an arena battler where your deck is whatever you can describe.
 - **The hook:** every match is a battle of how quickly and vividly you can describe things. "Wizard with fire", "swarm of angry bees" and "a slow iron golem" all become real units.
 - **The gamble:** you don't see the elixir cost before deploying, so every description is a bet.
 
@@ -52,17 +52,20 @@ Sources: Devpost prize list, "Spacetime is Sponsoring Cal Hacks 13.0".
 
 Two players on different browsers join a room and fight a 90-second match; destroy the other side's towers to win.
 
-- **Arena:** vertical, dark-themed board with three lanes and towers on each side. Visuals are our own, not copied from Clash Royale.
+- **Arena:** vertical, dark-themed 18 × 30 board laid out like Clash Royale: a river across the middle with two bridges, one in front of each princess tower. Visuals are our own, not copied from Clash Royale.
+- **Towers:** each side has a king tower at the back centre and two princess towers in front of it, one per bridge. The king is bigger and tougher and sleeps until it takes damage or one of its princess towers falls.
+- **Placement:** anywhere on your own half, up to the river bank, with no lanes or tile snapping. Taking a princess tower opens that side of the enemy half, from the river to the princess tower's row (the pocket), for your drops too.
+- **Movement:** troops are ground units and can't cross the river except on a bridge. A troop headed across walks to whichever bridge makes the shorter trip, then straight at its target. Ranged troops still shoot across the water.
 - **Elixir:** refills steadily to a max of 10. Starting point: 1 per 2 s, doubled in the last 30 s (tune in playtests).
 - **Deploy delay:** about 2.5 s from release to arrival. This window hides troop generation.
-- **Win condition:** most towers destroyed at 90 s; tie-break on tower health.
+- **Win condition:** destroying the king tower wins at once and counts as all three towers. Otherwise most towers destroyed at 90 s; tie-break on tower health.
 - **Cost reveal:** cost is hidden before deploying, then shown as a small badge on the troop so players learn the economy.
 
 ## Controls
 
 Aim with the index knuckle, click with a thumb and middle-finger pinch or by starting to speak, and drag off the locked spot to cancel. Placement is free, with no tile snapping. Prototyped in the finger lab on Oct 22–23; Isaac says it "works pretty well".
 
-1. **Aim:** a cursor follows the index knuckle, which is steadier than the fingertip and doesn't move when you click. Place anywhere on your half.
+1. **Aim:** a cursor follows the index knuckle, which is steadier than the fingertip and doesn't move when you click. Place anywhere on your half, or in a pocket you've opened.
 2. **Lock:** pinch thumb and middle finger, or just start speaking (mic loudness locks the spot at once). Say what the troop is.
 3. **Deploy:** release the pinch, or go quiet for about 500 ms. Deploy fires on release with no wait.
 4. **Cancel:** while still pinched, pull your hand outside a ring around the locked spot (about 150 px) and let go, like dragging a card back. Or say "cancel". Losing the hand for over 250 ms also cancels.
@@ -208,7 +211,7 @@ Prepare ambitiously, build lean. **The cut line is phase 2:** two players in a r
 
 | Phase | Person A: game + multiplayer | Person B: AI + input | Demoable result |
 |---|---|---|---|
-| 1 | SpacetimeDB rooms; arena, lanes, towers, elixir, hardcoded troops fighting in a shared `step()` | Troop designer: text in, JSON stats out; cost formula; anchors | Two browsers in one room, fixed troops |
+| 1 | SpacetimeDB rooms; arena, river and bridges, towers, elixir, hardcoded troops fighting in a shared `step()` | Troop designer: text in, JSON stats out; cost formula; anchors | Two browsers in one room, fixed troops |
 | 2 | Hook designer up via a text box | Cartesia STT with push-to-talk | Playable with typed or spoken troops |
 | 3 | Code animations, silhouette placeholder, headless sim | Hand tracking, lock, drag-off cancel, voice click | Full input loop |
 | 4 | Move `step()` into the 20 Hz server tick; interpolation, rematch, demo room | Sprite gen, chroma-key, cache, anchor art, Cartesia TTS cries | Two-browser match with art and voices |
@@ -222,7 +225,7 @@ Prepare ambitiously, build lean. **The cut line is phase 2:** two players in a r
 
 The judge plays against us; that beats any slide.
 
-1. **Hook (10 s):** "A lane battler with no deck. You point and say what you want."
+1. **Hook (10 s):** "An arena battler with no deck. You point and say what you want."
 2. **Hand over the controls:** the judge points, pinches and says anything. The troop arrives and shouts its battle cry.
 3. **Architecture in one line while it generates:** "Claude designs the stats, a formula prices it, Cartesia gives it a voice, and SpacetimeDB runs the match, so combat never waits on AI."
 4. Let the 90-second match finish.

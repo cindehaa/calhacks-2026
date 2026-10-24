@@ -1,7 +1,6 @@
 // Camera + mic input: wires the hand tracker, the mic level and the transcript into the lock
 // machine, and reports locks, deploys and cancels to the game. Mouse and keyboard keep working
 // untouched; this only adds a second way in.
-import { ARENA_W, onOwnHalf, type Side } from '../../../shared/arena';
 import { drawCursor, FLASH_MS, type InputView } from './draw';
 import { OneEuro } from './filter';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
@@ -19,7 +18,7 @@ type Spot = [number, number]; // world coords
 // its handle (null refuses the lock); deploy() and cancel() finish it.
 export interface InputHost {
   playing(): boolean;
-  side(): Side;
+  canDeploy(spot: Spot): boolean; // your half, or a pocket you've opened
   toWorld(px: number, py: number): Spot;
   begin(spot: Spot): number | null;
   deploy(nonce: number, spot: Spot, description: string): void;
@@ -206,7 +205,7 @@ export class InputController {
   private onLock(l: Lock): boolean {
     if (!this.host.playing()) return false;
     const [x, y] = this.host.toWorld(l.x, l.y);
-    if (!onOwnHalf(this.host.side(), y) || x <= 0 || x >= ARENA_W) {
+    if (!this.host.canDeploy([x, y])) {
       if (l.by !== 'voice') this.flash(l, 'cancel', 'your half only');
       return false;
     }

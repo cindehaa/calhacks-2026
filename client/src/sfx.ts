@@ -2,7 +2,7 @@
 // gesture, as browsers require. M or the speaker button mutes; the choice is remembered.
 
 export type SfxName =
-  | 'deploy' | 'incoming' | 'land' | 'hit' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
+  | 'deploy' | 'incoming' | 'land' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
   | 'count' | 'fight' | 'double' | 'win' | 'lose';
 
 const MUTE_KEY = 'arena.muted';
@@ -10,7 +10,7 @@ const VOLUME = 0.35;
 
 // Minimum gap between two plays of the same sound, in seconds. Keeps swarms from roaring.
 const GAP: Partial<Record<SfxName, number>> = {
-  hit: 0.06, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3,
+  death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3,
 };
 
 function readMuted(): boolean {
@@ -97,9 +97,6 @@ class Sfx {
       case 'land': // thump
         this.tone(ac, out, t, 'sine', 150, 42, 0.22, 0.9);
         this.noiseHit(ac, out, t, 0.08, 0.35, 'lowpass', 900, 200, 0.7);
-        break;
-      case 'hit': // tiny tick, random pitch so repeats don't drone
-        this.tone(ac, out, t, 'triangle', 900 + Math.random() * 600, 500, 0.04, 0.12);
         break;
       case 'death': // little pop
         this.tone(ac, out, t, 'sine', 520, 140, 0.1, 0.22);
