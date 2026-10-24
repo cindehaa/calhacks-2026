@@ -44,8 +44,8 @@ To use Maincloud instead of a local server: `spacetime login`, `spacetime publis
 ## Controls
 
 - **Mouse and keys:** aim over your half, click to lock a spot. `1`–`0` (or the buttons) drop the 10 starter troops. Type a description and press Enter to drop it at the locked spot.
-- **First visit** opens a setup screen: turn on camera and mic, calibrate, say hello. After that the camera and mic come back on by themselves each visit (the ⋯ menu has **Run setup again**).
-- **Camera** (top-left panel, opt-in): aim with your index knuckle, pinch thumb + middle finger to lock, say or type the troop, release to deploy, drag outside the ring before releasing to cancel. **Calibrate** maps the camera to the screen.
+- **First visit** opens a setup screen: turn on camera and mic, say hello. After that the camera and mic come back on by themselves each visit (the ⋯ menu has **Run setup again**).
+- **Camera** (top-left panel, opt-in): aim with your index knuckle, pinch thumb + middle finger to lock, say or type the troop, release to deploy, drag outside the ring before releasing to cancel. The middle of the camera frame maps to the whole screen, like a touchpad; there's no calibration step.
 - **Mic** (opt-in): start talking to lock at the cursor, describe the troop, go quiet to deploy, say "cancel" to cancel. The browser's speech recognition stands in for Cartesia for now.
 - The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your elixir, is refused with what it would have cost.
 - **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes.

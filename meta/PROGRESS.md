@@ -30,7 +30,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
 - [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
 - [x] Offline designer (`shared/offline_designer.ts`, `designOffline(description)`): keyword archetype to anchor stats, deterministic; hash varies only the name epithet and cry. Group size comes from the creature (small swarmers 8, medium groups 3-5, big 2-3), numbers are ignored, junk or profanity gives the weak 150 hp troop. `/api/troop` returns `{ design, cost, ms, source }` and uses it with no key or when Claude fails or takes over 4.5 s; the browser falls back to it after 7 s or an api error. `SHOW=1 npm test` prints a table of 45 sample descriptions.
-- [x] Input: camera hand tracking (MediaPipe, index-knuckle cursor, One Euro smoothing, 4-point calibration, thumb + middle pinch with optional pinch calibration), pinch to lock, release to deploy, drag off the 150 px ring or lose the hand to cancel. Mic: loudness starts a voice lock, 700 ms quiet deploys, saying "cancel" cancels; the browser's speech recognition stands in for Cartesia behind a swappable interface. Camera and mic are opt-in from a top-left panel; mouse, keys and the text box still work. 34 tests on the pure parts; smoke-tested with a fake camera and mic, not yet with a real webcam.
+- [x] Input: camera hand tracking (MediaPipe, index-knuckle cursor, One Euro smoothing, fixed touchpad mapping, thumb + middle pinch), pinch to lock, release to deploy, drag off the 150 px ring or lose the hand to cancel. Mic: loudness starts a voice lock, 700 ms quiet deploys, saying "cancel" cancels; the browser's speech recognition stands in for Cartesia behind a swappable interface. Camera and mic are opt-in from a top-left panel; mouse, keys and the text box still work. 34 tests on the pure parts; smoke-tested with a fake camera and mic, not yet with a real webcam.
 - [x] Balance sim: `npm run balance` runs every troop against the anchors on the real `step()` (elixir-matched duels plus solo tower runs) and flags cost outliers. Knobs for K, pricing factors and tower stats; `--troops file.json` takes generated designs. Findings in [sim/README.md](../sim/README.md): range is underpriced and speed overpriced; tweaks suggested, none applied.
 - [x] Bot mode: **Play vs Bot** (easy / normal / hard) runs the whole match in the browser on the same `step()` and deploy rules (`shared/deploy.ts`, now also used by the server), with no SpacetimeDB at all, so it's the demo fallback when the network fails. `client/src/match.ts` gives `main.ts` one `MatchSource` for online rooms and `LocalMatch`. The bot (`shared/bot.ts`) defends real threats near the threatened tower, otherwise pushes your weakest tower's lane, and sometimes saves for a big troop. Its drops show a lock and countdown like a real opponent's.
 - [x] Game feel: emoji-on-disc placeholder tokens (size by sqrt of health), walk bob, melee lunge, ranged and tower projectiles, hit flash and damage numbers, death poofs, landing rings, tower crumble with shake, 3-2-1 / FIGHT and DOUBLE ELIXIR banners, cost pills and non-overlapping name labels, INCOMING marker for the opponent's drop, synthesized sound effects (M or the speaker button mutes), and a first-time how-to-play card (reopen with `?`). Code in `client/src/{fx,tokens,sfx,tutorial}.ts` and `render.ts`.
@@ -43,7 +43,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [ ] Cartesia STT to replace the browser's speech recognition (behind `SpeechSource` in `client/src/input/speech.ts`), then TTS battle cries; fal sprites.
 
 **Can do now**
-- [ ] Real-webcam test of hand tracking and calibration; two laptops on one network or Maincloud.
+- [ ] Real-webcam test of hand tracking; two laptops on one network or Maincloud.
 - [ ] Optional `?bot` URL to jump straight into a bot match at the judging table.
 
 ## What prep settled
@@ -110,8 +110,8 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 
 - MediaPipe Tasks Vision 0.10.14 in VIDEO mode, one hand, GPU delegate with CPU fallback. Now that the fist gesture is dropped, the plain `HandLandmarker` is enough.
 - Pointer: index knuckle (landmark 5), mirrored. Smoothed with a One Euro filter (min cutoff 1.0, beta 0.007).
-- Camera → screen mapping: a 4-point calibration fit as a homography. Uncalibrated, the middle of the camera frame acts as a touchpad.
-- Pinch: distance from thumb tip (4) to the middle finger's last segment (11–12), divided by hand size (the larger of wrist → middle knuckle, and palm width ÷ 0.8). Hysteresis: on below 0.45, off above 0.65. A 7-second calibration picks the 2D or 3D measure and sets both thresholds.
+- Camera → screen mapping: fixed; the middle of the camera frame acts as a touchpad. Manual calibration (follow-the-dot and pinch) was removed on Oct 23.
+- Pinch: distance from thumb tip (4) to the middle finger's last segment (11–12), divided by hand size (the larger of wrist → middle knuckle, and palm width ÷ 0.8). Hysteresis: on below 0.45, off above 0.65, image-space (2D) measure.
 - Judge the lock and the release position from the cursor about 100 ms earlier, so the release flick doesn't count as a drag.
 - Drag-off cancel radius 150 px; losing the hand for over 250 ms cancels.
 - Voice click: mic level above −45 dB for 60 ms starts speech and locks at the cursor from when the sound began. 500 ms of quiet ends it.

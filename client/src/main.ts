@@ -184,7 +184,7 @@ const input = new InputController(board.canvas, {
   prefetch: prefetchDesign,
 });
 
-// First visit: camera, mic and calibration, then the how-to card.
+// First visit: camera and mic, then the how-to card.
 const setup = initSetup(input, showTutorialOnce);
 if (setupDone()) showTutorialOnce();
 else setup.open();

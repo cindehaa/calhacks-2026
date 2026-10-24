@@ -1,4 +1,4 @@
-// First-visit setup: camera and mic on, pointer calibrated, a quick voice check. Done or skipped
+// First-visit setup: camera and mic on, a quick voice check. Done or skipped
 // once (remembered in localStorage); after that the controller turns the camera and mic back on
 // by itself. "Run setup again" in the camera panel's ⋯ menu reopens it.
 import type { InputController } from './input/controller';
@@ -49,7 +49,6 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     b.blur();
     const act = b.dataset.act;
     if (act === 'devices') void turnOn();
-    else if (act === 'calibrate') input.calibrate();
     else if (act === 'done' || act === 'skip') close();
   });
 
@@ -77,13 +76,6 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     dev.disabled = asking || starting;
     dev.textContent = errors.length ? 'Try again' : 'Turn on';
 
-    step('calibrate', s.calibrated,
-      s.calibrating ? 'follow the dot, then touch the 4 corners'
-      : s.calMsg || (s.calibrated ? 'calibrated' : 'follow a dot around the screen with your hand'));
-    const cal = q<HTMLButtonElement>('[data-act="calibrate"]');
-    cal.disabled = !s.cameraReady || s.calibrating;
-    cal.textContent = s.calibrated ? 'Redo' : 'Start';
-
     step('voice', s.heardWords,
       !s.mic ? 'checks the mic hears you'
       : s.heardWords || s.micStatus.startsWith('no speech') ? s.micStatus
@@ -94,7 +86,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     lvl.classList.toggle('speaking', s.speaking);
 
     q('.setupHint').textContent = !s.camera ? 'camera off' : starting ? s.camStatus : s.hand ? '' : 'show your hand';
-    q<HTMLButtonElement>('[data-act="done"]').disabled = !(devicesOk && s.calibrated);
+    q<HTMLButtonElement>('[data-act="done"]').disabled = !devicesOk;
   }
 
   input.onSetup = () => open();
