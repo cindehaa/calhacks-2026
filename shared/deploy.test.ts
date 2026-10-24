@@ -25,7 +25,7 @@ test('priceDeploy clamps stats a client made up', () => {
   assert.equal(r.design.range, 1);
 });
 
-test('arrivalDelay counts from the lock, with a floor', () => {
+test('arrivalDelay counts from the release, with a floor', () => {
   assert.equal(arrivalDelay(0), DEPLOY_DELAY);
   assert.equal(arrivalDelay(1), DEPLOY_DELAY - 1);
   assert.equal(arrivalDelay(10), MIN_DEPLOY_DELAY);

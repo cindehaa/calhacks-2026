@@ -1,16 +1,16 @@
 // Word power on the client: picks the mode (?power=slow&score=features, or P / Shift+P in game),
 // shows a live meter above the elixir bar while you talk or type, and gates your own drops on
 // the recharge. The rules themselves are in shared/wordpower.ts.
-import { DEPLOY_DELAY, MIN_DEPLOY_DELAY } from '../../shared/arena';
-import { PRESETS, RULES, budgetFor, decodeMode, encodeMode, quote, usesPower, MAX_DETAIL, PLAIN_BUDGET, type PowerMode } from '../../shared/wordpower';
+import { MIN_DEPLOY_DELAY } from '../../shared/arena';
+import { ART_MAX, PRESETS, RULES, budgetFor, decodeMode, encodeMode, quote, usesPower, MAX_DETAIL, PLAIN_BUDGET, type PowerMode } from '../../shared/wordpower';
 import type { MatchSource } from './match';
 
 const STORE = 'wordpower';
 
 function initialMode(): PowerMode {
   const q = new URLSearchParams(location.search);
-  if (q.has('power') || q.has('score')) return decodeMode(`${q.get('power') ?? 'slow'}.${q.get('score') ?? 'words'}`);
-  try { return decodeMode(localStorage.getItem(STORE)); } catch { return decodeMode(''); }
+  if (q.has('power') || q.has('score')) return decodeMode(`${q.get('power') ?? 'cooldown'}.${q.get('score') ?? 'words'}`, 'cooldown');
+  try { return decodeMode(localStorage.getItem(STORE), 'cooldown'); } catch { return decodeMode('', 'cooldown'); }
 }
 
 const CSS = `
@@ -33,7 +33,8 @@ export interface WordPowerUi {
   mode(): PowerMode;
   gate(): string | null; // why you can't lock right now, or null
   live(words: string): void; // words heard (or typed) so far
-  deployed(description: string, waitedSeconds: number): void; // the match took it; waited = since the lock
+  deployed(description: string): void; // the match took it; the voice lock starts
+  artHoldMs(releasedAt: number | undefined): number; // how long to hold a deploy for its art (art preset), from performance.now()
   cost(description: string, elixirCost: number): number; // what the cost pill will say
   frame(m: MatchSource | null): void;
 }
@@ -43,7 +44,6 @@ export function initWordPower(status: (msg: string, bad?: boolean) => void): Wor
   let words = '';
   let lastDetail = 0;
   let readyAt = 0; // performance.now() ms when you may lock again
-  let landsAt = 0; // ms when your last troop lands
   let elixir = Infinity;
 
   const style = document.createElement('style');
@@ -64,7 +64,7 @@ export function initWordPower(status: (msg: string, bad?: boolean) => void): Wor
   function setMode(m: PowerMode) {
     mode = m;
     try { localStorage.setItem(STORE, encodeMode(m)); } catch { /* storage blocked */ }
-    readyAt = landsAt = 0;
+    readyAt = 0;
     status(`Word power: ${RULES[m.preset].label}${usesPower(m) ? ` · scoring by ${m.scorer}` : ''}`);
   }
 
@@ -83,9 +83,7 @@ export function initWordPower(status: (msg: string, bad?: boolean) => void): Wor
       if (!usesPower(mode)) return null;
       const now = performance.now();
       if (now >= readyAt) return null;
-      return now < landsAt && RULES[mode.preset].oneInAir
-        ? `Your last troop is still in the air: ${s1(landsAt - now)} s`
-        : `Voice recharging: ${s1(readyAt - now)} s`;
+      return `Voice recharging: ${s1(readyAt - now)} s`;
     },
 
     cost: (description, elixirCost) => (usesPower(mode) ? quote(description, mode, elixir).budget : elixirCost),
@@ -94,13 +92,15 @@ export function initWordPower(status: (msg: string, bad?: boolean) => void): Wor
       words = w;
     },
 
-    deployed(description: string, waited: number) {
+    artHoldMs(releasedAt) {
+      if (!usesPower(mode) || !RULES[mode.preset].artLanding || releasedAt === undefined) return 0;
+      // The server still adds MIN_DEPLOY_DELAY after the deploy arrives, so stop short of ART_MAX.
+      return Math.max(0, (ART_MAX - MIN_DEPLOY_DELAY) * 1000 - (performance.now() - releasedAt));
+    },
+
+    deployed(description: string) {
       if (!usesPower(mode)) return;
-      const qt = quote(description, mode, elixir);
-      const air = Math.max(MIN_DEPLOY_DELAY, DEPLOY_DELAY - waited) + qt.extra;
-      const now = performance.now();
-      landsAt = now + air * 1000;
-      readyAt = now + ((RULES[mode.preset].oneInAir ? air : 0) + qt.cooldown) * 1000;
+      readyAt = performance.now() + quote(description, mode, elixir).cooldown * 1000;
       words = '';
       if (desc) desc.value = '';
     },
@@ -135,15 +135,12 @@ export function initWordPower(status: (msg: string, bad?: boolean) => void): Wor
       wait.style.width = recharge > 0 ? `${Math.min(1, recharge / 10000) * 100}%` : '0';
       if (!words.trim()) {
         fill.style.width = '0';
-        text.textContent = recharge > 0
-          ? (now < landsAt && r.oneInAir ? `in the air ${s1(landsAt - now)} s` : `recharging ${s1(recharge)} s`)
-          : `ready · plain troop = ${PLAIN_BUDGET}, every describing word adds 1`;
+        text.textContent = recharge > 0 ? `voice recharging ${s1(recharge)} s` : `ready · plain troop = ${PLAIN_BUDGET}, every describing word adds 1`;
         return;
       }
       fill.style.width = `${(qt.budget / max) * 100}%`;
       const costs: string[] = [];
-      if (qt.extra) costs.push(`+${qt.extra.toFixed(1)} s in the air`);
-      if (r.cooldownPerDetail) costs.push(`voice lock ${qt.cooldown.toFixed(1)} s`);
+      if (qt.cooldown) costs.push(`voice lock ${qt.cooldown.toFixed(1)} s`);
       if (r.elixir === 'cap') {
         const want = budgetFor(qt.detail);
         costs.push(want > qt.budget ? `costs ${qt.budget} elixir (wanted ${want})` : `costs ${qt.budget} elixir`);

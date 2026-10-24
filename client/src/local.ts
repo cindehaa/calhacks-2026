@@ -17,7 +17,7 @@ const BOT: Side = 1;
 // With word power on, how much detail the bot's drops get (its anchor descriptions are short).
 const BOT_DETAIL: Record<BotLevel, [number, number]> = { easy: [0, 2], normal: [1, 5], hard: [3, 8] };
 
-interface Lock { side: Side; nonce: number; x: number; y: number; at: number } // at = sim time
+interface Lock { side: Side; nonce: number; x: number; y: number; at: number; held: boolean } // at = sim time of the press, then the release
 
 export class LocalMatch implements MatchSource {
   readonly key = 'bot';
@@ -62,7 +62,7 @@ export class LocalMatch implements MatchSource {
   troops() { return this.troopRows; }
 
   pendings(): DrawPending[] {
-    return this.locks.map(l => ({ side: l.side, x: l.x, y: l.y, age: this.s.time - l.at }));
+    return this.locks.map(l => ({ side: l.side, x: l.x, y: l.y, held: l.held, age: this.s.time - l.at }));
   }
 
   // Async so errors reject like the server's reducers; the body still runs synchronously,
@@ -70,6 +70,10 @@ export class LocalMatch implements MatchSource {
   async beginDeploy(nonce: number, x: number, y: number) { this.lock(this.side, nonce, x, y); }
   async deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl = '') {
     this.deploy(this.side, nonce, x, y, description, d, spriteUrl);
+  }
+  async releaseDeploy(nonce: number) {
+    const l = this.findLock(this.side, nonce);
+    if (l?.held) Object.assign(l, { held: false, at: this.s.time });
   }
   async cancelDeploy(nonce: number) { this.unlock(this.side, nonce); }
   // Nobody else sees this match, so the bot's troops take art the same way yours do.
@@ -148,7 +152,7 @@ export class LocalMatch implements MatchSource {
     const move = botDecide(this.s, BOT, this.mem, cfg, this.rand);
     if (!move) return;
     const nonce = this.nextId++;
-    this.lock(BOT, nonce, move.x, move.y);
+    this.lock(BOT, nonce, move.x, move.y, false); // the bot isn't talking: its clock starts now
     this.botMove = { nonce, move, at: this.s.time + cfg.designTime };
   }
 
@@ -159,12 +163,12 @@ export class LocalMatch implements MatchSource {
     if (this.s.time < 0) throw new Error('match starting');
   }
 
-  private lock(side: Side, nonce: number, x: number, y: number) {
+  private lock(side: Side, nonce: number, x: number, y: number, held = true) {
     this.mustPlay();
     if (!canDeploy(side, x, y, this.s.towers)) throw new Error('deploy on your own half');
     if (this.findLock(side, nonce)) return;
     const [cx, cy] = clampDeploy(side, x, y, this.s.towers);
-    this.locks.push({ side, nonce, x: cx, y: cy, at: this.s.time });
+    this.locks.push({ side, nonce, x: cx, y: cy, at: this.s.time, held });
   }
 
   private unlock(side: Side, nonce: number) {
@@ -177,19 +181,18 @@ export class LocalMatch implements MatchSource {
 
   private deploy(side: Side, nonce: number, x: number, y: number, description: string, raw: TroopDesign, spriteUrl: string, detail?: number) {
     this.mustPlay();
-    const { design, cost, charge, extra, quote, error } = priceDeploy(raw, this.s.elixir[side], description, this.power, detail);
+    const { design, cost, charge, quote, error } = priceDeploy(raw, this.s.elixir[side], description, this.power, detail);
     if (error) throw new Error(error);
     const l = this.findLock(side, nonce);
     let delay = arrivalDelay(0);
     if (l) {
       x = l.x; y = l.y;
-      delay = arrivalDelay(this.s.time - l.at);
+      if (!l.held) delay = arrivalDelay(this.s.time - l.at);
       this.unlock(side, nonce);
     } else if (!canDeploy(side, x, y, this.s.towers)) {
       throw new Error('deploy on your own half');
     }
-    delay += extra;
-    if (quote && side === BOT) this.pacer.deployed(BOT, this.s.time, quote, delay, this.power);
+    if (quote && side === BOT) this.pacer.deployed(BOT, this.s.time, quote, this.power);
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, {
       name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style, flavor: design.flavor,

@@ -140,7 +140,8 @@ const pending = table(
     side: t.u8(),
     x: t.f32(),
     y: t.f32(),
-    createdAt: t.timestamp(),
+    createdAt: t.timestamp(), // the press, then reset to the release; the deploy delay counts from here
+    held: t.bool(), // still talking: no countdown yet
   }
 );
 
@@ -260,9 +261,16 @@ export const beginDeploy = spacetimedb.reducer(
       if (p.owner.equals(ctx.sender) && p.nonce === nonce) return;
     }
     const [cx, cy] = clampDeploy(side, x, y, towers);
-    ctx.db.pending.insert({ id: 0n, roomCode: r.code, owner: ctx.sender, nonce, side, x: cx, y: cy, createdAt: ctx.timestamp });
+    ctx.db.pending.insert({ id: 0n, roomCode: r.code, owner: ctx.sender, nonce, side, x: cx, y: cy, createdAt: ctx.timestamp, held: true });
   }
 );
+
+// Let go: the countdown starts now, not at the press. Idempotent; a deploy that arrives first
+// counts as the release.
+export const releaseDeploy = spacetimedb.reducer({ nonce: t.u32() }, (ctx, { nonce }) => {
+  const p = findPending(ctx, nonce);
+  if (p && p.held) ctx.db.pending.id.update({ ...p, held: false, createdAt: ctx.timestamp });
+});
 
 export const cancelDeploy = spacetimedb.reducer({ nonce: t.u32() }, (ctx, { nonce }) => {
   const p = findPending(ctx, nonce);
@@ -300,7 +308,7 @@ export const deployTroop = spacetimedb.reducer(
   (ctx, a) => {
     const { r, side } = myMatch(ctx);
     const elixir = side === 0 ? r.elixir0 : r.elixir1;
-    const { design, cost, charge, extra, error } = priceDeploy({
+    const { design, cost, charge, error } = priceDeploy({
       name: a.name,
       health: a.health,
       damage: a.damage,
@@ -321,18 +329,17 @@ export const deployTroop = spacetimedb.reducer(
     }, elixir, a.description, decodeMode(a.power));
     if (error) throw new SenderError(error);
 
-    // Land where the spot was locked, DEPLOY_DELAY after the lock.
+    // Land where the spot was locked, DEPLOY_DELAY after the release.
     const p = findPending(ctx, a.nonce);
     const towers = [...ctx.db.tower.roomCode.filter(r.code)];
     let x = a.x, y = a.y, delay = arrivalDelay(0);
     if (p) {
       x = p.x; y = p.y;
-      delay = arrivalDelay(Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6);
+      if (!p.held) delay = arrivalDelay(Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6);
       ctx.db.pending.id.delete(p.id);
     } else if (!canDeploy(side, x, y, towers)) {
       throw new SenderError('deploy on your own half');
     }
-    delay += extra;
 
     const tr = ctx.db.troop.insert({
       id: 0n,

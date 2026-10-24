@@ -8,7 +8,6 @@ export interface PricedDeploy {
   design: TroopDesign;
   cost: number; // the cost pill
   charge: number; // elixir taken; equals cost unless word power makes troops free
-  extra: number; // seconds added to the deploy delay (word power)
   quote: Quote | null; // word power's numbers, null when it's off
   // 'too expensive: N' or 'not enough elixir: N'; the client parses N to say what it would have cost.
   error: string | null;
@@ -20,14 +19,15 @@ export function priceDeploy(raw: Partial<TroopDesign>, elixir: number, descripti
   const design = sanitizeDesign(raw);
   if (usesPower(mode)) {
     const q = quote(description, mode, elixir, detail);
-    return { design: empower(design, q.budget), cost: q.budget, charge: q.charge, extra: q.extra, quote: q, error: q.error };
+    return { design: empower(design, q.budget), cost: q.budget, charge: q.charge, quote: q, error: q.error };
   }
   const cost = price(design);
   const error = cost > MAX_COST ? `too expensive: ${cost}` : cost > elixir ? `not enough elixir: ${cost}` : null;
-  return { design, cost, charge: cost, extra: 0, quote: null, error };
+  return { design, cost, charge: cost, quote: null, error };
 }
 
-// Troops land DEPLOY_DELAY after the lock; if generation ran long, still telegraph the drop.
+// Troops land DEPLOY_DELAY after you let go (the lock's release); if generation ran long, still
+// telegraph the drop. Counting from the press instead ate the delay while you were still talking.
 export function arrivalDelay(waitedSeconds: number): number {
   return Math.max(MIN_DEPLOY_DELAY, DEPLOY_DELAY - waitedSeconds);
 }

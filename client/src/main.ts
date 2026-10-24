@@ -172,8 +172,7 @@ const wp = initWordPower(status); // word power: detail buys strength, time pays
 async function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign, spriteUrl = ''): Promise<boolean> {
   try {
     await match()?.deployTroop(nonce, x, y, description, d, spriteUrl);
-    const lockedAt = drops.get(nonce)?.t.lock;
-    wp.deployed(description, lockedAt === undefined ? 0 : (performance.now() - lockedAt) / 1000);
+    wp.deployed(description);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
@@ -190,7 +189,10 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
 // Deploy with the art if it's already here, else deploy now and set the art when it lands.
 async function deployWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
   const m = match();
-  const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
+  // undefined: still drawing. The art preset holds the deploy for it, up to ART_MAX after let-go.
+  const hold = wp.artHoldMs(drops.get(nonce)?.t.release);
+  if (hold > 0) drops.designed(nonce, `${d.name} · drawing…`, '', performance.now());
+  const ready = await Promise.race([art, new Promise<undefined>(r => setTimeout(r, hold))]);
   const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
   if (!ok || ready !== undefined) return;
   const url = await art;
@@ -252,6 +254,7 @@ function cancelAt(nonce: number, msg: string) {
 async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
   wp.live(description);
+  call(match()?.releaseDeploy(nonce), () => {}); // typed text: Enter is the release; a no-op after a hold
   drops.heard(nonce, description, performance.now());
   const art = requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
@@ -288,7 +291,10 @@ const input = new InputController(board.canvas, {
     prefetchDesign(words);
     prefetchSprite(words);
   },
-  released: (nonce, words) => drops.release(nonce, words, performance.now()),
+  released: (nonce, words) => {
+    call(match()?.releaseDeploy(nonce), () => {}); // the countdown starts at let-go, not at the press
+    drops.release(nonce, words, performance.now());
+  },
 });
 
 // First visit: camera and mic, then the how-to card.

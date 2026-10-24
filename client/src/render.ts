@@ -47,7 +47,7 @@ export interface DrawQuirks {
 }
 export interface DrawTower { side: number; lane?: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
 export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; battleCry?: string; voiceStyle?: string; flavor?: string }
-export interface DrawPending { side: number; x: number; y: number; age: number }
+export interface DrawPending { side: number; x: number; y: number; age: number; held?: boolean } // held: still talking, no countdown yet
 
 export interface View {
   mySide: Side;
@@ -308,8 +308,8 @@ export class Board {
     const g = this.ctx, T = this.tile;
     const [sx, sy] = this.toScreen(p.x, p.y);
     const color = mine ? C.mine : C.theirs;
-    const frac = Math.max(0, Math.min(1, p.age / DEPLOY_DELAY));
-    const left = DEPLOY_DELAY - p.age;
+    const frac = p.held ? 0 : Math.max(0, Math.min(1, p.age / DEPLOY_DELAY));
+    const left = p.held ? DEPLOY_DELAY : DEPLOY_DELAY - p.age;
     g.save();
     g.fillStyle = `rgba(0,0,0,${(0.12 + 0.3 * frac).toFixed(2)})`;
     g.beginPath();
@@ -337,7 +337,7 @@ export class Board {
     g.arc(sx, sy, T * 0.9, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
     g.stroke();
     g.restore();
-    const text = left > 0.05 ? left.toFixed(1) : '…';
+    const text = p.held ? '…' : left > 0.05 ? left.toFixed(1) : '…';
     this.outlined(text, sx, sy + 4, 12, mine ? C.text : C.theirsLight);
     if (!mine) this.pill('INCOMING', sx, sy - T * 0.9 - 14, 10, '#7d2431', C.theirs, '#ffffff');
   }

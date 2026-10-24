@@ -51,6 +51,7 @@ export interface MatchSource {
   // e.g. 'too expensive: 12' or 'not enough elixir: 6'.
   beginDeploy(nonce: number, x: number, y: number): Promise<void>;
   deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl?: string): Promise<void>;
+  releaseDeploy(nonce: number): Promise<void>; // let go: the deploy delay starts now
   cancelDeploy(nonce: number): Promise<void>;
   // Art that arrived after the deploy: set it on your troops with this description that have none.
   attachSprite(description: string, spriteUrl: string): Promise<void>;
@@ -148,7 +149,7 @@ export class OnlineMatch implements MatchSource {
     const nowMicros = BigInt(Date.now()) * 1000n;
     return [...this.net.conn.db.pending.iter()]
       .filter(p => p.roomCode === code)
-      .map(p => ({ side: p.side, x: p.x, y: p.y, age: Number(nowMicros - p.createdAt.microsSinceUnixEpoch) / 1e6 }));
+      .map(p => ({ side: p.side, x: p.x, y: p.y, held: p.held, age: Number(nowMicros - p.createdAt.microsSinceUnixEpoch) / 1e6 }));
   }
 
   beginDeploy(nonce: number, x: number, y: number) {
@@ -162,6 +163,10 @@ export class OnlineMatch implements MatchSource {
       spriteUrl, attack: d.attack, targets: d.targets, onHit: d.on_hit, windup: d.windup, trait: d.trait,
       motion: d.motion, element: d.element, flavor: d.flavor, power: encodeMode(this.power),
     });
+  }
+
+  releaseDeploy(nonce: number) {
+    return this.net.conn.reducers.releaseDeploy({ nonce });
   }
 
   cancelDeploy(nonce: number) {

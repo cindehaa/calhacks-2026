@@ -26,6 +26,7 @@ export const Pending = __t.object("Pending", {
   x: __t.f32(),
   y: __t.f32(),
   createdAt: __t.timestamp(),
+  held: __t.bool(),
 });
 export type Pending = __Infer<typeof Pending>;
 

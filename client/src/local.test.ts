@@ -18,12 +18,14 @@ test('player deploys follow the server rules', async () => {
   await assert.rejects(m.beginDeploy(2, 9, 20), /own half/);
   await m.beginDeploy(3, 4, 6);
   assert.equal(m.pendings().length, 1);
+  run(m, 2); // talking: the clock hasn't started
+  await m.releaseDeploy(3);
   run(m, 1);
   await m.deployTroop(3, 9, 9, '', ANCHORS[0]);
   const mine = m.units().filter(u => u.side === 0);
   assert.equal(mine.length, 1);
   assert.deepEqual([mine[0].x, mine[0].y], [4, 6], 'lands at the locked spot');
-  assert.ok(Math.abs(mine[0].delay - (DEPLOY_DELAY - 1)) < 1e-9, 'delay counts from the lock');
+  assert.ok(Math.abs(mine[0].delay - (DEPLOY_DELAY - 1)) < 1e-9, 'delay counts from the release');
   assert.equal(m.troops().get(mine[0].troopId)?.name, 'Goblin Scrapper');
 });
 

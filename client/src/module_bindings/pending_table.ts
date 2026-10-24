@@ -19,4 +19,5 @@ export default __t.row({
   x: __t.f32(),
   y: __t.f32(),
   createdAt: __t.timestamp().name("created_at"),
+  held: __t.bool(),
 });

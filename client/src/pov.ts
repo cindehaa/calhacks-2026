@@ -618,7 +618,7 @@ export class PovBoard {
         (m.pad.material as THREE.MeshBasicMaterial).color.set('#000000');
         this.pendings.push(m);
       }
-      const frac = Math.max(0, Math.min(1, p.age / DEPLOY_DELAY));
+      const frac = p.held ? 0 : Math.max(0, Math.min(1, p.age / DEPLOY_DELAY));
       const col = p.side === v.mySide ? C.mine : C.theirs;
       const closing = m.closing.material as THREE.MeshBasicMaterial, target = m.target.material as THREE.MeshBasicMaterial;
       closing.color.set(col);
@@ -930,7 +930,7 @@ export class PovBoard {
       const q = this.project(p.x, p.y);
       if (!q) continue;
       const mine = p.side === v.mySide;
-      const left = DEPLOY_DELAY - p.age;
+      const left = p.held ? 0 : DEPLOY_DELAY - p.age;
       this.outlined(left > 0.05 ? left.toFixed(1) : '…', q[0], q[1] + 4, 13, mine ? C.text : C.theirsLight);
       if (!mine) this.pill('INCOMING', q[0], q[1] - 24, 10, C.theirsDark, C.theirs, '#ffffff');
     }

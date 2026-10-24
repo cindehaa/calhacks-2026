@@ -40,6 +40,7 @@ import CreateRoomReducer from "./create_room_reducer";
 import DeployTroopReducer from "./deploy_troop_reducer";
 import JoinRoomReducer from "./join_room_reducer";
 import LeaveRoomReducer from "./leave_room_reducer";
+import ReleaseDeployReducer from "./release_deploy_reducer";
 import SetNameReducer from "./set_name_reducer";
 import SetTroopSpriteReducer from "./set_troop_sprite_reducer";
 import StartMatchReducer from "./start_match_reducer";
@@ -149,6 +150,7 @@ const reducersSchema = __reducers(
   __reducerSchema("deploy_troop", DeployTroopReducer),
   __reducerSchema("join_room", JoinRoomReducer),
   __reducerSchema("leave_room", LeaveRoomReducer),
+  __reducerSchema("release_deploy", ReleaseDeployReducer),
   __reducerSchema("set_name", SetNameReducer),
   __reducerSchema("set_troop_sprite", SetTroopSpriteReducer),
   __reducerSchema("start_match", StartMatchReducer),

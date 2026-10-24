@@ -1,5 +1,5 @@
-// Word power: detail in the description sets a troop's strength instead of the noun, and time
-// (or elixir as a cap) pays for it. Prototype with switchable presets so we can feel them; pick
+// Word power: detail in the description sets a troop's strength instead of the noun, and a voice
+// lock (or elixir as a cap) pays for it. The deploy delay stays constant: talking is already time. Prototype with switchable presets so we can feel them; pick
 // one and delete the rest. Pure, shared by the server, the bot match and the client meter.
 //
 // "dragon" is a plain dragon. "dragon with laser eyes, blue wings and reinforced claws" keeps
@@ -8,37 +8,41 @@
 // a dragon with the same detail cost the same.
 import { MAX_COST, PRICING, power, quirkMultiplier, type TroopDesign } from './troop';
 
-export type Preset = 'off' | 'slow' | 'cooldown' | 'both' | 'cap';
+export type Preset = 'off' | 'cooldown' | 'cap' | 'art';
 export type Scorer = 'words' | 'features';
-export const PRESETS: readonly Preset[] = ['off', 'slow', 'cooldown', 'both', 'cap'];
+export const PRESETS: readonly Preset[] = ['cooldown', 'art', 'cap', 'off'];
 
 export interface PresetRules {
   label: string;
   elixir: 'normal' | 'none' | 'cap'; // normal: today's pricing; none: free; cap: costs the budget, capped by what you have
-  extraPerDetail: number; // seconds in the air on top of the usual deploy delay, per detail point
-  cooldownBase: number; // seconds after a deploy before you can lock the next one ...
-  cooldownPerDetail: number; // ... plus this per detail point
-  oneInAir: boolean; // the cooldown only starts once your last troop has landed
+  lockPerPower: number; // seconds after a deploy before you can lock the next one, per point of power
+  artLanding: boolean; // the troop lands when its sprite is ready (client side, between the delay and ART_MAX)
 }
 
-// Starting guesses, all in one place to tune by feel.
+// Starting guesses, all in one place to tune by feel. 0.75 s per point: a plain troop (3) locks
+// you for 2.25 s, a legendary 9 for 6.75 s, an overpowered 15 for 11.25 s.
 export const RULES: Record<Preset, PresetRules> = {
-  off: { label: 'off (elixir, as before)', elixir: 'normal', extraPerDetail: 0, cooldownBase: 0, cooldownPerDetail: 0, oneInAir: false },
-  slow: { label: 'slow cook: detail = longer in the air', elixir: 'none', extraPerDetail: 0.8, cooldownBase: 1, cooldownPerDetail: 0, oneInAir: true },
-  cooldown: { label: 'recharge: detail = longer voice lock', elixir: 'none', extraPerDetail: 0, cooldownBase: 2, cooldownPerDetail: 0.9, oneInAir: false },
-  both: { label: 'both: some air time, some lock', elixir: 'none', extraPerDetail: 0.45, cooldownBase: 1.5, cooldownPerDetail: 0.45, oneInAir: false },
-  cap: { label: 'elixir cap: detail costs elixir', elixir: 'cap', extraPerDetail: 0, cooldownBase: 0, cooldownPerDetail: 0, oneInAir: false },
+  cooldown: { label: 'voice lock: more power, longer lock', elixir: 'none', lockPerPower: 0.75, artLanding: false },
+  art: { label: 'voice lock, lands when its art is drawn', elixir: 'none', lockPerPower: 0.75, artLanding: true },
+  cap: { label: 'elixir cap: power costs elixir', elixir: 'cap', lockPerPower: 0, artLanding: false },
+  off: { label: 'off (elixir, as before)', elixir: 'normal', lockPerPower: 0, artLanding: false },
 };
+
+// The art preset never holds a drop longer than this after you let go, so a slow fal call
+// can't stall it; under the deploy delay it still waits the full delay.
+export const ART_MAX = 5.5;
 
 export interface PowerMode { preset: Preset; scorer: Scorer }
 export const OFF: PowerMode = { preset: 'off', scorer: 'words' };
+export const DEFAULT_MODE: PowerMode = { preset: 'cooldown', scorer: 'words' };
 
 // The mode travels to the server as one short string: "slow" or "slow.features".
 export const encodeMode = (m: PowerMode) => (m.scorer === 'words' ? m.preset : `${m.preset}.${m.scorer}`);
-export function decodeMode(s: string | null | undefined): PowerMode {
+// Anything unknown (an old client, a retired preset) falls back to `fallback`.
+export function decodeMode(s: string | null | undefined, fallback: Preset = 'off'): PowerMode {
   const [p, sc] = String(s ?? '').toLowerCase().split('.');
   return {
-    preset: (PRESETS as readonly string[]).includes(p) ? (p as Preset) : 'off',
+    preset: (PRESETS as readonly string[]).includes(p) ? (p as Preset) : fallback,
     scorer: sc === 'features' ? 'features' : 'words',
   };
 }
@@ -91,8 +95,7 @@ export interface Quote {
   tier: string;
   budget: number; // the troop's strength in elixir-equivalents; also the cost pill
   charge: number; // elixir actually taken
-  extra: number; // seconds added to the deploy delay
-  cooldown: number; // seconds before the next lock, from the deploy (or the landing if oneInAir)
+  cooldown: number; // seconds after the deploy before the next lock
   error: string | null; // only in cap mode: 'not enough elixir: 1'
 }
 
@@ -108,11 +111,8 @@ export function quote(text: string, mode: PowerMode, elixir = Infinity, detailOv
     charge = budget;
     if (budget < 1) error = 'not enough elixir: 1';
   }
-  return {
-    detail, tier: tierOf(detail), budget: Math.max(1, budget), charge, error,
-    extra: r.extraPerDetail * detail,
-    cooldown: r.cooldownBase + r.cooldownPerDetail * detail,
-  };
+  budget = Math.max(1, budget);
+  return { detail, tier: tierOf(detail), budget, charge, error, cooldown: r.lockPerPower * budget };
 }
 
 // Rescale health and damage so the design is worth `budget`, keeping its shape (count, range,
@@ -138,11 +138,9 @@ export class Pacer {
   private ready = [0, 0];
   readyAt(side: number) { return this.ready[side]; }
   wait(side: number, now: number) { return Math.max(0, this.ready[side] - now); }
-  // now and airTime in seconds, on whatever clock the caller uses.
-  deployed(side: number, now: number, q: Quote, airTime: number, mode: PowerMode) {
-    if (!usesPower(mode)) return;
-    const r = RULES[mode.preset];
-    this.ready[side] = now + (r.oneInAir ? airTime : 0) + q.cooldown;
+  // now in seconds, on whatever clock the caller uses.
+  deployed(side: number, now: number, q: Quote, mode: PowerMode) {
+    if (usesPower(mode)) this.ready[side] = now + q.cooldown;
   }
   reset() { this.ready = [0, 0]; }
 }
