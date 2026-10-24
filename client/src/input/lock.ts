@@ -1,12 +1,12 @@
 // The lock → deploy / cancel state machine shared by pinch and voice. Pure: time comes in as
 // arguments and positions are screen px, so it runs the same in tests as in the browser.
 //
-// Pinch start or speech start locks the spot. Releasing the pinch (or going quiet) deploys it,
-// unless the cursor has been pulled outside the drag-off ring, which cancels like dragging a card
-// back. Losing the hand cancels a lock that was made with the hand.
+// Pinch start, a mouse press or speech start locks the spot. Releasing the pinch or the button
+// (or going quiet) deploys it, unless the pointer has been pulled outside the drag-off ring, which
+// cancels like dragging a card back. Losing the hand cancels a lock that was made with the hand.
 
 export interface Pt { x: number; y: number }
-export type LockBy = 'pinch' | 'voice';
+export type LockBy = 'pinch' | 'mouse' | 'voice';
 export interface Lock { x: number; y: number; t: number; by: LockBy; hand: boolean }
 
 export interface LockOptions {
@@ -55,6 +55,7 @@ export class LockMachine {
   private pinched = false;
   private hadHand = false;
   private lastHandT = -Infinity;
+  private mouse: Pt | null = null; // where the held button is now, for a mouse lock
 
   constructor(private ev: LockEvents, readonly o: LockOptions = LOCK_DEFAULTS) {}
 
@@ -96,6 +97,24 @@ export class LockMachine {
     this.tryLock(t, this.history.at(t) ?? this.cursor, 'voice', this.hadHand);
   }
 
+  // Mouse fallback for the pinch: press to lock, hold while talking, release to deploy. The mouse
+  // doesn't jitter on release like a hand, so it's judged where it is, not from a moment ago.
+  press(t: number, p: Pt): void {
+    if (this.lock) return;
+    this.mouse = p;
+    this.tryLock(t, p, 'mouse', false);
+  }
+
+  pressMove(p: Pt): void {
+    if (this.lock?.by === 'mouse') this.mouse = p;
+  }
+
+  pressEnd(p: Pt): void {
+    if (this.lock?.by !== 'mouse') return;
+    this.mouse = p;
+    this.resolve(p, 'drag');
+  }
+
   speechEnd(): void {
     if (this.lock?.by === 'voice') this.resolve(this.cursor, 'drag');
   }
@@ -110,7 +129,7 @@ export class LockMachine {
   // How far the cursor that would judge a release is from the lock, for drawing the ring.
   dragDistance(t: number): number {
     const l = this.lock;
-    const c = l?.by === 'pinch' ? this.lagged(t) : this.cursor;
+    const c = l?.by === 'pinch' ? this.lagged(t) : l?.by === 'mouse' ? this.mouse : this.cursor;
     return l && c ? dist(l, c) : 0;
   }
 
