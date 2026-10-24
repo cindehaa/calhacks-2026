@@ -9,6 +9,7 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 - [meta/SPEC.md](meta/SPEC.md): the game spec (v2)
 - [meta/PROGRESS.md](meta/PROGRESS.md): what's done, what's next, and the decisions log
 - [meta/aesthetics.md](meta/aesthetics.md): the aesthetic vision (warmth and frost): palette, music, sound, art
+- [meta/LAUNCH.md](meta/LAUNCH.md): launch plan: getting people playing, filming the montage, posting on X
 
 ## Layout
 
