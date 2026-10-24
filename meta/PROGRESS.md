@@ -6,7 +6,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 
 ## Where we are
 
-Prep is done: latency is measured, the troop designer prompt is tested, pricing is calibrated, and hand tracking, the voice-to-troop loop and SpacetimeDB rooms have all been prototyped as throwaway experiments. **No game code exists in this repo yet.** Next is phase 1 of the build plan.
+Prep is done: latency is measured, the troop designer prompt is tested, pricing is calibrated, and hand tracking, the voice-to-troop loop and SpacetimeDB rooms have all been prototyped as throwaway experiments. **No game code exists in this repo yet.** Next is phase 1 of the build plan. The sound pack generator is in `tools/audio/` and can be run at any time (see Sound pack below).
 
 ## Build plan status
 
@@ -35,6 +35,16 @@ Phase 1, in order. Each item ends in something you can see working.
 - [ ] Fix the anchors before they go in the prompt: swarm health 40 is below the 50 clamp and sits on the 3/4 cost edge. Add the 3 missing anchors to reach 10.
 - [ ] A text box that shows the resulting troop card (name, stats, cost, cry). Done when any description gives a priced troop in under 2.5 s.
 
+### Sound pack
+
+Anyone can do this in a spare moment; it doesn't block phase 1. The plan is in [SPEC.md](SPEC.md#sound).
+
+- [ ] Run `node --env-file=.env tools/audio/generate.mjs` with `FAL_KEY` and `CARTESIA_API_KEY` in `.env`. It writes 63 clips, `index.json` and `preview.html` to `client/public/audio/`. Use `--dry-run` first to see every request.
+- [ ] Open `client/public/audio/preview.html` in a browser and listen through the pack. Re-roll a bad clip with `--only <key> --force`, or edit its prompt in `tools/audio/prompts.mjs` and re-run.
+- [ ] Check the announcer voice (Leo) sounds different from the six troop voices.
+- [ ] Add `sfx_set` to the troop schema and prompt (values below).
+- [ ] Client audio, phase 5: load `index.json`, play `sfx/<set>/<event>` with a random take, crossfade battle → overtime at double elixir, lower the music under cries, ZzFX for interface sounds.
+
 ### Recommendation: run combat on the server from phase 1
 
 The spec puts `step()` in the server tick in phase 4. The rooms spike already ran a 20 Hz scheduled tick reliably, so running `step()` there from day one costs little. It also avoids two browsers each simulating their own copy and drifting apart, then a rewrite in phase 4. Clients only render unit rows. The same `step()` still runs locally for bot mode and the headless sim.
@@ -47,6 +57,7 @@ client/   Vite + TypeScript: canvas arena, input (hand, voice, mouse, text), aud
 shared/   step(), unit/tower types, troop schema, clamps, price(), anchors
 api/      Node key proxy: Claude troop designer, Cartesia STT/TTS, image gen
 sim/      headless balancing harness (phase 3), runs shared/step()
+tools/    one-off scripts; audio/ generates the sound pack
 meta/     SPEC.md and this file
 ```
 
@@ -73,6 +84,7 @@ Release → stats ready is **2.21 s at p90 with Haiku**, inside the 2.5 s deploy
 - Consistency passed: every description gave a cost spread of 1 elixir or less over 5 runs. "Tiny" is always cheaper. "Giant" is pricier for the wizard, but equal for the golem (the prompt caps giants at big-tank strength).
 - Abuse passed with caveats: no crashes or invalid JSON, nothing over 10 elixir, and injection, gibberish, empty input and "cancel" all give a weak "Confused Blob".
 - `voice_style` values: `gruff_warrior`, `squeaky_critter`, `mystic_whisper`, `booming_giant`, `robotic`, `cheerful_hero`.
+- `sfx_set` values (added Oct 24, not in the tested prompt yet): `blade` (swords, axes, spears), `ranged` (bows, guns, throwers), `magic` (casters, spirits), `swarm` (high-count critters), `heavy` (golems, giants), `mech` (robots, cannons), `beast` (wolves, dragons, monsters). The `fits` text for each is in `tools/audio/prompts.mjs`.
 
 ### Pricing and anchors
 
@@ -173,6 +185,7 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-23 | Controls: knuckle aim, thumb + middle pinch or speech to lock, drag-off cancel. Fist gesture dropped. |
 | 2026-10-23 | Pricing draft K = 95 kept; tune from playtests at the event. |
 | 2026-10-24 | Build repo set up, with `meta/` for the spec and this log. |
+| 2026-10-24 | Sound: a fixed pack generated once (ElevenLabs sound effects and music via fal), picked per troop by an `sfx_set` field. Announcer lines pre-generated with Cartesia. Interface sounds in code with ZzFX. Only battle cries are generated live. |
 
 ## Open questions
 
@@ -183,3 +196,4 @@ The full list is in [SPEC.md](SPEC.md#open-questions). Still open now:
 - What the opponent sees of a pending deploy.
 - Anthropic, SpacetimeDB and Supercell track criteria.
 - Game name, and who presents.
+- Sound pack quality and loudness: not heard yet, since no keys were available when the generator was written.

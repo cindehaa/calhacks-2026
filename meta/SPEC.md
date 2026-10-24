@@ -36,7 +36,7 @@ We build one game that naturally qualifies for four sponsor tracks plus three ma
 |---|---|---|---|
 | 1 | SpacetimeDB (anchor) | Special prize for most impressive use | Multiplayer server: rooms, units and the combat tick live in SpacetimeDB. Attend their CEO's workshop. |
 | 1 | Anthropic (anchor) | TBA at opening | Claude is the troop designer: description in, stats JSON out. |
-| 1 | Cartesia: Best Use of Cartesia | $1,516 + Meta glasses (TBD) | Speech-to-text for voice input, plus TTS so every troop speaks a battle cry on deploy. |
+| 1 | Cartesia: Best Use of Cartesia | $1,516 + Meta glasses (TBD) | Speech-to-text for voice input, TTS so every troop speaks a battle cry on deploy, and a Cartesia announcer with emotion control. |
 | 1 | Supercell (sponsor) | None listed yet | Visit their booth Friday night; pitch as "what if your deck was your imagination". |
 | 2 | Most Creative Project | Instax per member | Core concept |
 | 2 | Most Technically Advanced | NuPhy keyboard per member | Gesture + voice + LLM + realtime multiplayer |
@@ -96,6 +96,7 @@ Every stat has a hard clamp enforced by JSON schema, so "500 dragons" can't exis
 | `name` | Short display name | 1–3 words |
 | `battle_cry` | Line spoken on deploy | ≤ 8 words |
 | `voice_style` | TTS voice / tone hint | from a fixed list |
+| `sfx_set` | Which sound-effect set the troop uses | from a fixed list |
 
 Every unit attacks the nearest enemy.
 
@@ -146,9 +147,21 @@ Voice works both ways: Cartesia speech-to-text hears the player, and Cartesia te
 
 - Claude writes a short `battle_cry` and picks a `voice_style` with the stats, in the same call.
 - On deploy, Cartesia TTS speaks the line: the golem rumbles "Stone does not yield", the bees buzz "BZZ, ATTACK".
-- Optional: a short death line, and an announcer for match start, double elixir and tower falls.
+- Optional: a short death line.
 - Play the cry through speakers, not the players' headsets, so judges and passers-by hear it.
 - Keep cries ≤ 8 words so audio never piles up; drop a cry if another is still playing.
+
+## Sound
+
+Sound effects and music come from a fixed pack generated once with `tools/audio/generate.mjs`, so nothing audio-related waits on AI during a match. Troop battle cries are the only audio generated live. No sponsor makes sound effects or music: Cartesia's API is voice only, and Adobe Firefly's audio tools have no public API.
+
+- **Troop sounds:** Claude picks an `sfx_set` in the same call as the stats. Each set has spawn, attack, hit and death sounds, with two takes of attack and hit so repeats don't sound identical. Sets: `blade`, `ranged`, `magic`, `swarm`, `heavy`, `mech`, `beast`.
+- **Match sounds:** a rising charge-up that fills the 2.5 s deploy delay, a landing impact, tower hit and tower destroyed, match start, double elixir, match end, victory and defeat jingles, and a looping arena ambience.
+- **Music:** menu, battle (60 s) and overtime (30 s) tracks. Switch from battle to overtime at double elixir with a short crossfade, and loop both in case match timings change.
+- **Announcer:** fixed lines (match start, double elixir, ten seconds left, tower down, match end, draw, not enough elixir) pre-generated with Cartesia TTS and emotion control, so they play instantly.
+- **Interface sounds:** made in code with ZzFX (elixir tick, lock click, cancel, reject buzz, countdown, cost badge), with no files. Pitch can follow troop size.
+- **Mixing:** lower the music while a cry or announcer line plays. Drop a troop sound if more than a few of the same kind are already playing, so swarms don't clip.
+- **Models:** ElevenLabs sound effects v2 and ElevenLabs Music, both through fal (the key we already have). The script can switch to CassetteAI, Stable Audio 2.5 or Lyria 2.
 
 ## Art and animation
 
@@ -289,7 +302,8 @@ These are still ours to figure out; each has a starting answer to beat.
 Only after phase 4 works end to end.
 
 - Aesthetics multiplier (0.8–1.2×) for vivid descriptions
-- Announcer voice for match events; death lines for troops
+- Death lines for troops
+- Sounds generated per troop alongside the sprite (for example a dragon roar), attached late like sprites, with the `sfx_set` as fallback
 - Spells cast with gestures: swipe for a fireball, push for a shockwave
 - Targeting rules: air, ground, buildings only
 - Elements and a damage-multiplier table
