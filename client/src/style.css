@@ -174,7 +174,7 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 55%, #020308c0 100%); }
 .moon { position: absolute; left: 68%; top: 17vh; width: min(17vh, 13vw); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none;
   background: url(/ui/moon.svg) center / 100% no-repeat; opacity: .85; filter: drop-shadow(0 0 30px #9cc3e066) drop-shadow(0 0 90px #9cc3e033); animation: fadeIn 2s ease-out both; }
-.home .wordmark { position: absolute; top: 3.2vh; left: 0; right: 0; text-align: center; z-index: 1; }
+.home .wordmark { position: absolute; top: 3.2vh; left: 50%; transform: translateX(-50%); width: max-content; z-index: 1; }
 .islandWrap { position: absolute; left: 50%; top: 15vh; width: min(51vw, 84vh); aspect-ratio: 740 / 758; transform: translateX(-50%); pointer-events: none; }
 .island { position: absolute; inset: 0; width: 100%; animation: bob 7s ease-in-out infinite; }
 .islandShadow { position: absolute; left: 14%; right: 14%; bottom: 3%; height: 12%; border-radius: 50%; background: radial-gradient(closest-side, #000000b0, transparent); animation: shadowBob 7s ease-in-out infinite; }
@@ -257,7 +257,11 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .hubNet.off::before { background: #8e96b3; box-shadow: none; }
 
 /* motion: one entrance, then only the weather moves */
-.home:not([hidden]) .homeMark { animation: rise .9s cubic-bezier(.2, .8, .2, 1) both; }
+#title .wordmark, .homeMark { view-transition-name: wordmark; }
+::view-transition-group(wordmark) { animation-duration: .8s; animation-timing-function: cubic-bezier(.3, .9, .2, 1); }
+::view-transition-old(wordmark), ::view-transition-new(wordmark) { height: 100%; animation: none; }
+::view-transition-old(wordmark) { display: none; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .5s; }
 .home:not([hidden]) .islandWrap { animation: fadeIn 1.2s .1s ease-out both; }
 .home:not([hidden]) .banner.left { animation: unfurl .8s .25s cubic-bezier(.2, .8, .2, 1) both, sway 9s 1.05s ease-in-out infinite; }
 .home:not([hidden]) .banner.right { animation: unfurl .8s .35s cubic-bezier(.2, .8, .2, 1) both, sway 9s -3.45s ease-in-out infinite; }
@@ -374,3 +378,25 @@ body:not(.inHub) #camBtn { display: none; }
 #inputPanel .inRow button.on { color: #0b1a10; border-bottom-color: #1d5a3c; background: linear-gradient(160deg, #6fe3a0 0 56%, #4ac987 56% 100%); }
 #inputPanel .inMenu { border-radius: 0; background: #151a33f2; border: 0; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); font-family: var(--chakra); }
 .hubNet.joining::before { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: pulse 1.2s ease-in-out infinite; }
+
+/* portrait and phones: a bigger island, the buttons stacked under it */
+@media (max-aspect-ratio: 1/1) {
+  .islandWrap { width: min(88vw, 50vh); top: 14vh; }
+  .mist.back { top: 40vh; }
+}
+@media (max-width: 640px) {
+  .home .wordmark { top: 64px; font-size: 54px; }
+  .islandWrap { top: 150px; width: min(92vw, 44vh); }
+  .orders { flex-wrap: wrap; gap: 14px 12px; padding: 0 16px; bottom: 44px; }
+  .orders > .battle { order: -1; flex: 1 0 100%; --h: 88px; }
+  .orders > .battle .face { width: 100%; }
+  .orders .bLabel b { font-size: 30px; }
+  .orders .bLabel small { font-size: 15px; }
+  .orderSide { flex: 1; padding-top: 0; }
+  .orderSide .slab.small { width: 100%; --h: 84px; }
+  .orderSide .slab.small .face { width: 100%; }
+  .levels.ghost { display: none; }
+  .hubCredit { display: none; }
+  .frostCorner { width: 120px; }
+}
+@media (max-aspect-ratio: 1/1) and (min-width: 641px) { .islandWrap { top: 19vh; } }

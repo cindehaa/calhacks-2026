@@ -55,7 +55,7 @@ function netMsg(s: string) {
   $('hubNet').title = s;
 }
 hubFx(document.querySelector('#title .hubSky')!);
-hubFx(document.querySelector('#lobby .hubSky')!, { embers: { x: 0.5, y: 0.5, w: 0.3 } });
+hubFx(document.querySelector('#lobby .hubSky')!, { embers: document.querySelector<HTMLElement>('#lobby .islandWrap')! });
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
 // The first designer call is 2–3 s cold. Warm it now, not at match start, so the lobby absorbs it.
@@ -79,11 +79,19 @@ function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
 // ---------- title and hub ----------
 
 // The title screen's press also unlocks audio, so the menu music can start.
-let entered = false;
+let entered = false, entering = false;
 function enter() {
-  if (entered) return;
-  entered = true;
-  $('title').hidden = true;
+  if (entering) return;
+  entering = true;
+  // The title's wordmark glides up into the home screen's (view-transition-name: wordmark). The
+  // home screen stays hidden until the transition has its snapshot of the title.
+  const show = () => {
+    entered = true;
+    $('title').hidden = true;
+    renderLobby();
+  };
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(show);
+  else show();
   sfx.unlock();
   if (setupDone()) showTutorialOnce();
   else setup.open();
