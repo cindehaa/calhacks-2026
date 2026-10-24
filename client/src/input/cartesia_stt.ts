@@ -1,14 +1,19 @@
 // Cartesia streaming STT behind SpeechSource, with the browser recogniser as the fallback.
-// The mic is resampled to 16 kHz pcm_s16le in an AudioWorklet and streamed in 100 ms chunks to
-// an `ink-2` socket the whole time the mic is on. flush() sends `finalize`, waits for
+// The mic is resampled to 16 kHz pcm_s16le in an AudioWorklet and streamed in 50 ms chunks to
+// an `ink-2` socket. With voice click on it streams the whole time the mic is on; gated (push to
+// talk, the default with the camera on) it only streams while a pinch or mouse press is held,
+// starting with the last 300 ms before it. flush() sends `finalize`, waits for
 // `flush_done`, and swaps in a spare socket that was opened earlier, so the next words never
 // wait on a ~0.5 s connect. The socket opens straight to Cartesia with a token from api/.
 import { cartesiaUrl, openSocket } from '../cartesia';
+import { PreRoll } from './ptt';
 import { WebSpeechSource, type SpeechSource } from './speech';
 
 const RATE = 16000;
-const CHUNK = 1600; // 100 ms
-const QUEUE_MAX = 20; // chunks held while no socket is open (2 s), oldest dropped first
+const CHUNK = 800; // 50 ms, so a release waits at most this long for its last chunk
+const QUEUE_MAX = 40; // chunks held while no socket is open (2 s), oldest dropped first
+const PREROLL = 6; // 300 ms kept from before a push-to-talk hold
+const TAIL_MS = 80; // after a release, wait for the chunk still filling before finalising
 
 // Runs on the audio thread: linear resample to 16 kHz, convert to int16, post 100 ms buffers.
 const WORKLET = `
@@ -46,6 +51,10 @@ export class CartesiaSpeechSource implements SpeechSource {
   private unsent = false; // audio sent since the last finalize
   private flushing: Promise<void> | null = null;
   private fails = 0;
+  private gate = false; // push to talk: audio only goes out while held
+  private held = false;
+  private preroll = new PreRoll<ArrayBuffer>(PREROLL);
+  private tail: (() => void) | null = null; // waiting for the chunk that straddles a release
 
   constructor(private stream: () => MediaStream | null) {}
 
@@ -68,6 +77,9 @@ export class CartesiaSpeechSource implements SpeechSource {
     this.ctx = null;
     this.queue = [];
     this.unsent = false;
+    this.preroll.clear();
+    this.tail?.();
+    this.held = false;
     this.live?.flushed?.();
     this.live?.ws.close();
     this.live = null;
@@ -82,7 +94,46 @@ export class CartesiaSpeechSource implements SpeechSource {
     if (!this.spare) this.spare = this.open();
   }
 
-  flush(timeoutMs: number): Promise<void> {
+  // Push to talk on or off. Off streams everything, as voice click needs.
+  setGated(on: boolean): void {
+    if (on === this.gate) return;
+    this.gate = on;
+    this.preroll.clear();
+  }
+
+  // Start or stop a push-to-talk hold. Starting sends the pre-roll first; stopping lets the chunk
+  // that was still filling go out (≤ 80 ms) and then closes the gate. Await it before flush().
+  hold(on: boolean): Promise<void> {
+    if (on === this.held) return Promise.resolve();
+    if (on) {
+      this.held = true;
+      if (this.gate) for (const c of this.preroll.take()) this.send(c);
+      return Promise.resolve();
+    }
+    if (!this.gate || !this.on) {
+      this.held = false;
+      return Promise.resolve();
+    }
+    return new Promise(res => {
+      const done = () => {
+        clearTimeout(timer);
+        this.tail = null;
+        this.held = false;
+        res();
+      };
+      const timer = setTimeout(done, TAIL_MS);
+      this.tail = done;
+    });
+  }
+
+  async flush(timeoutMs: number): Promise<void> {
+    if (this.flushing) return this.flushing;
+    // Audio queued while the socket was (re)opening, e.g. Cartesia closed an idle one between
+    // holds: give the open a moment rather than dropping those words.
+    if (!this.live && this.opening && this.queue.length) {
+      await Promise.race([this.opening, new Promise(r => setTimeout(r, timeoutMs))]);
+      this.drain();
+    }
     if (this.flushing) return this.flushing;
     const old = this.live;
     if (!old || !this.unsent || old.ws.readyState !== WebSocket.OPEN) return Promise.resolve();
@@ -121,9 +172,22 @@ export class CartesiaSpeechSource implements SpeechSource {
   }
 
   private audio(chunk: ArrayBuffer): void {
+    if (this.gate && !this.held) return this.preroll.push(chunk);
+    this.send(chunk);
+    this.tail?.();
+  }
+
+  private drain(): void {
+    const ws = this.live?.ws;
+    if (ws?.readyState !== WebSocket.OPEN || !this.queue.length) return;
+    for (const q of this.queue.splice(0)) ws.send(q);
+    this.unsent = true;
+  }
+
+  private send(chunk: ArrayBuffer): void {
     const ws = this.live?.ws;
     if (ws?.readyState === WebSocket.OPEN) {
-      for (const q of this.queue.splice(0)) ws.send(q);
+      this.drain();
       ws.send(chunk);
       this.unsent = true;
       return;
@@ -253,6 +317,16 @@ export class AutoSpeech implements SpeechSource {
 
   warm(): void {
     if (this.cur === this.cartesia) this.cartesia.warm();
+  }
+
+  // Push to talk. The browser recogniser can't be gated, so it keeps listening and the lock's
+  // transcript only takes words heard after the lock, as before.
+  setGated(on: boolean): void {
+    this.cartesia.setGated(on);
+  }
+
+  hold(on: boolean): Promise<void> {
+    return this.cur === this.cartesia ? this.cartesia.hold(on) : Promise.resolve();
   }
 
   flush(timeoutMs: number): Promise<void> {

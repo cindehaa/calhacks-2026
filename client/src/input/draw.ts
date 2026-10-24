@@ -1,12 +1,13 @@
 // Hand cursor, locked spot, drag-off ring and live transcript, drawn over the board in screen px.
 import { CAL_TARGETS, type PinchCalibration } from './calibrate';
+import type { LockBy } from './lock';
 
 export interface InputView {
   cursor: { x: number; y: number; pinched: boolean } | null; // hand cursor only; the mouse has its own ring
   lock: {
     x: number;
     y: number;
-    by: 'pinch' | 'voice';
+    by: LockBy;
     out: boolean; // outside the drag-off ring: letting go now cancels
     radius: number;
     transcript: string;
@@ -32,6 +33,7 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
     const words = l.transcript ? `“${clip(l.transcript, 40)}”` : l.by === 'voice' ? 'listening…' : 'say the troop…';
     pill(g, words, l.x, l.y - 30, l.transcript ? C.text : C.muted);
     if (l.out) text(g, l.by === 'voice' ? 'stop talking to cancel' : 'let go to cancel', l.x, l.y + 36, 13, C.bad);
+    else text(g, l.by === 'voice' ? 'go quiet to deploy' : 'let go to deploy', l.x, l.y + 36, 12, C.muted);
   }
   for (const f of v.flashes) {
     const a = (now - f.t) / FLASH_MS;

@@ -1,6 +1,11 @@
 // Camera + mic input: wires the hand tracker, the mic level and the transcript into the lock
-// machine, and reports locks, deploys and cancels to the game. Mouse and keyboard keep working
-// untouched; this only adds a second way in.
+// machine, and reports locks, deploys and cancels to the game.
+//
+// With the camera on, the pinch is push to talk: speech goes to Cartesia only while you hold it
+// (plus 300 ms from just before), and letting go finalises it straight away, with no quiet timer.
+// Voice click (talking alone locks at the cursor) is what the mic does without a camera, and an
+// option with one. With the mic on, holding the mouse button works like a pinch. Keys, clicks
+// and the text box work as before.
 import { ARENA_W, onOwnHalf, type Side } from '../../../shared/arena';
 import { KEYS, load, PinchCalibration, PointerCalibration, save, type PointerCal } from './calibrate';
 import { drawPinchCalibration, drawPointerCalibration, FLASH_MS, type InputView } from './draw';
@@ -11,6 +16,7 @@ import { LockMachine, LOCK_DEFAULTS, type Lock, type Pt } from './lock';
 import { DEFAULT_PINCH, Hysteresis, pinchMetric2d, pinchMetric3d, type PinchThresholds } from './pinch';
 import { AutoSpeech } from './cartesia_stt';
 import { chooseDescription, isCancel, Transcript } from './speech';
+import { gated, voiceLocks, wasClick } from './ptt';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import './input.css';
 
@@ -29,9 +35,10 @@ export interface InputHost {
   typedText(): string;
   clearTyped(): void;
   prefetch?(words: string): void; // start designing from words heard so far
+  released?(nonce: number, words: string): void; // let go; the last words are still being finalised
 }
 
-interface Prefs { preview: boolean; vadDb: number; vadEndMs: number }
+interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; voiceClick: boolean }
 
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
@@ -51,7 +58,7 @@ export class InputController {
   private pinchCfg: PinchThresholds = load<PinchThresholds>(KEYS.pinch) ?? DEFAULT_PINCH;
   private hyst = new Hysteresis(this.pinchCfg.on, this.pinchCfg.off);
   private pointerCal: PointerCal | null = load<PointerCal>(KEYS.pointer);
-  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, ...load<Partial<Prefs>>(KEYS.prefs) };
+  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, voiceClick: false, ...load<Partial<Prefs>>(KEYS.prefs) };
 
   private hand: HandFrame | null = null;
   private handCursor: Pt | null = null;
@@ -66,6 +73,8 @@ export class InputController {
   private camStatus = '';
   private heard = '';
   private lastPanel = 0;
+  private pressT = 0; // when the current mouse press began
+  private clickTaken = false; // the last mouse press became a voice deploy, not a click
 
   // DOM
   private el = document.createElement('div');
@@ -88,6 +97,18 @@ export class InputController {
     };
 
     canvas.addEventListener('mousemove', e => (this.mouse = { x: e.clientX, y: e.clientY }));
+    // Hold to talk with the mouse, when the mic is on. Up is watched on the window so letting go
+    // off the canvas still counts.
+    canvas.addEventListener('mousedown', e => {
+      this.clickTaken = false;
+      if (e.button !== 0 || !this.mic.on || this.calibPointer || this.calibPinch) return;
+      this.pressT = performance.now();
+      this.machine.press(this.pressT, { x: e.clientX, y: e.clientY });
+    });
+    addEventListener('mousemove', e => this.machine.pressMove({ x: e.clientX, y: e.clientY }));
+    addEventListener('mouseup', e => {
+      if (e.button === 0) this.machine.pressEnd({ x: e.clientX, y: e.clientY });
+    });
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
     addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
@@ -105,6 +126,14 @@ export class InputController {
   // Open the STT sockets ahead of the first deploy (match start). Nothing to do with the mic off.
   warm(): void {
     if (this.mic.on) this.speech.warm();
+  }
+
+  // True once if the mouse press that just ended was a hold-to-talk deploy, so the game's click
+  // handler leaves it alone instead of also picking a typing spot.
+  tookClick(): boolean {
+    const t = this.clickTaken;
+    this.clickTaken = false;
+    return t;
   }
 
   // What render.ts draws over the board. Undefined while camera and mic are both off.
@@ -136,11 +165,13 @@ export class InputController {
 
     if (this.mic.on) {
       const ev = this.vad.push(now, this.mic.levelDb());
-      if (!calibrating && ev?.kind === 'start') this.machine.speechStart(ev.t);
-      else if (ev?.kind === 'end') {
+      const voice = this.voiceLocks();
+      if (!calibrating && voice && ev?.kind === 'start') this.machine.speechStart(ev.t);
+      else if (ev?.kind === 'end' && voice) {
         this.machine.speechEnd();
         // Close the utterance so the next one starts clean (a no-op if a deploy already flushed).
-        this.speech.flush(FLUSH_MS);
+        // Push to talk doesn't need this: only held audio is sent, and letting go flushes it.
+        if (this.machine.lock?.by !== 'pinch' && this.machine.lock?.by !== 'mouse') this.speech.flush(FLUSH_MS);
       }
     }
     if (!calibrating) {
@@ -194,7 +225,8 @@ export class InputController {
     const words = new Transcript();
     this.listeners.add(words);
     this.active = { nonce, spot: [x, y], words };
-    this.host.status(this.mic.on ? 'say what the troop is…' : 'locked: type a troop, or let go to use the text box');
+    if (l.by !== 'voice' && this.mic.on) void this.speech.hold(true);
+    this.host.status(this.mic.on ? 'say what the troop is… let go to deploy' : 'locked: type a troop, or let go to use the text box');
     return true;
   }
 
@@ -202,8 +234,20 @@ export class InputController {
     const a = this.active;
     this.active = null;
     if (!a) return;
+    // A quick click with nothing said or typed: hand it back to the click-to-type spot.
+    if (l.by === 'mouse' && wasClick(performance.now() - this.pressT, a.words.text, this.host.typedText())) {
+      this.listeners.delete(a.words);
+      void this.speech.hold(false).then(() => this.speech.flush(FLUSH_MS));
+      this.host.cancel(a.nonce, '');
+      return;
+    }
+    if (l.by === 'mouse') this.clickTaken = true;
     this.flash(l, 'deploy', '');
-    if (this.mic.on) await this.speech.flush(FLUSH_MS);
+    this.host.released?.(a.nonce, a.words.text);
+    if (this.mic.on) {
+      await this.speech.hold(false);
+      await this.speech.flush(FLUSH_MS);
+    }
     this.listeners.delete(a.words);
     const d = chooseDescription(this.host.typedText(), a.words.text);
     if (d.ok) {
@@ -224,7 +268,10 @@ export class InputController {
     const a = this.active;
     this.active = null;
     if (!a) return;
+    if (l.by === 'mouse') this.clickTaken = true;
     this.listeners.delete(a.words);
+    // Close what was said so it can't bleed into the next lock.
+    if (this.mic.on) void this.speech.hold(false).then(() => this.speech.flush(FLUSH_MS));
     const label = reason === 'drag' ? 'dragged off' : reason === 'hand lost' ? 'hand lost' : reason === 'key' ? '' : reason;
     this.flash(l, 'cancel', label ? `cancel · ${label}` : 'cancel');
     this.host.cancel(a.nonce, label ? `cancelled (${label})` : 'cancelled');
@@ -243,6 +290,16 @@ export class InputController {
     }
   }
 
+  // Whether talking alone locks a spot (voice click), and with it whether audio streams all the
+  // time or only while a pinch or press is held.
+  private voiceLocks(): boolean {
+    return voiceLocks(!!this.tracker, this.prefs.voiceClick);
+  }
+
+  private syncGate(): void {
+    this.speech.setGated(gated(this.mic.on, this.voiceLocks()));
+  }
+
   private flash(p: Pt, kind: 'deploy' | 'cancel', label: string): void {
     this.flashes.push({ x: p.x, y: p.y, kind, label, t: performance.now() });
   }
@@ -258,10 +315,12 @@ export class InputController {
       this.hand = null;
       this.handCursor = null;
       this.camStatus = '';
+      this.syncGate();
       this.renderPanel();
       return;
     }
     const t = (this.tracker = new HandTracker());
+    this.syncGate();
     this.camStatus = 'starting camera…';
     this.renderPanel();
     try {
@@ -274,6 +333,7 @@ export class InputController {
       if (this.tracker === t) {
         t.stop();
         this.tracker = null;
+        this.syncGate();
         this.camStatus = `camera failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
       }
     }
@@ -292,6 +352,7 @@ export class InputController {
     }
     try {
       await this.mic.start();
+      this.syncGate();
       this.speech.start();
       this.heard = this.speech.available ? `listening (${this.speech.engine})` : 'no speech recognition in this browser: voice locks, typed text describes';
     } catch (e) {
@@ -364,7 +425,7 @@ export class InputController {
     this.el.innerHTML = `
       <div class="inRow">
         <button data-act="cam" title="Aim with your index knuckle, pinch thumb + middle finger to lock">Camera</button>
-        <button data-act="mic" title="Start talking to lock, describe the troop, go quiet to deploy">Mic</button>
+        <button data-act="mic" title="Pinch (or hold the mouse) and talk, let go to deploy. Without the camera, starting to talk also locks.">Mic</button>
         <button data-act="calPointer" title="Point at 4 dots and pinch at each">Calibrate</button>
         <button data-act="menu" class="ghost" title="Pinch calibration and mic settings">⋯</button>
       </div>
@@ -374,6 +435,7 @@ export class InputController {
         <button data-act="calPinch">Calibrate pinch (7 s)</button>
         <button data-act="reset" class="ghost">Reset calibration</button>
         <label><input type="checkbox" data-act="preview"> Camera preview</label>
+        <label title="With the camera on, the pinch is push to talk. Tick this to also lock by just talking (open mic)."><input type="checkbox" data-act="voiceClick"> Voice click with camera</label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
         <label>Done after <input type="range" data-act="vadEnd" min="300" max="1500" step="50"><span class="inVal" data-val="vadEnd"></span></label>
@@ -387,6 +449,7 @@ export class InputController {
     const q = <T extends HTMLElement>(act: string) => this.el.querySelector<T>(`[data-act="${act}"]`)!;
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
+    q<HTMLInputElement>('voiceClick').checked = this.prefs.voiceClick;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
     q<HTMLInputElement>('vadEnd').value = String(this.prefs.vadEndMs);
     this.el.addEventListener('click', e => {
@@ -412,6 +475,10 @@ export class InputController {
     this.el.addEventListener('input', e => {
       const t = e.target as HTMLInputElement;
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
+      if (t.dataset.act === 'voiceClick') {
+        this.prefs.voiceClick = t.checked;
+        this.syncGate();
+      }
       if (t.dataset.act === 'vadDb') this.prefs.vadDb = this.vad.o.thresholdDb = Number(t.value);
       if (t.dataset.act === 'vadEnd') this.prefs.vadEndMs = this.vad.o.endMs = Number(t.value);
       save(KEYS.prefs, this.prefs);
@@ -429,7 +496,8 @@ export class InputController {
     const cam = this.tracker
       ? this.camStatus || (this.hand ? `hand · pinch ${this.ratio.toFixed(2)}${this.pinched ? ' ✓' : ''}` : 'no hand in view')
       : '';
-    const mic = this.mic.on ? `${this.vad.level.toFixed(0)} dB${this.vad.speaking ? ' · speaking' : ''} · ${this.heard}` : this.heard;
+    const mode = this.voiceLocks() ? 'talk to lock' : 'pinch or hold to talk';
+    const mic = this.mic.on ? `${this.vad.level.toFixed(0)} dB${this.vad.speaking ? ' · speaking' : ''} · ${mode} · ${this.heard}` : this.heard;
     $('.inStatus').textContent = [cam, mic].filter(Boolean).join('\n');
     $('[data-val="vadDb"]').textContent = `${this.prefs.vadDb} dB`;
     $('[data-val="vadEnd"]').textContent = `${this.prefs.vadEndMs} ms`;
