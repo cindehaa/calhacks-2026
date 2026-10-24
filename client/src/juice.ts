@@ -99,11 +99,17 @@ export class Juice {
   private nudgeAt = -10;
   private refusedSeen: string[] = [];
   private air: Airborne[] = [];
+  private flagWant: { words: string; at: number } | null = null;
 
   constructor() {
     try {
       matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => (this.reduced = reducedMotion()));
     } catch { /* old browsers */ }
+  }
+
+  // The player flagged the troop with these words as not what they asked for.
+  flag(words: string): void {
+    this.flagWant = { words: words.trim().toLowerCase(), at: this.lastReal };
   }
 
   // ---------- clocks ----------
@@ -230,6 +236,23 @@ export class Juice {
       }
     }
     for (const [id, tr] of this.troops) if (tr.seen !== this.frame) this.troops.delete(id);
+    // "That's wrong": a ring of gold motes rises off the newest of your troops with those words.
+    if (this.flagWant && real - this.flagWant.at < 1) {
+      let hit: Track | null = null;
+      for (const [id, tr] of this.troops) {
+        if (tr.side === v.mySide && v.troops.get(id)?.description?.trim().toLowerCase() === this.flagWant.words) hit = tr;
+      }
+      if (hit) {
+        this.flagWant = null;
+        fx.ring(hit.x, hit.y, 0.3, 1.6, 0.6, 'rgba(255,210,122,0.9)', 2);
+        const n = this.reduced ? 6 : 16;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          fx.particle(hit.x + Math.cos(a) * 0.5, hit.y + Math.sin(a) * 0.5, 0.4, Math.cos(a) * 0.25, Math.sin(a) * 0.25, 1.6 + Math.random(),
+            0.8 + Math.random() * 0.4, 0.05 + Math.random() * 0.03, i % 2 ? '#ffd27a' : '#fff1c9', 2);
+        }
+      }
+    } else this.flagWant = null;
 
     // Heavy hits freeze the frame for a moment.
     let heavy = 0;

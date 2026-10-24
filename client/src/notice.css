@@ -1,0 +1,33 @@
+/* One message at a time on a chamfered stone slab above the dock (notice.ts). */
+#notice { position: fixed; left: 50%; bottom: 196px; z-index: 6; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  max-width: min(520px, calc(100vw - 32px)); padding: 8px 14px 9px; pointer-events: none;
+  font: 700 15px/1.25 'Alegreya Sans', system-ui, sans-serif; font-variant-numeric: lining-nums; color: #e8ebf5;
+  background: linear-gradient(160deg, #252b4a 0 56%, #1c2140 56% 100%);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  box-shadow: inset 0 1px 0 #ffffff22, inset 0 -3px 0 #05060c; }
+#notice[hidden] { display: none; }
+#notice::before { content: ''; flex: none; width: 8px; height: 8px; transform: rotate(45deg); background: var(--tone, #ffb02e); box-shadow: 0 0 8px var(--tone, #ffb02e); }
+#notice[data-tone="info"] { --tone: #ffb02e; }
+#notice[data-tone="good"] { --tone: #ffd27a; }
+#notice[data-tone="warn"] { --tone: #9cc3e0; }
+#notice[data-tone="bad"] { --tone: #ff5d6c; }
+#notice .nAct { flex: none; padding: 3px 10px; border: 0; border-radius: 0; background: #ffb02e; color: #1a0e00; font: 800 13px 'Alegreya Sans', system-ui, sans-serif; cursor: pointer;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
+#notice.in { animation: noticeIn .28s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes noticeIn { from { opacity: 0; transform: translate(-50%, 8px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+body.inHub #notice { display: none; }
+
+/* Not enough elixir: the bar flashes and shivers, and a marker shows where it has to fill to. */
+#elixirRow.starved #elixir { animation: starveShake .42s ease-out; }
+#elixirRow.starved #elixirFill { animation: starveFlash .9s ease-out; }
+#elixirRow.starved #elixirGem { animation: starveFlash .9s ease-out; }
+#elixirNeed { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #ffd27a; box-shadow: 0 0 8px #ffb02e; pointer-events: none; opacity: 0; z-index: 2; }
+#elixirRow.starved #elixirNeed { animation: needMark 2.4s ease-out; }
+@keyframes starveShake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 45% { transform: translateX(4px); } 70% { transform: translateX(-2px); } }
+@keyframes starveFlash { 0%, 40% { filter: brightness(1.8) saturate(1.4) hue-rotate(-40deg); } 100% { filter: none; } }
+@keyframes needMark { 0% { opacity: 0; } 10%, 75% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  #notice.in { animation: none; }
+  #elixirRow.starved #elixir { animation: none; }
+}

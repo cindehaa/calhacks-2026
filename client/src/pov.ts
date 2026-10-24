@@ -12,8 +12,9 @@ import { Juice } from './juice';
 import { SummonCircles } from './summon';
 import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View } from './render';
 import { Scenery } from './scenery';
-import { poseFrame } from './sprites';
+import { poseFrame, spriteFailed } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
+import { improvised } from './designer';
 
 // Where you stand, in your own view coords (your back line is y = 0): height, resting pitch and
 // vertical field of view.
@@ -501,7 +502,8 @@ export class PovBoard {
         m.mat.map = this.imageTexture(img);
       } else {
         w = h = r * 2.6 * BODY;
-        m.mat.map = this.tokenTexture(troopGlyph(troop?.name ?? '?', troop?.description), mine);
+        const glyph = troopGlyph(troop?.name ?? '?', troop?.description);
+        m.mat.map = spriteFailed(troop?.description) ? this.sketchTexture(glyph, mine) : this.tokenTexture(glyph, mine);
       }
       m.h = h;
       const mat = m.mat;
@@ -604,6 +606,44 @@ export class PovBoard {
     g.arc(64, 64, 56, 0, Math.PI * 2);
     g.stroke();
     g.drawImage(glyphImage(glyph, 72), 26, 26, 76, 76);
+    t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.textures.set(key, t);
+    return t;
+  }
+
+  // No art coming: the token redrawn as an ink sketch on frost paper. Cross-hatching, a doubled
+  // hand-drawn rim in the team colour and the glyph inked in greys, like a study for a card.
+  private sketchTexture(glyph: string, mine: boolean): THREE.CanvasTexture {
+    const key = 'sketch|' + glyph + '|' + (mine ? 1 : 0);
+    let t = this.textures.get(key);
+    if (t) return t;
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d')!;
+    c.width = c.height = 128;
+    g.fillStyle = '#dbe9f4';
+    g.beginPath();
+    g.arc(64, 64, 55, 0, Math.PI * 2);
+    g.fill();
+    g.save();
+    g.clip();
+    g.strokeStyle = 'rgba(23,27,46,0.22)';
+    g.lineWidth = 1.5;
+    for (let i = -128; i < 128; i += 9) { g.beginPath(); g.moveTo(i, 128); g.lineTo(i + 128, 0); g.stroke() }
+    g.strokeStyle = 'rgba(23,27,46,0.12)';
+    for (let i = -128; i < 128; i += 13) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 128, 128); g.stroke() }
+    g.restore();
+    g.strokeStyle = mine ? C.mine : C.theirs;
+    g.lineCap = 'round';
+    for (const [dx, dy, w, a0] of [[0, 0, 6, 0.1], [1.5, -1, 2.5, 2.2]] as const) {
+      g.lineWidth = w;
+      g.beginPath();
+      g.arc(64 + dx, 64 + dy, 55 - w / 3, a0, a0 + Math.PI * 1.93);
+      g.stroke();
+    }
+    g.filter = 'grayscale(1) brightness(0.35) contrast(1.6)';
+    g.drawImage(glyphImage(glyph, 72), 26, 26, 76, 76);
+    g.filter = 'none';
     t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     this.textures.set(key, t);
@@ -1109,6 +1149,7 @@ export class PovBoard {
         g.globalAlpha = st.alpha;
         this.outlined(name, x + icon / 2, y, Math.round(size * st.scale), ink);
         g.globalAlpha = 1;
+        if (mine && improvised(troop.description)) this.improvisedStamp(x + w / 2 + 4 * s, y - size * 0.15, s, st.alpha);
         if (buildings) this.towerIcon(x - w / 2 + 5 * s, y - size * 0.35, s, ink);
       } else if (!free(x - 10, py - ph / 2, x + 10, py + ph / 2)) continue;
       // The cost stays hidden until the troop lands, then rolls like a slot reel (juice.ts).
@@ -1125,6 +1166,29 @@ export class PovBoard {
   private labels: { u: DrawUnit; troop: DrawTroop; x: number; y: number; T: number }[] = [];
   private labelBoxes: number[] = [];
   private lead = new Map<bigint, DrawUnit>();
+
+  // "Improvised": the offline designer made this one. A small tilted ink stamp beside the name, in
+  // amber like a wax seal, so a plain troop reads as a deliberate quick sketch rather than a bug.
+  private improvisedStamp(x: number, y: number, s: number, alpha: number): void {
+    const g = this.g;
+    g.save();
+    g.globalAlpha = 0.9 * alpha;
+    g.translate(x, y);
+    g.rotate(-0.16);
+    const fs = Math.round(8.5 * s);
+    g.font = `800 ${fs}px 'Cinzel', Georgia, serif`;
+    const label = 'IMPROVISED', w = g.measureText(label).width + 8 * s, h = fs + 5 * s;
+    g.fillStyle = 'rgba(26,14,0,0.72)';
+    g.fillRect(0, -h / 2, w, h);
+    g.strokeStyle = '#ffb02e';
+    g.lineWidth = 1.2;
+    g.strokeRect(0.5, -h / 2 + 0.5, w - 1, h - 1);
+    g.fillStyle = '#ffd27a';
+    g.textAlign = 'left';
+    g.textBaseline = 'middle';
+    g.fillText(label, 4 * s, 0.5);
+    g.restore();
+  }
 
   // A tiny crenellated tower, about 10 px at s = 1, centred on (x, y).
   private towerIcon(x: number, y: number, s: number, color: string): void {

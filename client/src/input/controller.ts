@@ -5,7 +5,9 @@
 // clicking the board with words waiting: the troop goes where you were pointing just before.
 // Close your hand into a fist, press Esc or say "cancel" to throw the words away. Typed text,
 // number keys and click-to-type work as before.
-import { drawCursor, FLASH_MS, type CursorState, type InputView } from './draw';
+import { drawCursor, MISS_MS, type CursorState, type InputView } from './draw';
+import { clearNotice, notice, noticeShowing } from '../notice';
+import { sfx } from '../sfx';
 import { OneEuro } from './filter';
 import { FlickDetector } from './flick';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
@@ -25,6 +27,7 @@ type Spot = [number, number]; // world coords
 // (null refuses); deploy() and cancel() finish it.
 export interface InputHost {
   playing(): boolean;
+  started?(): boolean; // past the versus card and countdown
   canDeploy(spot: Spot): boolean; // your half, or a pocket you've opened
   toWorld(px: number, py: number): Spot;
   begin(spot: Spot, by: string): number | null;
@@ -53,6 +56,8 @@ interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean
 interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcript }
 
 const FLUSH_MS = 600; // how long a fire waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
+const LOST_MS = 1000; // hand out of view this long before "show your hand"
+const FADE_MS = 450; // the cursor fades out over this when the hand goes
 const FLICK_SHOW_MS = 180; // the cursor fills this long after a flick
 const SCREEN_IN_CAMERA = invertH(DEFAULT_H); // the screen's edges in camera coords, for the preview
 
@@ -85,6 +90,10 @@ export class InputController {
   private camStatus = '';
   private heard = '';
   private heardWords = false; // the recogniser has returned words at least once
+  private lostAt = 0; // when the hand went out of view, 0 while it's in view
+  private lostCursor: Pt | null = null; // where it was, for the fade
+  private fellBack = false; // Cartesia gave up; say so once, in a match
+  private hinted = false; // the how-to after a fire with no words shows once
   private flaggedAt = 0; // last mismatch flag: interim words flag it, then the final repeats them
   private lastPanel = 0;
   private clickTaken = false; // the last mouse press fired, so it isn't also a click-to-type
@@ -103,6 +112,7 @@ export class InputController {
     this.speech.setGated(false); // always listening
     this.speech.onPartial = t => this.words(t, false);
     this.speech.onFinal = t => this.words(t, true);
+    this.speech.onFallback = () => (this.fellBack = true); // told once a match is under way
     this.speech.onError = msg => {
       this.heard = msg;
       this.host.event?.('speech:error', msg);
@@ -194,11 +204,12 @@ export class InputController {
     const playing = this.host.playing(), at = this.cursor();
     const words = this.firing ? '' : this.prompt.text;
     return {
-      cursor: this.handCursor && playing ? { ...this.handCursor, state: this.cursorState(performance.now()) } : null,
+      cursor: this.handCursor && playing ? { ...this.handCursor, state: this.cursorState(performance.now()) }
+        : this.lostCursor && playing && performance.now() - this.lostAt < FADE_MS ? { ...this.lostCursor, state: 'open', fade: 1 - (performance.now() - this.lostAt) / FADE_MS } : null,
       prompt: playing && at && (words || this.vad.speaking) ? { x: at.x, y: at.y, text: words, speaking: this.vad.speaking } : null,
       flashes: this.flashes,
       mic: playing && this.mic.on && at ? { x: at.x, y: at.y, db: this.vad.level, speaking: this.vad.speaking } : null,
-      hint: this.tracker?.ready && !this.hand && playing ? 'no hand in view' : '',
+      hint: '', // "show your hand" is a notice now, after a second out of view
     };
   }
 
@@ -212,7 +223,12 @@ export class InputController {
       // Close each utterance when the talking stops, so its words are final before the next fire.
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
-    this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
+    this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
+    // Once the countdown is over, so it isn't missed under the versus card.
+    if (this.fellBack && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) {
+      this.fellBack = false;
+      notice(this.speech.available ? 'Using your browser’s speech instead · same game, a touch slower' : 'No speech here · type the troop instead', { tone: 'warn', ms: 3400, key: 'speech', rank: 1 });
+    }
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
     else this.renderHint();
@@ -221,10 +237,13 @@ export class InputController {
   private onHandFrame(f: HandFrame | null, now: number): void {
     this.hand = f;
     if (!f) {
+      if (this.handCursor) { this.lostAt = now; this.lostCursor = this.handCursor }
       this.resetHand();
       this.drawPreviews();
+      this.handLost(now);
       return;
     }
+    if (this.lostAt) { this.lostAt = 0; this.lostCursor = null; clearNotice('hand') }
     const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
     this.trail.push(now, this.handCursor);
@@ -237,6 +256,16 @@ export class InputController {
       this.fire(aim, 'flick');
     }
     this.drawPreviews();
+  }
+
+  // The hand left the camera (or the camera stopped): the cursor fades where it was, and after a
+  // second a gentle "show your hand" holds until it's back.
+  private handLost(now: number): void {
+    if (!this.host.playing() || !this.tracker?.ready) return clearNotice('hand');
+    if (!this.lostAt) this.lostAt = now;
+    if (now - this.lostAt > LOST_MS && !noticeShowing('hand')) {
+      notice('Show your hand to the camera to aim', { tone: 'warn', hold: true, key: 'hand' });
+    }
   }
 
   private resetHand(): void {
@@ -274,8 +303,7 @@ export class InputController {
     if (!p || !this.host.playing() || this.firing) return false;
     const said = this.prompt.text, typed = this.host.typedText().trim();
     if (!said && !typed) {
-      const how = !this.mic.on ? 'type a troop or turn the mic on' : this.speech.available ? 'say a troop first' : 'type a troop first';
-      this.flash(p, 'cancel', how);
+      this.missed(p);
       return true;
     }
     const spot = this.host.toWorld(p.x, p.y);
@@ -304,7 +332,8 @@ export class InputController {
       this.host.deploy(f.nonce, f.spot, d.text, { from: d.from, by: f.by, transcript: f.words.text });
       return;
     }
-    this.flash(f.at, 'cancel', d.reason === 'cancel' ? 'cancelled' : 'no description');
+    if (d.reason === 'cancel') this.flash(f.at, 'cancel', 'cancelled');
+    else this.missed(f.at);
     this.host.cancel(f.nonce, d.reason === 'cancel' ? 'cancelled' : 'cancelled: no description heard', f.words.text);
   }
 
@@ -346,6 +375,19 @@ export class InputController {
     }
   }
 
+  // Fired with nothing (or nothing usable) heard: a wobbling "didn't catch that" at the spot, a
+  // soft "hm?", and the first time only, how to do it.
+  private missed(p: Pt): void {
+    this.flashes = this.flashes.filter(f => f.kind !== 'miss');
+    this.flash(p, 'miss', this.mic.on || this.speech.available ? 'didn’t catch that' : 'nothing to send');
+    sfx.play('miss');
+    if (this.hinted) return;
+    this.hinted = true;
+    const send = this.tracker ? 'flick' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
+    notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
+  }
+
   private flagMismatch(): void {
     const now = performance.now();
     if (now - this.flaggedAt < 3000) return;
@@ -353,7 +395,7 @@ export class InputController {
     this.host.mismatch?.();
   }
 
-  private flash(p: Pt, kind: 'deploy' | 'cancel', label: string, words = ''): void {
+  private flash(p: Pt, kind: 'deploy' | 'cancel' | 'miss', label: string, words = ''): void {
     this.flashes.push({ x: p.x, y: p.y, kind, label, t: performance.now(), words });
   }
 

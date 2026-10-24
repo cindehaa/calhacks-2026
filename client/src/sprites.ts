@@ -17,9 +17,18 @@ export function requestSprite(description: string): Promise<string | null> {
   let p = requests.get(key);
   if (!p) {
     p = fetchSprite(description);
+    p.then(url => { if (!url) failed.add(key) });
     requests.set(key, p);
   }
   return p;
+}
+
+// Art that won't come (the request failed, or the api has no art): the board draws an inked
+// sketch instead of the plain token, so it looks deliberate rather than still loading.
+const failed = new Set<string>();
+export function spriteFailed(description: string | undefined): boolean {
+  if (!description) return false;
+  return off || failed.has(normalise(description));
 }
 
 async function fetchSprite(description: string): Promise<string | null> {

@@ -1,5 +1,5 @@
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, ELIXIR_MAX, KING_LANE, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
+import { COUNTDOWN, DOUBLE_ELIXIR_AT, ELIXIR_MAX, ELIXIR_PER_SEC, KING_LANE, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
@@ -21,6 +21,7 @@ import { hubFx, resultFx } from './hubfx';
 import { tapestry } from './banner';
 import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
+import { notice } from './notice';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
@@ -581,11 +582,39 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     call(match()?.cancelDeploy(nonce), () => {});
     sfx.play('buzz');
     const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
-    if (m?.[1] === 'not enough elixir') sfx.play('tooExpensive');
-    status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : `need ${m[2]} embers, have ${Math.floor(match()?.elixir ?? 0)}`}` : msg, true);
-    drops.refused(nonce, m ? `would cost ${m[2]}${m[1] === 'too expensive' ? ', over 10' : ''}` : 'refused', performance.now());
+    if (m?.[1] === 'not enough elixir') {
+      sfx.play('tooExpensive');
+      const need = Number(m[2]), have = match()?.elixir ?? 0;
+      const secs = elixirWait(need, have);
+      status(`${d.name} needs ${need} embers, you have ${Math.floor(have)}`, true);
+      notice(`Need ${need}, have ${Math.floor(have)} · ready in about ${secs} s`, { tone: 'bad', ms: 2600, key: 'elixir' });
+      starve(need);
+      drops.refused(nonce, `need ${need} · have ${Math.floor(have)}`, performance.now()); // no coin: that's for over 10
+    } else {
+      status(m ? `${d.name} would cost ${m[2]} — over the 10 limit` : msg, true);
+      drops.refused(nonce, m ? `would cost ${m[2]}, over 10` : 'refused', performance.now());
+    }
     return false;
   }
+}
+
+// Seconds until `need` elixir is in hand at the current rate (double in the last 30 s), rounded up.
+function elixirWait(need: number, have: number): number {
+  const m = match();
+  const rate = ELIXIR_PER_SEC * ((m?.time ?? 0) >= DOUBLE_ELIXIR_AT ? 2 : 1);
+  return Math.max(1, Math.ceil((need - have) / rate));
+}
+
+// The elixir bar flashes and shivers, and a gold marker shows where it has to fill to.
+let starveTimer: ReturnType<typeof setTimeout> | undefined;
+function starve(need: number) {
+  const row = $('elixirRow');
+  $('elixirNeed').style.left = `${(Math.min(ELIXIR_MAX, need) / ELIXIR_MAX) * 100}%`;
+  row.classList.remove('starved');
+  void row.offsetWidth;
+  row.classList.add('starved');
+  clearTimeout(starveTimer);
+  starveTimer = setTimeout(() => row.classList.remove('starved'), 2500);
 }
 
 // Deploy with the art if it's already here, else deploy now and set the art when it lands.
@@ -661,7 +690,7 @@ async function designAt(nonce: number, spot: [number, number], description: stri
     const d = await designTroop(description);
     attempts.get(nonce)?.gotDesign(d);
     const { design, ms, source, early } = d;
-    const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
+    const tags = [source === 'offline' && 'improvised', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
     status(`${design.name} · ${ms} ms${tags ? ` (${tags})` : ''}`); // the cost waits for the landing reveal
     void deployWithArt(nonce, spot, description, design, art);
@@ -679,6 +708,7 @@ async function deployDescription(description: string) {
 // Camera and mic: pinch or start talking to lock (beginDeploy), let go or go quiet to deploy.
 const input = new InputController(board.canvas, {
   playing: () => match()?.status === 'playing',
+  started: () => (match()?.time ?? -1) > 0.5,
   canDeploy: ([x, y]) => canDeployAt(x, y),
   toWorld: (px, py) => board.toWorld(px, py),
   begin: beginAt,
@@ -703,6 +733,9 @@ function flagMismatch() {
   const a = lastDeployed;
   logEvent('mismatch', a ? `${a.description} → ${a.design?.name ?? '?'}` : '', a?.nonce ?? 0);
   status(a ? `noted: ${a.design?.name ?? 'that troop'} wasn't what you asked for` : 'noted');
+  notice(a ? 'Noted — the game learns from this' : 'Noted — nothing of yours to flag yet', { tone: 'good', ms: 2200, key: 'flag' });
+  sfx.play('noted');
+  if (a?.description) board.juice.flag(a.description);
 }
 
 // First visit (after the title screen): camera and mic, then the how-to card.
