@@ -219,6 +219,7 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Deployed art lives in Vercel Blob, read back through `/api/sprite/<id>.png` rather than handing out Blob URLs, so `spriteUrl` stays short and the client's same-origin check and CORS stay as they are. |
 | 2026-10-24 | Element is a soft default for on_hit, in the prompt only: a named element sets the effect unless the description states another, and never changes stats. The engine still treats element as colour. |
 | 2026-10-24 | The designer logs a `wish` (what it would have picked if a list had it) as the input for learnable attributes; it is read from the design JSON on the server, so no reducer or client change. |
+| 2026-10-24 | The resource is "embers" in everything players see (HUD, costs, refusals, banner, result stats, how-to card, README); `elixir` stays in code, schema, `step()`, logs and server error strings. Branch `isaac/embers`; amber `#ff8a3d` awaits Cindy's call. |
 
 ## Open questions
 
