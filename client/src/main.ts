@@ -732,6 +732,9 @@ function flagMismatch() {
   const a = lastDeployed;
   logEvent('mismatch', a ? `${a.description} → ${a.design?.name ?? '?'}` : '', a?.nonce ?? 0);
   status(a ? `noted: ${a.design?.name ?? 'that troop'} wasn't what you asked for` : 'noted');
+  notice(a ? 'Noted — the game learns from this' : 'Noted — nothing of yours to flag yet', { tone: 'good', ms: 2200, key: 'flag' });
+  sfx.play('noted');
+  if (a?.description) board.juice.flag(a.description);
 }
 
 // First visit (after the title screen): camera and mic, then the how-to card.
