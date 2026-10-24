@@ -173,14 +173,18 @@ export function evaluate(troops: Troop[], field: Troop[], knobs: Knobs) {
   });
 
   // The anchors are the reference curve, so medians come from them alone and extra troops
-  // don't shift each other's flags.
+  // don't shift each other's flags. A troop that only targets buildings walks past units, so
+  // duels can't rate it (it trades 0) and it stays out of the duel median; the tower runs do.
   const anchorRows = rows.filter(r => r.troop.anchor && !r.troop.rejected);
-  const medRatio = median(anchorRows.map(r => r.ratio));
+  const fights = (r: Row) => r.troop.targets !== 'buildings';
+  const medRatio = median(anchorRows.filter(fights).map(r => r.ratio));
   const medTower = median(anchorRows.map(r => r.towerPE));
   for (const r of rows) {
     if (r.troop.rejected) continue;
-    r.fair = fairCost(r.troop.cost, r.ratio, medRatio);
-    r.duelFlag = flag(r.ratio, medRatio);
+    if (fights(r)) {
+      r.fair = fairCost(r.troop.cost, r.ratio, medRatio);
+      r.duelFlag = flag(r.ratio, medRatio);
+    }
     r.towerFlag = flag(r.towerPE, medTower);
   }
   return { rows, medRatio, medTower };
