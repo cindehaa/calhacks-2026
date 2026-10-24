@@ -9,7 +9,7 @@ import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
-import type { DrawTroop, DrawUnit } from './render';
+import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
@@ -20,6 +20,7 @@ import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Out
 import { hubFx, resultFx } from './hubfx';
 import { tapestry } from './banner';
 import { showTutorialOnce } from './tutorial';
+import { MvpTracker, renderMvp } from './mvp';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
@@ -33,6 +34,7 @@ let lock: [number, number] | null = null; // clicked spot for typed troops
 let warmedFor = '';
 const drops = new Drops(); // your drops from let-go to landing: board feedback and timings
 const arted = new WeakSet<DrawTroop>(); // bot-match troops already sent for art
+const mvp = new MvpTracker(); // your best troop this round, for the result screen
 
 // ---------- connection ----------
 
@@ -425,6 +427,7 @@ function renderResult() {
   const tag = (won: boolean) => outcome === 'draw' ? 'Draw' : won ? 'Winner' : 'Defeated';
   $('resMeTag').textContent = tag(outcome === 'win');
   $('resFoeTag').textContent = tag(outcome === 'lose');
+  renderMvp(mvp.best(side, local?.report().troops));
   $('rematchText').textContent = 'Rematch';
   $('rematchSub').textContent = local ? `Same bot, ${local.level}` : 'Same opponent';
 }
@@ -793,14 +796,16 @@ function frame() {
   $('elixirText').textContent = String(Math.floor(elixir));
 
   showTimings();
-  const units: DrawUnit[] = m.units();
+  const units = m.units();
+  const troops = m.troops();
+  if (m.status === 'playing') mvp.observe(units, troops, m.time);
   if (local) artForBot(local);
 
   board.draw({
     mySide: side,
     units,
     towers: m.towers(),
-    troops: m.troops(),
+    troops,
     pendings: m.pendings(),
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
