@@ -424,9 +424,9 @@ export class PovBoard {
       const fresh = !t;
       if (!t) {
         const grp = new THREE.Group();
-        const frost = { value: 0 };
+        const frost = { value: 0 }, seed = this.towers.size + 1 + tw.side * 3;
         const stone = this.stone.clone();
-        frostStone(stone, frost);
+        frostStone(stone, frost, seed);
         const base = new THREE.Mesh(this.body, stone);
         base.position.y = 1.1;
         base.castShadow = base.receiveShadow = true;
@@ -438,7 +438,7 @@ export class PovBoard {
         gem.position.y = 3.25;
         grp.add(base, crown, gem);
         this.scene.add(grp);
-        t = { grp, base, crown, gem, mat, seen: 0, hp: tw.hp, frost, seed: this.towers.size + 1 + tw.side * 3 };
+        t = { grp, base, crown, gem, mat, seen: 0, hp: tw.hp, frost, seed };
         this.towers.set(key, t);
       }
       t.seen = this.frame;
