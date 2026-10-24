@@ -9,3 +9,5 @@ dist/
 *.log
 *.tsbuildinfo
 .DS_Store
+# balance sim output
+sim/out/

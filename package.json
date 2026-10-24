@@ -9,7 +9,8 @@
     "db:publish": "spacetime publish --module-path server --server local arena -y",
     "db:reset": "spacetime publish --module-path server --server local arena -y --delete-data",
     "db:generate": "spacetime generate --lang typescript --out-dir client/src/module_bindings --module-path server -y",
-    "test": "tsx --test shared/*.test.ts",
+    "test": "tsx --test shared/*.test.ts sim/*.test.ts",
+    "balance": "tsx sim/balance.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p server"
   },
   "dependencies": {

@@ -41,6 +41,15 @@ export const CLAMPS: Record<keyof TroopStats, [number, number]> = {
 export const K = 95;
 export const MAX_COST = 10;
 
+// Pricing knobs, a parameter of power()/price() so the balance sim can try other values.
+export interface Pricing {
+  K: number;
+  ranged: number; // f_range for range > 1 ...
+  rangePerTile: number; // ... plus this per tile of range above 1
+  speedSlope: number; // f_speed = 1 + speedSlope × (move_speed − 1)
+}
+export const PRICING: Pricing = { K, ranged: 1.3, rangePerTile: 0, speedSlope: 0.25 };
+
 export function clampStats(s: TroopStats): TroopStats {
   const out = {} as TroopStats;
   for (const k of STAT_KEYS) {
@@ -53,17 +62,17 @@ export function clampStats(s: TroopStats): TroopStats {
 }
 
 // Unclamped power; price() clamps first.
-export function power(s: TroopStats): number {
+export function power(s: TroopStats, p: Pricing = PRICING): number {
   const hp = s.health * s.count;
   const dps = s.damage * s.attack_speed * s.count;
-  const fRange = s.range <= 1 ? 1.0 : 1.3;
-  const fSpeed = 1 + 0.25 * (s.move_speed - 1);
+  const fRange = s.range <= 1 ? 1.0 : p.ranged + p.rangePerTile * (s.range - 1);
+  const fSpeed = 1 + p.speedSlope * (s.move_speed - 1);
   return Math.sqrt(hp * dps) * fRange * fSpeed;
 }
 
 // Same stats always give the same cost. Can exceed MAX_COST; callers reject those.
-export function price(s: TroopStats): number {
-  return Math.max(1, Math.round(power(clampStats(s)) / K));
+export function price(s: TroopStats, p: Pricing = PRICING): number {
+  return Math.max(1, Math.round(power(clampStats(s), p) / p.K));
 }
 
 export function trimWords(s: string, n = 8): string {

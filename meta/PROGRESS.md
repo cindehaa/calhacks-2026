@@ -29,6 +29,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Canvas client: lobby, room codes, board rotated so your side is at the bottom, towers, units, pending drops, elixir bar, clock, result screen, rematch, 20 Hz interpolation.
 - [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
 - [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
+- [x] Balance sim: `npm run balance` runs every troop against the anchors on the real `step()` (elixir-matched duels plus solo tower runs) and flags cost outliers. Knobs for K, pricing factors and tower stats; `--troops file.json` takes generated designs. Findings in [sim/README.md](../sim/README.md): range is underpriced and speed overpriced; tweaks suggested, none applied.
 
 ## Next up
 

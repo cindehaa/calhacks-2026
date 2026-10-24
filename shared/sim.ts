@@ -62,22 +62,25 @@ export interface StepResult {
 
 type Target = { kind: 'unit'; u: SimUnit } | { kind: 'tower'; t: SimTower };
 
-export function newTowers(): Omit<SimTower, 'id'>[] {
+// Tower stats are a parameter (defaulting to TOWER) so the balance sim can try other values.
+export type TowerStats = typeof TOWER;
+
+export function newTowers(tower: TowerStats = TOWER): Omit<SimTower, 'id'>[] {
   const out: Omit<SimTower, 'id'>[] = [];
   for (const side of [0, 1] as Side[]) {
     LANE_X.forEach((x, lane) =>
-      out.push({ side, lane, x, y: TOWER_Y[side], hp: TOWER.health, maxHp: TOWER.health, cooldown: 0, attackSeq: 0 })
+      out.push({ side, lane, x, y: TOWER_Y[side], hp: tower.health, maxHp: tower.health, cooldown: 0, attackSeq: 0 })
     );
   }
   return out;
 }
 
-export function newMatch(): SimState {
+export function newMatch(tower: TowerStats = TOWER): SimState {
   return {
     time: 0,
     elixir: [ELIXIR_START, ELIXIR_START],
     units: [],
-    towers: newTowers().map((t, i) => ({ ...t, id: i + 1 })),
+    towers: newTowers(tower).map((t, i) => ({ ...t, id: i + 1 })),
   };
 }
 
@@ -88,7 +91,7 @@ const radius = (t: Target) => (t.kind === 'unit' ? UNIT_RADIUS : TOWER_RADIUS);
 // Melee needs to be in contact; ranged units fire from `range` tiles, edge to edge.
 const reach = (range: number) => (range <= 1 ? 0.3 : range);
 
-export function step(s: SimState, dt: number): StepResult {
+export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepResult {
   s.time += dt;
   const rate = ELIXIR_PER_SEC * (s.time >= DOUBLE_ELIXIR_AT ? 2 : 1);
   s.elixir = [Math.min(ELIXIR_MAX, s.elixir[0] + rate * dt), Math.min(ELIXIR_MAX, s.elixir[1] + rate * dt)];
@@ -142,11 +145,11 @@ export function step(s: SimState, dt: number): StepResult {
     for (const e of active) {
       if (e.side === t.side || e.hp <= 0) continue;
       const d = dist(t.x, t.y, e.x, e.y) - UNIT_RADIUS - TOWER_RADIUS;
-      if (d <= TOWER.range && d < best) { best = d; target = e }
+      if (d <= tower.range && d < best) { best = d; target = e }
     }
     if (target && t.cooldown <= 0) {
-      target.hp -= TOWER.damage;
-      t.cooldown = 1 / TOWER.attack_speed;
+      target.hp -= tower.damage;
+      t.cooldown = 1 / tower.attack_speed;
       t.attackSeq++;
     }
   }

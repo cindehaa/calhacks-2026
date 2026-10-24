@@ -13,5 +13,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["shared", "client", "api"]
+  "include": ["shared", "client", "api", "sim"]
 }
