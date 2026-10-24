@@ -2,6 +2,7 @@
 import {
   ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, deployZones, towerRadius, type Side,
 } from '../../shared/arena';
+import { chromaKey } from './chroma';
 import { drawInput, type InputView } from './input/draw';
 import { Fx, roundRect, towerKey } from './fx';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
@@ -81,7 +82,7 @@ export class Board {
   private ox = 0;
   private oy = 0;
   private mySide: Side = 0;
-  private sprites = new Map<string, HTMLImageElement>();
+  private sprites = new Map<string, HTMLCanvasElement | null>(); // null while loading or if it failed
   readonly fx = new Fx();
   private toScreenFn = (x: number, y: number) => this.toScreen(x, y);
   private order: DrawUnit[] = [];
@@ -369,12 +370,13 @@ export class Board {
         g.beginPath();
         g.ellipse(0, r * 0.75, r * 0.95, r * 0.38, 0, 0, Math.PI * 2);
         g.stroke();
+        // Feet on the team ring.
         const s = r * 2.9;
-        g.drawImage(img, -s / 2, -s * 0.62, s, s);
+        g.drawImage(img, -s / 2, -s * 0.7, s, s);
         if (a.flash > 0) {
           g.globalCompositeOperation = 'lighter';
           g.globalAlpha = alpha * a.flash * 0.9;
-          g.drawImage(img, -s / 2, -s * 0.62, s, s);
+          g.drawImage(img, -s / 2, -s * 0.7, s, s);
         }
       } else {
         g.fillStyle = mine ? C.mineDark : C.theirsDark;
@@ -577,14 +579,12 @@ export class Board {
     g.fill();
   }
 
-  private sprite(url: string): HTMLImageElement | null {
-    let img = this.sprites.get(url);
-    if (!img) {
-      img = new Image();
-      img.src = url;
-      this.sprites.set(url, img);
+  private sprite(url: string): HTMLCanvasElement | null {
+    if (!this.sprites.has(url)) {
+      this.sprites.set(url, null);
+      if (SPRITE_HOST.test(url)) loadSprite(url).then(c => this.sprites.set(url, c), e => console.warn('sprite failed', url, e));
     }
-    return img.complete && img.naturalWidth ? img : null;
+    return this.sprites.get(url) ?? null;
   }
 }
 
@@ -592,4 +592,30 @@ export class Board {
 function sleeping(tw: DrawTower, all: DrawTower[]): boolean {
   if (tw.lane !== KING_LANE || tw.hp <= 0 || tw.hp < tw.maxHp) return false;
   return !all.some(o => o.side === tw.side && o.lane !== undefined && o.lane !== KING_LANE && o.hp <= 0);
+}
+
+// Only fal's CDN: a troop's URL comes from whichever player deployed it.
+const SPRITE_HOST = /^https:\/\/[a-z0-9.-]+\.fal\.media\//;
+const KEY_SIZE = 256; // keyed at half the generated size; plenty for a unit on screen
+
+// Keys out a generated sprite's background and crops it to a square with the troop centred and
+// standing on the bottom edge, which is where drawUnits puts its feet.
+async function loadSprite(url: string): Promise<HTMLCanvasElement | null> {
+  const img = new Image();
+  img.crossOrigin = 'anonymous'; // fal's CDN sends CORS headers, so the pixels stay readable
+  img.src = url;
+  await img.decode();
+  const src = document.createElement('canvas');
+  src.width = src.height = KEY_SIZE;
+  const sg = src.getContext('2d', { willReadFrequently: true })!;
+  sg.drawImage(img, 0, 0, KEY_SIZE, KEY_SIZE);
+  const px = sg.getImageData(0, 0, KEY_SIZE, KEY_SIZE);
+  const box = chromaKey(px);
+  if (!box) return null;
+  sg.putImageData(px, 0, 0);
+  const side = Math.max(box.w, box.h);
+  const out = document.createElement('canvas');
+  out.width = out.height = side;
+  out.getContext('2d')!.drawImage(src, box.x, box.y, box.w, box.h, (side - box.w) / 2, side - box.h, box.w, box.h);
+  return out;
 }

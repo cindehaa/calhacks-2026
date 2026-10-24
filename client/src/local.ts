@@ -2,13 +2,16 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR_MAX, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, step, type SimState } from '../../shared/sim';
+import { newTally, tallyStep, type TroopTally } from '../../shared/tally';
 import type { TroopDesign } from '../../shared/troop';
 import { Glide, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
 import type { DrawPending, DrawTroop } from './render';
+import { readySprite, spriteFor } from './sprites';
+import type { BotRoundLog, BotTroopLog } from './telemetry';
 
 const DT = 1 / TICK_HZ;
 const PENDING_TTL = 15; // seconds; a lock nobody followed up on (same as the server)
@@ -31,6 +34,8 @@ export class LocalMatch implements MatchSource {
   private mem!: BotMemory;
   private botMove: { nonce: number; move: BotMove; at: number } | null = null; // locked, not yet deployed
   private glide = new Glide();
+  private tallies = new Map<bigint, BotTroopLog>(); // what each troop did, for the logs
+  private capped: [number, number] = [0, 0]; // seconds each side sat on full elixir
   private acc = 0;
   private last = 0;
   private raf = 0;
@@ -67,6 +72,10 @@ export class LocalMatch implements MatchSource {
     this.deploy(this.side, nonce, x, y, description, d, spriteUrl);
   }
   async cancelDeploy(nonce: number) { this.unlock(this.side, nonce); }
+  // Both sides: the bot's anchors get art the same way.
+  async attachSprite(description: string, url: string) {
+    for (const t of this.troopRows.values()) if (t.description === description && !t.spriteUrl) t.spriteUrl = url;
+  }
   async rematch() { if (this.status !== 'playing') this.reset(); }
   async leave() {
     cancelAnimationFrame(this.raf);
@@ -78,6 +87,8 @@ export class LocalMatch implements MatchSource {
     if (this.status !== 'playing') return;
     this.runBot();
     const res = step(this.s, dt);
+    tallyStep(this.tallies as Map<bigint, TroopTally>, res, id => this.unitTroop.get(id), this.s.time);
+    if (this.s.time > 0) for (const side of [0, 1] as Side[]) if (this.s.elixir[side] >= ELIXIR_MAX) this.capped[side] += dt;
     for (const id of res.deadUnitIds) {
       this.unitTroop.delete(id);
       this.glide.drop(BigInt(id));
@@ -88,6 +99,19 @@ export class LocalMatch implements MatchSource {
       this.status = 'done';
       this.winner = res.winner;
     }
+  }
+
+  // The round so far, for the logs.
+  report(): BotRoundLog {
+    const lost = (side: Side) => this.s.towers.filter(t => t.side === side && t.hp <= 0).length;
+    return {
+      winner: this.winner ?? -2,
+      towersLost0: lost(0),
+      towersLost1: lost(1),
+      cappedSecs0: this.capped[0],
+      cappedSecs1: this.capped[1],
+      troops: [...this.tallies.values()],
+    };
   }
 
   private loop = (now: number) => {
@@ -104,6 +128,8 @@ export class LocalMatch implements MatchSource {
     this.locks = [];
     this.troopRows.clear();
     this.unitTroop.clear();
+    this.tallies.clear();
+    this.capped = [0, 0];
     this.mem = newBotMemory();
     this.botMove = null;
     this.status = 'playing';
@@ -120,7 +146,9 @@ export class LocalMatch implements MatchSource {
       this.botMove = null;
       const a = ANCHORS[move.anchor];
       try {
-        this.deploy(BOT, nonce, move.x, move.y, a.description, a, '');
+        const url = readySprite(a.description);
+        this.deploy(BOT, nonce, move.x, move.y, a.description, a, url);
+        if (!url) spriteFor(a.description).then(u => { if (u) this.attachSprite(a.description, u); });
       } catch {
         this.unlock(BOT, nonce);
       }
@@ -171,6 +199,10 @@ export class LocalMatch implements MatchSource {
     }
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, { name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description });
+    this.tallies.set(troopId, {
+      troopId, side, bot: side === BOT, nonce, description, name: design.name, design: JSON.stringify(design), cost,
+      count: design.count, deployedAt: this.s.time, landsAt: this.s.time + delay, ...newTally(design.count),
+    });
     for (const [ux, uy] of unitSpots(side, x, y, design.count, this.s.towers)) {
       const id = this.nextId++;
       this.unitTroop.set(id, troopId);

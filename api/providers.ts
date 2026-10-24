@@ -12,7 +12,13 @@ export interface Provider {
   name: ProviderName;
   model: string;
   hasKey(): boolean;
-  design(description: string, timeoutMs: number): Promise<TroopDesign>;
+  design(description: string, timeoutMs: number): Promise<RawDesign>;
+}
+
+// raw is the model's answer as sent, before clamping, so the logs show what got clamped.
+export interface RawDesign {
+  design: TroopDesign;
+  raw: string;
 }
 
 const env = (k: string) => (process.env[k] ?? '').trim();
@@ -43,7 +49,7 @@ const claude: Provider = {
     if (msg.stop_reason === 'refusal') throw new Error('refused');
     const text = msg.content.find(b => b.type === 'text');
     if (!text || text.type !== 'text') throw new Error('no text');
-    return sanitizeDesign(JSON.parse(text.text));
+    return { design: sanitizeDesign(JSON.parse(text.text)), raw: text.text };
   },
 };
 
@@ -68,7 +74,7 @@ const gemini: Provider = {
     const data = await postJson(url, { 'x-goog-api-key': env('GEMINI_API_KEY') }, body, timeoutMs);
     const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('');
     if (!text) throw new Error(`no text (${data?.candidates?.[0]?.finishReason ?? 'no candidates'})`);
-    return sanitizeDesign(JSON.parse(text));
+    return { design: sanitizeDesign(JSON.parse(text)), raw: text };
   },
 };
 
@@ -94,7 +100,7 @@ function openAiCompatible(name: ProviderName, url: string, keyVar: string, model
       const data = await postJson(url, { Authorization: `Bearer ${env(keyVar)}` }, body, timeoutMs);
       const text = data?.choices?.[0]?.message?.content;
       if (!text) throw new Error(`no content (${data?.choices?.[0]?.finish_reason ?? 'no choices'})`);
-      return sanitizeDesign(JSON.parse(text));
+      return { design: sanitizeDesign(JSON.parse(text)), raw: text };
     },
   };
 }

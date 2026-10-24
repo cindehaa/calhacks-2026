@@ -32,6 +32,9 @@ export interface MatchSource {
   beginDeploy(nonce: number, x: number, y: number): Promise<void>;
   deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl?: string): Promise<void>;
   cancelDeploy(nonce: number): Promise<void>;
+  // Art arrives after the troop is already fighting: gives your troops deployed from these
+  // words, and still without a sprite, this one.
+  attachSprite(description: string, url: string): Promise<void>;
   rematch(): Promise<void>;
   leave(): Promise<void>;
 }
@@ -142,6 +145,14 @@ export class OnlineMatch implements MatchSource {
 
   cancelDeploy(nonce: number) {
     return this.net.conn.reducers.cancelDeploy({ nonce });
+  }
+
+  async attachSprite(description: string, url: string) {
+    const code = this.code, d = description.slice(0, 300);
+    const mine = [...this.net.conn.db.troop.iter()].filter(
+      t => t.roomCode === code && t.owner.isEqual(this.net.identity) && t.description === d && !t.spriteUrl
+    );
+    await Promise.all(mine.map(t => this.net.conn.reducers.setTroopSprite({ troopId: t.id, spriteUrl: url })));
   }
 
   rematch() {

@@ -10,6 +10,65 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const Event = __t.object("Event", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  player: __t.identity(),
+  at: __t.f64(),
+  kind: __t.string(),
+  detail: __t.string(),
+  nonce: __t.u32(),
+});
+export type Event = __Infer<typeof Event>;
+
+export const Generation = __t.object("Generation", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  player: __t.identity(),
+  loggedAt: __t.timestamp(),
+  nonce: __t.u32(),
+  input: __t.string(),
+  lockedBy: __t.string(),
+  transcript: __t.string(),
+  description: __t.string(),
+  outcome: __t.string(),
+  lockedAt: __t.f64(),
+  releasedAt: __t.f64(),
+  designedAt: __t.f64(),
+  deployedAt: __t.f64(),
+  spriteAt: __t.f64(),
+  artLateMs: __t.f64(),
+  source: __t.string(),
+  model: __t.string(),
+  prompt: __t.string(),
+  early: __t.bool(),
+  apiMs: __t.u32(),
+  waitMs: __t.u32(),
+  error: __t.string(),
+  raw: __t.string(),
+  design: __t.string(),
+  cost: __t.u8(),
+  spriteUrl: __t.string(),
+});
+export type Generation = __Infer<typeof Generation>;
+
+export const MatchLog = __t.object("MatchLog", {
+  id: __t.u64(),
+  roomCode: __t.string(),
+  mode: __t.string(),
+  player0: __t.identity(),
+  player1: __t.option(__t.identity()),
+  startedAt: __t.timestamp(),
+  endedAt: __t.option(__t.timestamp()),
+  endReason: __t.string(),
+  winner: __t.i8(),
+  towersLost0: __t.u8(),
+  towersLost1: __t.u8(),
+  cappedSecs0: __t.f32(),
+  cappedSecs1: __t.f32(),
+});
+export type MatchLog = __Infer<typeof MatchLog>;
+
 export const MatchTimer = __t.object("MatchTimer", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
@@ -37,6 +96,12 @@ export const Player = __t.object("Player", {
 });
 export type Player = __Infer<typeof Player>;
 
+export const PlayerMatch = __t.object("PlayerMatch", {
+  identity: __t.identity(),
+  matchId: __t.u64(),
+});
+export type PlayerMatch = __Infer<typeof PlayerMatch>;
+
 export const Room = __t.object("Room", {
   code: __t.string(),
   host: __t.identity(),
@@ -50,6 +115,12 @@ export const Room = __t.object("Room", {
   lastTickAt: __t.timestamp(),
 });
 export type Room = __Infer<typeof Room>;
+
+export const RoomMatch = __t.object("RoomMatch", {
+  roomCode: __t.string(),
+  matchId: __t.u64(),
+});
+export type RoomMatch = __Infer<typeof RoomMatch>;
 
 export const Tower = __t.object("Tower", {
   id: __t.u64(),
@@ -85,6 +156,30 @@ export const Troop = __t.object("Troop", {
 });
 export type Troop = __Infer<typeof Troop>;
 
+export const TroopLog = __t.object("TroopLog", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  troopId: __t.u64(),
+  player: __t.identity(),
+  side: __t.u8(),
+  bot: __t.bool(),
+  nonce: __t.u32(),
+  description: __t.string(),
+  name: __t.string(),
+  design: __t.string(),
+  cost: __t.u8(),
+  count: __t.u8(),
+  deployedAt: __t.f32(),
+  landsAt: __t.f32(),
+  unitDamage: __t.f32(),
+  towerDamage: __t.f32(),
+  kills: __t.u16(),
+  towersDestroyed: __t.u8(),
+  alive: __t.u8(),
+  diedAt: __t.f32(),
+});
+export type TroopLog = __Infer<typeof TroopLog>;
+
 export const Unit = __t.object("Unit", {
   id: __t.u64(),
   roomCode: __t.string(),
@@ -103,4 +198,14 @@ export const Unit = __t.object("Unit", {
   attackSeq: __t.u32(),
 });
 export type Unit = __Infer<typeof Unit>;
+
+export const Utterance = __t.object("Utterance", {
+  id: __t.u64(),
+  matchId: __t.u64(),
+  player: __t.identity(),
+  at: __t.f64(),
+  text: __t.string(),
+  nonce: __t.u32(),
+});
+export type Utterance = __Infer<typeof Utterance>;
 

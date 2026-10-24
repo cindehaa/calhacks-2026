@@ -13,6 +13,7 @@
     "test": "tsx --test shared/*.test.ts client/src/*.test.ts client/src/input/*.test.ts sim/*.test.ts",
     "balance": "tsx sim/balance.ts",
     "bench": "tsx bench/designers.ts",
+    "logs": "tsx tools/logs.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p server"
   },
   "dependencies": {

@@ -150,6 +150,13 @@ export function isCancel(text: string): boolean {
   return /^(cancel( (that|it))?|never ?mind|nevermind)$/i.test(text.trim().replace(/[.,!?]/g, ''));
 }
 
+// "that's wrong", "not what I said": the player flagging their last troop as a bad match for
+// their words. The whole utterance, like cancel, so "wrong way giant" still deploys.
+export function isMismatch(text: string): boolean {
+  return /^(that'?s|that is|thats) (wrong|not it|not right|not what i (said|asked for|wanted))$|^(wrong( troop| one)?|not what i (said|asked for|wanted))$/i
+    .test(text.trim().replace(/[.,!?]/g, ''));
+}
+
 export type Description = { ok: true; text: string; from: 'typed' | 'voice' } | { ok: false; reason: 'cancel' | 'empty' };
 
 // What a pinch or voice deploy uses: a spoken cancel wins, then typed text (so typing keeps

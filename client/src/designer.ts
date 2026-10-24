@@ -7,15 +7,20 @@ export interface Designed {
   ms: number;
   source: string; // 'offline', or the model backend that designed it
   early?: boolean; // reused a design started on the partial transcript
+  apiMs?: number; // the designer's own time inside the api
+  model?: string;
+  prompt?: string; // system prompt hash
+  raw?: string; // the model's answer before clamping
+  error?: string; // why the model wasn't used
 }
 
 // The api itself gives up on Claude at 4.5 s and answers offline; this is the backstop for an
 // api that is down or stuck, so a deploy never waits longer than this.
 const API_TIMEOUT_MS = 7000;
 
-function offline(description: string, t0: number): Designed {
+function offline(description: string, t0: number, error: string): Designed {
   const design = designOffline(description);
-  return { design, cost: price(design), ms: Math.round(performance.now() - t0), source: 'offline' };
+  return { design, cost: price(design), ms: Math.round(performance.now() - t0), source: 'offline', error };
 }
 
 // Designs started while the player is still talking, keyed by normalised words. If the final
@@ -41,7 +46,7 @@ export async function designTroop(description: string): Promise<Designed> {
   const t0 = performance.now();
   const hit = early.get(normalise(description));
   const d = await (hit ?? request(description));
-  return { ...d, ms: Math.round(performance.now() - t0), early: !!hit };
+  return { ...d, apiMs: d.ms, ms: Math.round(performance.now() - t0), early: !!hit };
 }
 
 // Calls the api proxy, which holds the Anthropic key. Falls back to the offline designer in
@@ -62,7 +67,7 @@ async function request(description: string): Promise<Designed> {
     return { ...body, source: String(body.source ?? 'offline') } as Designed;
   } catch (e) {
     console.warn('designer api failed, using offline designer:', e);
-    return offline(description, t0);
+    return offline(description, t0, `browser: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300));
   } finally {
     clearTimeout(timer);
   }

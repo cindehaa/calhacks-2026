@@ -7,7 +7,7 @@ import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { LockMachine, LOCK_DEFAULTS, type Lock, type Pt } from './lock';
 import { DEFAULT_PINCH, Hysteresis, pinchMetric2d } from './pinch';
-import { chooseDescription, isCancel, Transcript, WebSpeechSource, type SpeechSource } from './speech';
+import { chooseDescription, isCancel, isMismatch, Transcript, WebSpeechSource, type SpeechSource } from './speech';
 import { KEYS, load, save } from './store';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import './input.css';
@@ -20,13 +20,23 @@ export interface InputHost {
   playing(): boolean;
   canDeploy(spot: Spot): boolean; // your half, or a pocket you've opened
   toWorld(px: number, py: number): Spot;
-  begin(spot: Spot): number | null;
-  deploy(nonce: number, spot: Spot, description: string): void;
-  cancel(nonce: number, reason: string): void;
+  begin(spot: Spot, by: string): number | null;
+  deploy(nonce: number, spot: Spot, description: string, how: DeployHow): void;
+  cancel(nonce: number, reason: string, transcript: string): void;
   status(msg: string, bad?: boolean): void;
   typedText(): string;
   clearTyped(): void;
   prefetch?(words: string): void; // start designing from words heard so far
+  // For the logs.
+  heard?(text: string, nonce: number): void; // a finished speech segment; nonce 0 outside a lock
+  mismatch?(): void; // the player said their last troop isn't what they asked for
+  event?(kind: string, detail?: string): void;
+}
+
+export interface DeployHow {
+  from: 'typed' | 'voice';
+  by: string; // what held the lock at release: 'pinch' or 'voice'
+  transcript: string;
 }
 
 interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; camera: boolean; mic: boolean }
@@ -41,7 +51,7 @@ export class InputController {
   private mic = new Mic();
   private vad = new Vad({ ...VAD_DEFAULTS });
   private speech: SpeechSource = new WebSpeechSource();
-  private listeners = new Set<Transcript>(); // transcripts still taking words
+  private listeners = new Map<Transcript, number>(); // transcripts still taking words → their nonce
   private active: Active | null = null;
 
   private fx = new OneEuro(1.0, 0.007);
@@ -59,6 +69,7 @@ export class InputController {
   private camStatus = '';
   private heard = '';
   private heardWords = false; // the recogniser has returned words at least once
+  private flaggedAt = 0; // last mismatch flag: interim words cancel the lock, then the final repeats them
   private lastPanel = 0;
   private setupPreview: HTMLCanvasElement | null = null;
   onSetup?: () => void; // the ⋯ menu's "Run setup again"
@@ -80,6 +91,7 @@ export class InputController {
     this.speech.onFinal = t => this.words(t, true);
     this.speech.onError = msg => {
       this.heard = msg;
+      this.host.event?.('speech:error', msg);
       this.renderPanel();
     };
 
@@ -180,10 +192,10 @@ export class InputController {
       if (l.by === 'pinch') this.flash(l, 'cancel', 'your half only');
       return false;
     }
-    const nonce = this.host.begin([x, y]);
+    const nonce = this.host.begin([x, y], l.by);
     if (nonce === null) return false;
     const words = new Transcript();
-    this.listeners.add(words);
+    this.listeners.set(words, nonce);
     this.active = { nonce, spot: [x, y], words };
     this.host.status(this.mic.on ? 'say what the troop is…' : 'locked: type a troop, or let go to use the text box');
     return true;
@@ -199,7 +211,7 @@ export class InputController {
     const d = chooseDescription(this.host.typedText(), a.words.text);
     if (d.ok) {
       if (d.from === 'typed') this.host.clearTyped();
-      this.host.deploy(a.nonce, a.spot, d.text);
+      this.host.deploy(a.nonce, a.spot, d.text, { from: d.from, by: l.by, transcript: a.words.text });
       return;
     }
     const why =
@@ -208,7 +220,7 @@ export class InputController {
       : this.mic.on ? 'cancelled: no speech recognition in this browser, type a description first'
       : 'cancelled: type a description first, or turn the mic on';
     this.flash(l, 'cancel', d.reason === 'cancel' ? 'cancelled' : 'no description');
-    this.host.cancel(a.nonce, why);
+    this.host.cancel(a.nonce, why, a.words.text);
   }
 
   private onCancel(l: Lock, reason: string): void {
@@ -217,22 +229,41 @@ export class InputController {
     if (!a) return;
     this.listeners.delete(a.words);
     const label = reason === 'drag' ? 'dragged off' : reason === 'hand lost' ? 'hand lost' : reason === 'key' ? '' : reason;
+    if (reason === 'mismatch') {
+      // Saying "that's wrong" starts a voice lock like any speech; it flags the last troop instead.
+      this.flash(l, 'cancel', 'noted');
+      this.host.cancel(a.nonce, 'cancelled (mismatch flag)', a.words.text);
+      this.flagMismatch();
+      return;
+    }
     this.flash(l, 'cancel', label ? `cancel · ${label}` : 'cancel');
-    this.host.cancel(a.nonce, label ? `cancelled (${label})` : 'cancelled');
+    this.host.cancel(a.nonce, label ? `cancelled (${label})` : 'cancelled', a.words.text);
   }
 
   private words(text: string, final: boolean): void {
     this.heard = text ? `heard: “${text}”` : this.heard;
     if (text) this.heardWords = true;
-    for (const t of this.listeners) final ? t.final(text) : t.interim(text);
+    for (const t of this.listeners.keys()) final ? t.final(text) : t.interim(text);
+    if (final && text) this.host.heard?.(text, this.listeners.values().next().value ?? 0);
     const a = this.active;
-    if (!a) return;
+    if (!a) {
+      if (final && isMismatch(text)) this.flagMismatch();
+      return;
+    }
     // Act on interim words too: waiting for the final result adds most of a second.
     if (isCancel(a.words.text)) return this.machine.cancel('cancelled');
+    if (isMismatch(a.words.text)) return this.machine.cancel('mismatch');
     if (a.words.text) {
       this.host.status(`“${a.words.text}”`);
       this.host.prefetch?.(a.words.text);
     }
+  }
+
+  private flagMismatch(): void {
+    const now = performance.now();
+    if (now - this.flaggedAt < 3000) return;
+    this.flaggedAt = now;
+    this.host.mismatch?.();
   }
 
   private flash(p: Pt, kind: 'deploy' | 'cancel', label: string): void {
@@ -265,6 +296,7 @@ export class InputController {
       if (this.tracker === t) {
         this.camStatus = '';
         this.remember('camera', true);
+        this.host.event?.('camera:on');
       }
     } catch (e) {
       if (this.tracker === t) {
@@ -272,6 +304,7 @@ export class InputController {
         this.tracker = null;
         this.remember('camera', false);
         this.camStatus = `camera failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
+        this.host.event?.('camera:failed', this.camStatus);
       }
     }
     this.renderPanel();
@@ -293,8 +326,10 @@ export class InputController {
       this.speech.start();
       this.heard = this.speech.available ? 'listening' : 'no speech recognition in this browser: voice locks, typed text describes';
       this.remember('mic', true);
+      this.host.event?.('mic:on', this.speech.available ? '' : 'no speech recognition');
     } catch (e) {
       this.heard = `mic failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
+      this.host.event?.('mic:failed', this.heard);
       this.remember('mic', false);
     }
     this.renderPanel();

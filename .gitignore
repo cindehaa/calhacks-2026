@@ -4,6 +4,7 @@
 !.env.example
 spacetime.local.json
 # local stuff
+.cache/
 node_modules/
 dist/
 *.log
