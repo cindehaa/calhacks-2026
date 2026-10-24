@@ -91,12 +91,16 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **Title:** the wordmark under a low-poly moon, "Say a troop. Watch it fight.", Press any key.
 - **Motion:** one entrance, then only the weather moves. Pressing a key on the title glides the wordmark up into the home screen (view transition); the banners unfurl and the buttons rise. After that: the scene leans a little toward the cursor (ranges least, island most), snow falls, embers rise from the braziers, the brazier light flickers, mist drifts, the island bobs and the banners sway. Play online catches a sheen of light on entry and on hover. All of it stops under reduced motion.
 - **Victory:** gold-lit ranges, rays and faceted gold confetti; your banner stands, theirs frosts over. **Defeat:** icy ranges, snow and heavy frost; your banner is the frozen one.
+- **Result motion:** each result screen stages its entrance: the title slams in on Victory (or drops and shivers on Defeat), the crowns pop one by one, the points count up or down, the reasons slide in, and the frozen banner shivers. Then the weather keeps going: on Victory the rays turn slowly while gold confetti tumbles and embers rise; on Defeat, snow blows in gusts and frost creeps in from the corners.
 - **Setup and How to play:** the same chamfered stone panels, Cinzel headings, octagon step markers, amber primary button.
 - **In-match HUD:** the clock sits on a stone plaque top right under the tools (Cinzel figures, "vs Bot" or "Double elixir" in amber under it), clear of the enemy king tower. Elixir is a violet ten-segment bar with a hexagonal count gem, turning amber for double elixir. The describe field is a chamfered dark slab with an amber underline on focus; hints and status are plain text lines. Starter troops are small stone chips with amber key badges (keys only on the first ten). The raw connection status shows only online and only when something is wrong. Text drawn on the board (troop names, health, the countdown) is Cinzel, whose figures are lining.
+- **Virtual hand:** during a match with the camera on, a small stone panel bottom right draws the hand the tracker sees (the 21 landmarks, mirrored, nearer joints thicker in ice tones). The index fingertip and a label show the gesture: amber Aiming, pale gold Flick · sent, rose Fist · clearing, or Show your hand.
 - **Password gate:** the same wordmark, a chamfered password field and an amber Enter slab.
 - Art lives in `client/public/ui` as SVG (ranges, frost, island, banners, moon); menu weather is `client/src/hubfx.ts`.
 
 ## Open questions
+
+- Home banners: they float beside the island, and the red one is always the opponent. Three directions are in Paper (page "Banner workshop"): a standard planted in snow, a tapestry hung from above with a last-match plaque, or no banners with a crest card.
 
 - Should frost and warmth map to the two teams (blue vs red), or stay a mood both sides share?
 
@@ -111,3 +115,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** Game text is plain language; fantasy stays in the visuals. Houses became blue and red sides, embers became points, ranks are Bronze to Diamond.
 - **2026-10-24:** In-match HUD restyled to match the menus: stone clock plaque, faceted segmented elixir bar, chamfered describe field, stone troop chips, Cinzel for text on the board.
 - **2026-10-24:** The arena got a world: snowy valley, crags, snow-laden pines, braziers with firelight and embers, red standards and falling snow. The old random dark spires are gone.
+- **2026-10-24:** Victory and Defeat screens got motion (staged entrance, confetti and rays, gusting snow and creeping frost). Added the virtual hand panel.
