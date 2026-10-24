@@ -183,7 +183,7 @@ export class Fx {
     }
     const crossed = (at: number) => v.status === 'playing' && this.prevTime >= 0 && this.prevTime < at && time >= at;
     if (crossed(DOUBLE_ELIXIR_AT)) {
-      this.banner = { at: now, title: 'DOUBLE EMBERS', sub: 'the fire roars' };
+      this.banner = { at: now, title: 'DOUBLE EMBERS', sub: '' };
       sfx.play('double');
     }
     if (crossed(MATCH_SECONDS)) {
@@ -840,13 +840,18 @@ export class Fx {
     const dt = now - this.banner.at;
     if (dt >= 0 && dt < 2.4) {
       const inn = Math.min(1, dt / 0.18), out = dt > 1.9 ? (2.4 - dt) / 0.5 : 1;
-      const size = Math.min(width * 0.075, 28);
-      g.font = `900 ${Math.round(size)}px 'Cinzel', Georgia, serif`;
+      // Measured at full size, then shrunk until both lines fit inside the pill's straight middle.
+      const font = (sz: number) => `700 ${Math.round(sz * 0.46)}px 'Alegreya Sans', system-ui, sans-serif`;
+      const base = Math.min(width * 0.075, 28);
+      g.font = `900 ${Math.round(base)}px 'Cinzel', Georgia, serif`;
       const titleW = g.measureText(this.banner.title).width;
-      g.font = `700 ${Math.round(size * 0.46)}px 'Alegreya Sans', system-ui, sans-serif`;
-      const w = Math.min(width * 0.94, Math.max(titleW, g.measureText(this.banner.sub).width) + size * 1.8), h = size * 1.9;
+      g.font = font(base);
+      const full = Math.max(titleW, this.banner.sub ? g.measureText(this.banner.sub).width : 0) + base * 2.4;
+      const fit = Math.min(1, (width * 0.94) / full);
+      const size = base * fit, w = full * fit, h = size * (this.banner.sub ? 1.9 : 1.5);
       const y = top(w) - (1 - inn) * (h * 0.6); // drops in from just above its spot
-      g.globalAlpha = Math.min(inn, out);
+      const a = Math.min(inn, out);
+      g.globalAlpha = a;
       g.fillStyle = 'rgba(34,14,6,0.84)';
       roundRect(g, cx - w / 2, y, w, h, h / 2);
       g.fill();
@@ -854,11 +859,15 @@ export class Fx {
       g.lineWidth = 2;
       g.stroke();
       g.globalAlpha = 1;
-      this.bigText(g, this.banner.title, cx, y + size * 0.68, size, '#ffc58a', Math.min(inn, out));
-      g.font = `700 ${Math.round(size * 0.46)}px 'Alegreya Sans', system-ui, sans-serif`;
-      g.fillStyle = '#e8b892';
-      g.globalAlpha = Math.min(inn, out);
-      g.fillText(this.banner.sub, cx, y + size * 1.48);
+      this.bigText(g, this.banner.title, cx, y + (this.banner.sub ? size * 0.68 : h / 2), size, '#ffc58a', a);
+      if (this.banner.sub) {
+        g.font = font(size);
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillStyle = '#e8b892';
+        g.globalAlpha = a;
+        g.fillText(this.banner.sub, cx, y + size * 1.48);
+      }
       g.globalAlpha = 1;
     }
   }
