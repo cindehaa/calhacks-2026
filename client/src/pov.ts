@@ -35,7 +35,7 @@ const C = {
   text: '#e8ebf5',
   elixir: '#c56cf0',
 };
-const FONT = 'system-ui, sans-serif';
+const FONT = "'Cinzel', Georgia, serif"; // the menus' title face; its figures are lining, unlike Alegreya Sans's
 const DROP_HEIGHT = 3; // tiles; troops hang here until the last 0.3 s of the deploy delay
 const FLY_HEIGHT = 1; // tiles; flying units' feet hover this high
 const BODY = 1.5; // bodies drawn this much bigger than on the flat board: perspective shrinks the far half

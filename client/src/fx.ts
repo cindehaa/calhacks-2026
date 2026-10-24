@@ -831,7 +831,7 @@ export class Fx {
       g.stroke();
       g.globalAlpha = 1;
       this.bigText(g, 'DOUBLE ELIXIR', cx, cy - size * 0.12, size, '#e7b6ff', Math.min(inn, out));
-      g.font = `600 ${Math.round(size * 0.36)}px system-ui, sans-serif`;
+      g.font = `700 ${Math.round(size * 0.36)}px 'Alegreya Sans', system-ui, sans-serif`;
       g.fillStyle = '#c9b3d9';
       g.globalAlpha = Math.min(inn, out);
       g.fillText('last 30 seconds', cx, cy + size * 0.62);
@@ -842,7 +842,7 @@ export class Fx {
   private bigText(g: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string, alpha: number): void {
     g.save();
     g.globalAlpha = Math.max(0, alpha);
-    g.font = `900 ${Math.round(size)}px system-ui, sans-serif`;
+    g.font = `900 ${Math.round(size)}px 'Cinzel', Georgia, serif`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.lineJoin = 'round';

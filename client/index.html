@@ -14,7 +14,7 @@
   <canvas id="board"></canvas>
 
   <div id="hud">
-    <div id="hudTop"><span id="clock">1:30</span><span id="roomInfo"></span><span id="netStatus">connecting…</span></div>
+    <div id="hudTop"><span id="clock">1:30</span><span id="roomInfo"></span><span id="netStatus" hidden>connecting…</span></div>
   </div>
 
   <pre id="timings" hidden title="T toggles"></pre>
@@ -28,9 +28,9 @@
   </div>
 
   <div id="dock">
-    <div id="elixir"><div id="elixirFill"></div><span id="elixirText">5</span></div>
+    <div id="elixirRow" title="Elixir"><span id="elixirGem"><span id="elixirText">5</span></span><div id="elixir"><div id="elixirFill"></div></div></div>
     <form id="describe" autocomplete="off">
-      <input id="descInput" placeholder="Describe a troop, then Enter (click the board first to pick a spot)" maxlength="300">
+      <input id="descInput" placeholder="Type a troop and press Enter · click your half to pick the spot" maxlength="300">
     </form>
     <div id="talkHint" hidden></div>
     <div id="status"></div>

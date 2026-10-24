@@ -699,7 +699,7 @@ $<HTMLFormElement>('describe').onsubmit = e => {
 };
 
 $('hand').innerHTML = ANCHORS.map(
-  (a, i) => `<button data-i="${i}"><kbd>${(i + 1) % 10}</kbd>${escapeHtml(a.name)}</button>`
+  (a, i) => `<button data-i="${i}">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}${escapeHtml(a.name)}</button>`
 ).join('');
 $('hand').onclick = e => {
   const b = (e.target as HTMLElement).closest('button');
@@ -766,7 +766,12 @@ function frame() {
   }
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = clockText(m);
-  $('roomInfo').textContent = `${m.label}${left <= 30 && m.status === 'playing' ? ' · double elixir' : ''}`;
+  const double = left <= 30 && m.status === 'playing';
+  $('roomInfo').textContent = double ? 'Double elixir' : m.label;
+  $('roomInfo').classList.toggle('double', double);
+  $('dock').classList.toggle('double', double);
+  // The raw connection state only matters online, and only when something is wrong.
+  $('netStatus').hidden = !!local || !$('netStatus').textContent;
   const elixir = m.elixir;
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));

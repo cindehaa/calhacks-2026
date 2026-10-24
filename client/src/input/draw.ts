@@ -73,14 +73,14 @@ function cross(g: CanvasRenderingContext2D, x: number, y: number, r: number, col
 }
 
 function text(g: CanvasRenderingContext2D, s: string, x: number, y: number, size: number, color: string): void {
-  g.font = `600 ${size}px system-ui, sans-serif`;
+  g.font = `700 ${size}px 'Alegreya Sans', system-ui, sans-serif`;
   g.textAlign = 'center';
   g.fillStyle = color;
   g.fillText(s, x, y);
 }
 
 function pill(g: CanvasRenderingContext2D, s: string, x: number, y: number, color: string): void {
-  g.font = '600 13px system-ui, sans-serif';
+  g.font = "700 13px 'Alegreya Sans', system-ui, sans-serif";
   const w = g.measureText(s).width + 16;
   g.fillStyle = 'rgba(13,16,32,0.85)';
   g.beginPath();
