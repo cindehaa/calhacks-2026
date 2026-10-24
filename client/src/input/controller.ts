@@ -77,6 +77,7 @@ export class InputController {
   private el = document.createElement('div');
   private overlay = document.createElement('canvas'); // the hand cursor outside a match
   private preview!: HTMLCanvasElement;
+  private hintEl = document.getElementById('talkHint'); // "hold Space to talk" under the board
 
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
     this.machine = new LockMachine({
@@ -109,11 +110,16 @@ export class InputController {
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
     // Space and Escape stand in for the hand at any time: hold Space to lock at the cursor (hand or
     // mouse), let go to deploy; Escape cancels whatever is locked, like dragging off or saying "cancel".
-    const typing = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
+    // An empty text box doesn't count as typing during a match: clicking the board focuses the
+    // description box, and Space there would otherwise type a space instead of talking.
+    const idleBox = (t: EventTarget | null) => this.host.playing() && t instanceof HTMLInputElement && !t.value;
+    const typing = (t: EventTarget | null) =>
+      (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) && !idleBox(t);
     addEventListener('keydown', e => {
       if (e.key === 'Escape') this.machine.cancel('key');
       else if (e.code === 'Space' && !typing(e.target)) {
         e.preventDefault(); // no page scroll, no clicking a focused button
+        if (idleBox(e.target)) (e.target as HTMLInputElement).blur();
         if (!e.repeat) this.machine.keyDown(performance.now());
       }
     });
@@ -148,6 +154,10 @@ export class InputController {
     save(KEYS.prefs, this.prefs);
     const box = this.el.querySelector<HTMLInputElement>('[data-act="mouseKeys"]');
     if (box) box.checked = on;
+  }
+
+  get micOn(): boolean {
+    return this.mic.on;
   }
 
   // What the setup screen shows.
@@ -224,6 +234,7 @@ export class InputController {
     this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
+    else this.renderHint(); // hides the moment a lock starts
   }
 
   private onHandFrame(f: HandFrame | null, now: number): void {
@@ -505,6 +516,25 @@ export class InputController {
     $('.inLevel').style.width = pct(this.mic.on ? this.vad.level : -90);
     $('.inLevel').classList.toggle('speaking', this.vad.speaking);
     $('.inThresh').style.left = pct(this.prefs.vadDb);
+    this.renderHint();
+  }
+
+  // How to talk a troop in, shown during a match while nothing is locked (a lock draws its own
+  // "say the troop… let go to deploy" at the spot).
+  private renderHint(): void {
+    const el = this.hintEl;
+    if (!el) return;
+    const text = !this.host.playing() || this.machine.lock ? '' : this.hintText();
+    if (el.textContent !== text) el.textContent = text;
+    el.hidden = !text;
+  }
+
+  private hintText(): string {
+    if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : 'Turn on the Mic (top left) to speak troops in';
+    const ways = [this.tracker && 'pinch', this.prefs.mouseKeys ? 'hold Space or the mouse' : 'hold Space'].filter(Boolean).join(', ');
+    const how = `${ways[0].toUpperCase()}${ways.slice(1)} over your half, say the troop, let go to deploy`;
+    if (!this.speech.available) return `${how} · no speech recognition here, so type the troop first`;
+    return this.voiceLocks() ? `${how} · or just start talking` : how;
   }
 
   // Mirrored camera frame with the skeleton, and the screen's edges projected back into it

@@ -39,6 +39,9 @@ function setView(mode: ViewMode) {
   pov.show(mode !== 'flat');
   if (mode !== 'flat') pov.eye = mode as Eye;
   try { localStorage.setItem('view', mode); } catch { /* storage blocked */ }
+  // The button names where it takes you next.
+  const next = VIEWS[(VIEWS.indexOf(mode) + 1) % VIEWS.length];
+  $('viewBtn').innerHTML = `${next === 'flat' ? 'Top-down' : mode === 'flat' ? '3D view' : next === 'high' ? 'High eye' : 'Low eye'} <kbd>V</kbd>`;
 }
 setView(viewMode);
 
@@ -198,6 +201,22 @@ function deployAnchor(i: number) {
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
   void deployWithArt(nonce, spot, a.description, a, requestSprite(a.description));
   status(`${a.name}`);
+}
+
+// Dev only: drop any anchor by name at a spot, and reach the local match (headless view checks).
+if (import.meta.env.DEV) {
+  Object.assign(window, {
+    devDrop(name: string, x: number, y: number) {
+      const a = ANCHORS.find(t => t.name === name);
+      if (!a || match()?.status !== 'playing') return false;
+      const nonce = ++nonceSeq;
+      call(match()?.beginDeploy(nonce, x, y), msg => status(msg, true));
+      void deployWithArt(nonce, [x, y], a.description, a, requestSprite(a.description));
+      return true;
+    },
+    devLocal: () => local,
+    devAnchors: ANCHORS,
+  });
 }
 
 // Lock first so the deploy delay overlaps generation, then design, then deploy.

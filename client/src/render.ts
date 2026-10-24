@@ -110,7 +110,6 @@ export class Board {
   private ox = 0;
   private oy = 0;
   private mySide: Side = 0;
-  private sprites = new Map<string, { img: HTMLImageElement; out: CanvasImageSource | null }>();
   readonly fx = new Fx();
   private toScreenFn = (x: number, y: number) => this.toScreen(x, y);
   private order: DrawUnit[] = [];
@@ -751,20 +750,25 @@ export class Board {
     g.fill();
   }
 
-  // Null until the image has loaded, so the placeholder token shows meanwhile. A '?key' URL is
-  // art whose background removal timed out: key it here once, into a canvas.
   private sprite(url: string): CanvasImageSource | null {
-    let s = this.sprites.get(url);
-    if (!s) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous'; // the api sends CORS headers; keeps the canvas readable
-      const entry: { img: HTMLImageElement; out: CanvasImageSource | null } = { img, out: null };
-      img.onload = () => (entry.out = /[?&]key\b/.test(url) ? keyed(img) : img);
-      img.src = url;
-      this.sprites.set(url, (s = entry));
-    }
-    return s.out;
+    return spriteImage(url);
   }
+}
+
+// Null until the image has loaded, so the placeholder token shows meanwhile. A '?key' URL is
+// art whose background removal timed out: key it here once, into a canvas. Shared by both views.
+const sprites = new Map<string, { img: HTMLImageElement; out: CanvasImageSource | null }>();
+export function spriteImage(url: string): CanvasImageSource | null {
+  let s = sprites.get(url);
+  if (!s) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // the api sends CORS headers; keeps the canvas readable
+    const entry: { img: HTMLImageElement; out: CanvasImageSource | null } = { img, out: null };
+    img.onload = () => (entry.out = /[?&]key\b/.test(url) ? keyed(img) : img);
+    img.src = url;
+    sprites.set(url, (s = entry));
+  }
+  return s.out;
 }
 
 function keyed(img: HTMLImageElement): CanvasImageSource {

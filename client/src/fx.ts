@@ -57,33 +57,36 @@ interface UTrack {
 
 interface TTrack { side: number; x: number; y: number; hp: number; seq: number; seen: number; flashAt: number; downAt: number }
 
-interface Particle {
+export interface Particle {
   x: number; y: number; z: number; // world tiles; z is height above the ground
   vx: number; vy: number; vz: number;
   t0: number; life: number; size: number; color: string;
   kind: 0 | 1 | 2; // 0 puff, 1 chunk (falls), 2 spark
   spin: number;
 }
-interface Ring { x: number; y: number; t0: number; dur: number; r0: number; r1: number; color: string; width: number }
-interface Shot {
+export interface Ring { x: number; y: number; t0: number; dur: number; r0: number; r1: number; color: string; width: number }
+export interface Shot {
   fx: number; fy: number; tid: bigint | null; tx: number; ty: number; t0: number; dur: number; color: string; width: number;
   arc: number; // lob height in tiles (0 for the default flat-ish shot); lobs draw a ground shadow
   orb: boolean; // cast: a big glowing head
   splash: number; // ring radius in tiles at impact, 0 for none
 }
-interface Floater { x: number; y: number; t0: number; amt: number; color: string; key: unknown; size: number }
+export interface Floater { x: number; y: number; t0: number; amt: number; color: string; key: unknown; size: number }
 // Attack trails, all in world tiles. swipe: a slash arc around (x, y) facing ang; cone: a breath
 // wedge out to len; line: a thrust or dash streak to (x2, y2); bolt: a jagged chain through pts.
-interface Trail {
+export interface Trail {
   kind: 'swipe' | 'cone' | 'line' | 'bolt';
   x: number; y: number; x2: number; y2: number; ang: number; len: number; dir: number;
   pts: number[] | null; t0: number; dur: number; color: string; width: number;
 }
 
+export interface FxLive { now: number; particles: Particle[]; rings: Ring[]; shots: Shot[]; trails: Trail[]; floaters: Floater[] }
+
 // Per-unit body animation in screen pixels and radians. glow is 0..1 (cast charge, windup),
 // smear 0..1 with (smx, smy) the screen direction ghosts trail toward.
 export interface UnitAnim {
   dx: number; dy: number; sx: number; sy: number; flash: number; rot: number;
+  up: number; // the vertical part of dy, as a lift (positive is up): the 3D view separates the two
   glow: number; glowColor: string; smear: number; smx: number; smy: number;
 }
 
@@ -118,7 +121,7 @@ export class Fx {
   private doubleAt = -10;
   private pendingCount = [0, 0];
   private reduced = reducedMotion();
-  private out: UnitAnim = { dx: 0, dy: 0, sx: 1, sy: 1, flash: 0, rot: 0, glow: 0, glowColor: '#fff', smear: 0, smx: 0, smy: 0 };
+  private out: UnitAnim = { dx: 0, dy: 0, sx: 1, sy: 1, flash: 0, rot: 0, up: 0, glow: 0, glowColor: '#fff', smear: 0, smx: 0, smy: 0 };
 
   constructor() {
     try {
@@ -617,11 +620,12 @@ export class Fx {
   // Per-unit body animation in screen pixels; r is the unit's drawn radius. Reuses one object.
   anim(id: bigint, r: number): UnitAnim {
     const a = this.out;
-    a.dx = 0; a.dy = 0; a.sx = 1; a.sy = 1; a.flash = 0; a.rot = 0; a.glow = 0; a.smear = 0;
+    a.dx = 0; a.dy = 0; a.sx = 1; a.sy = 1; a.flash = 0; a.rot = 0; a.up = 0; a.glow = 0; a.smear = 0;
     const t = this.units.get(id);
     if (!t) return a;
     const now = this.now;
     const amp = this.reduced ? 0.4 : 1;
+    const lift = (h: number) => { a.dy -= h; a.up += h };
     // Landing squash.
     if (t.landedAt >= 0) {
       const p = (now - t.landedAt) / 0.3;
@@ -633,7 +637,7 @@ export class Fx {
     // Walking hop, with a little squash at each footfall; idle units breathe.
     if (t.moving > 0.05) {
       const hop = Math.abs(Math.sin(t.phase));
-      a.dy -= hop * r * 0.3 * t.moving * amp;
+      lift(hop * r * 0.3 * t.moving * amp);
       const c = Math.pow(1 - hop, 4) * t.moving * amp;
       a.sx *= 1 + 0.1 * c; a.sy *= 1 - 0.1 * c;
       // Lean into the walk.
@@ -671,10 +675,10 @@ export class Fx {
         break;
       }
       case 'smash': {
-        a.dy -= r * 0.5 * pre; a.sy *= 1 + 0.22 * pre; a.sx *= 1 - 0.12 * pre;
+        lift(r * 0.5 * pre); a.sy *= 1 + 0.22 * pre; a.sx *= 1 - 0.12 * pre;
         if (sp < 0.3) {
           const q = sp / 0.3;
-          a.dy -= r * 0.5 * Math.max(0, 1 - q / 0.12) * amp;
+          lift(r * 0.5 * Math.max(0, 1 - q / 0.12) * amp);
           const sq = (q < 0.15 ? q / 0.15 : 1 - (q - 0.15) / 0.85) * amp;
           a.sx *= 1 + 0.35 * sq; a.sy *= 1 - 0.3 * sq;
           a.dx += wx * r * 0.2 * sq; a.dy += wy * r * 0.2 * sq;
@@ -697,23 +701,24 @@ export class Fx {
         break;
       }
       case 'lob': {
-        a.dy += r * 0.12 * pre; a.sy *= 1 - 0.12 * pre; a.sx *= 1 + 0.06 * pre;
+        lift(-r * 0.12 * pre); a.sy *= 1 - 0.12 * pre; a.sx *= 1 + 0.06 * pre;
         const k = bump(0.2);
-        a.dy -= r * 0.2 * k; a.sy *= 1 + 0.1 * k;
+        lift(r * 0.2 * k); a.sy *= 1 + 0.1 * k;
         break;
       }
       case 'cast': {
-        a.dy -= r * 0.3 * pre;
+        lift(r * 0.3 * pre);
         a.glow = Math.max(a.glow, pre);
         if (sp < 0.25) {
           const q = 1 - sp / 0.25;
           a.glow = Math.max(a.glow, q);
-          a.dy -= r * 0.3 * q * amp;
+          lift(r * 0.3 * q * amp);
         }
         break;
       }
       case 'breathe': {
-        a.dx -= wx * r * 0.3 * pre; a.dy -= wy * r * 0.3 * pre + r * 0.15 * pre;
+        a.dx -= wx * r * 0.3 * pre; a.dy -= wy * r * 0.3 * pre;
+        lift(r * 0.15 * pre);
         a.sy *= 1 + 0.1 * pre;
         const k = bump(0.35) * 0.25;
         a.dx += wx * r * k; a.dy += wy * r * k;
@@ -757,6 +762,15 @@ export class Fx {
     const t = this.units.get(id);
     return !!t && t.delay <= 0 && inPose(this.now, t.hitAt, t.interval);
   }
+
+  // The live effects, for a view that draws them itself (pov.ts draws them in 3D). Read-only;
+  // the arrays are the pools themselves, so don't keep them past the frame.
+  live(): FxLive {
+    const l = this.liveOut;
+    l.now = this.now; l.particles = this.particles; l.rings = this.rings; l.shots = this.shots; l.trails = this.trails; l.floaters = this.floaters;
+    return l;
+  }
+  private liveOut = {} as FxLive;
 
   landedAge(id: bigint): number {
     const t = this.units.get(id);

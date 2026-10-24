@@ -17,7 +17,7 @@
   <pre id="timings" hidden title="T toggles"></pre>
 
   <div id="tools">
-    <button id="viewBtn" class="round" aria-label="Switch view" title="Switch view (V)">3D</button>
+    <button id="viewBtn" class="pill" aria-label="Switch view" title="Switch between top-down and the 3D view (V)">3D view <kbd>V</kbd></button>
     <button id="muteBtn" class="round" aria-label="Sound"></button>
     <button id="helpBtn" class="round" aria-label="How to play" title="How to play">?</button>
   </div>
@@ -27,6 +27,7 @@
     <form id="describe" autocomplete="off">
       <input id="descInput" placeholder="Describe a troop, then Enter (click the board first to pick a spot)" maxlength="300">
     </form>
+    <div id="talkHint" hidden></div>
     <div id="status"></div>
     <div id="hand"></div>
   </div>
@@ -97,6 +98,7 @@
         <li><span><b>Cancel</b> by dragging off the ring before you let go, pressing Esc, or saying “cancel”.</span></li>
         <li><span>The <b>cost</b> is a surprise. It shows on the troop once it lands.</span></li>
         <li><span>Keys <kbd>1</kbd>–<kbd>0</kbd> drop the starter troops.</span></li>
+        <li><span><b>See it in 3D</b>: <kbd>V</kbd> or the view button (top right) switches from top-down to standing behind your towers, then a high and a ground-level eye.</span></li>
       </ol>
       <div class="tutFoot"><button id="tutClose">Got it</button><span class="sub">Reopen with <kbd>?</kbd> · mute with <kbd>M</kbd></span></div>
       <div class="tutTimer"><i></i></div>
