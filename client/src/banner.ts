@@ -16,8 +16,8 @@ const EMBLEM_Y = 440; // the main emblem's centre, under the text
 const W = 260, H = 600;
 // Each look's lit and shadowed facet colours (left half lit, right half in shadow) and its trim.
 const LOOKS = {
-  raven: { lit: [31, 70, 127], shade: [24, 55, 102], trim: '#f3d58a' }, // #1f467f / #183766
-  sun: { lit: [150, 42, 56], shade: [116, 30, 43], trim: '#f3d58a' }, // #962a38 / #741e2b
+  raven: { lit: [28, 88, 196], shade: [20, 66, 156], trim: '#f3d58a' }, // #1c58c4 / #14429c: cool cobalt
+  sun: { lit: [200, 36, 36], shade: [154, 24, 28], trim: '#f3d58a' }, // #c82424 / #9a181c: warm scarlet, well apart from the blue
   frozen: { lit: [143, 176, 204], shade: [106, 143, 176], trim: '#dbe9f4' }, // #8fb0cc / #6a8fb0
 } as const;
 export type House = 'raven' | 'sun';
