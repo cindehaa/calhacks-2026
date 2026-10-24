@@ -14,13 +14,16 @@ export function initControlsFeedback(input: InputController): { ask(): void } {
   el.innerHTML = `<span>Controls felt:</span><button data-v="up" aria-label="Good">👍</button><button data-v="down" aria-label="Bad">👎</button><span class="cfThanks" hidden>thanks!</span>`;
   const style = document.createElement('style');
   style.textContent = `
-    #controlsFeedback { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60;
+    #controlsFeedback { position: relative; align-self: center;
       display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-radius: 14px;
       background: rgba(20, 16, 12, 0.82); color: #f5ead6; font: 600 15px/1.2 system-ui, sans-serif; }
     #controlsFeedback button { font-size: 22px; min-width: 54px; min-height: 44px; border-radius: 10px; cursor: pointer; }
-    #controlsFeedback[data-done] button { opacity: 0.45; }`;
+    #controlsFeedback[data-done] button { opacity: 0.45; }
+    #controlsFeedback[hidden] { display: none; }`;
   document.head.appendChild(style);
-  document.body.appendChild(el);
+  // Part of the result screen's layout, under its buttons, so it can never float over another screen.
+  const col = document.querySelector('#result .resultCol');
+  (col ?? document.getElementById('result') ?? document.body).appendChild(el);
   let open = false;
 
   const answer = (good: boolean, how: string) => {
@@ -42,9 +45,9 @@ export function initControlsFeedback(input: InputController): { ask(): void } {
     if (GOOD.test(t)) answer(true, 'voice');
     else if (BAD.test(t)) answer(false, 'voice');
   });
-  // Gone with the result screen.
+  // Gone with the result screen (it lives inside it, but closing it also ends the question).
   const watch = () => {
-    if (!el.hidden && document.getElementById('result')?.hidden) {
+    if (open && document.getElementById('result')?.hidden) {
       el.hidden = true;
       open = false;
     }
