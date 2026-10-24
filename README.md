@@ -40,6 +40,8 @@ Every key is optional and the game still runs without it: no `ANTHROPIC_API_KEY`
 
 Open http://localhost:5173 in two tabs (each tab is its own player), create a room in one and join it from the other, or both press **Join DEMO**. From a second laptop on the same network, open `http://<this-laptop-ip>:5173`.
 
+To run a second copy beside the first (another worktree, say), give it its own ports: `API_PORT=8790 npm run api` and `API_PORT=8790 npm run dev -- --port 5190` (Vite's `/api` proxy follows `API_PORT`), and `?db=<name>` for its own database.
+
 After changing tables or reducers in `server/`, run `npm run db:publish` then `npm run db:generate` to refresh `client/src/module_bindings`. If a schema change is refused, `npm run db:reset` republishes and wipes the data.
 
 To use Maincloud instead of a local server: `spacetime login`, `spacetime publish --module-path server --server maincloud <db-name> -y`, then open `http://localhost:5173/?host=https://maincloud.spacetimedb.com&db=<db-name>`.
@@ -60,7 +62,7 @@ The repo is linked to the Vercel project `calhacks-2026`: every push to `main` d
 - The view is 3D only: you start on top of your king tower, looking down the arena.
 - The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your elixir, is refused with what it would have cost.
 - Art is drawn while you talk and lands on the troop a second or two after it does; until then it fights as its placeholder token.
-- **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes sound effects.
+- **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes all sound, music included.
 
 ## Designer benchmark
 
@@ -75,6 +77,6 @@ Every round is logged to private SpacetimeDB tables that only the database owner
 ## Checks
 
 ```sh
-npm test          # shared sim and pricing tests
+npm test          # sim, pricing, bot, deploy and input logic tests
 npm run typecheck # client, api and server
 ```
