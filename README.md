@@ -1,4 +1,4 @@
-# Abracadabra
+# Artifice
 
 A real-time, two-player arena battler where your deck is whatever you can describe. Point at the arena, say what the troop is, and AI turns your words into a fighting unit with stats, a price, artwork and its own voice.
 

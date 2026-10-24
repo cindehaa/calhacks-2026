@@ -47,7 +47,7 @@ export default async function middleware(req: Request) {
 function page(error: string, status: number): Response {
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex"><title>Abracadabra</title>
+<meta name="robots" content="noindex"><title>Artifice</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@500;700&family=Cinzel+Decorative:wght@700&display=swap">
 <style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 30%, #141a36, #05060c 70%); color: #e8ebf5; font-family: 'Alegreya Sans', system-ui, sans-serif; }
@@ -61,7 +61,7 @@ function page(error: string, status: number): Response {
   p { margin: 0; min-height: 1.2em; color: #ff7a86; font-size: 15px; }
 </style></head>
 <body><form method="post" action="${LOGIN}">
-  <h1>Abracadabra</h1>
+  <h1>Artifice</h1>
   <input type="password" name="password" placeholder="Password" autocomplete="current-password" autofocus required>
   <button>Enter</button>
   <p>${error}</p>
