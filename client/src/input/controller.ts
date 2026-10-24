@@ -1,5 +1,8 @@
-// Camera + mic input: aim and fire.
+// Camera + mic input: the input hub. It owns the camera, mic and recogniser, publishes what they
+// read as signals to the active control scheme (schemes/), and carries out the intents the scheme
+// emits: aim, lock, commit, cancel, clear, click a menu. The game only sees the InputHost calls.
 //
+// What follows describes the default scheme, flick:
 // The mic listens the whole time it's on, and everything said since the last fire is the troop.
 // Aim with the index fingertip (or the mouse). Fire by flicking the wrist down, pressing Space, or
 // clicking the board with words waiting: the troop goes where you were pointing just before.
@@ -13,13 +16,15 @@ import { FlickDetector } from './flick';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
 import { drawHandView } from './handview';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
-import { FistDetector } from './pose';
+import { FistDetector, PinchDetector, extension } from './pose';
 import { AutoSpeech } from './cartesia_stt';
 import { chooseDescription, isCancel, isMismatch, Transcript } from './speech';
 import { KEYS, load, save } from './store';
 import { CursorHistory, type Pt } from './trail';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import { activateUi, menuBack, menuMode, menuPointer } from './menus';
+import { pickScheme, schemeById, SCHEMES } from './schemes/registry';
+import type { Intent, Scheme, SchemeCtx, SchemeInstance, Signal } from './schemes/types';
 import './input.css';
 
 type Spot = [number, number]; // world coords
@@ -42,19 +47,60 @@ export interface InputHost {
   // For the logs.
   heard?(text: string, nonce: number): void; // a finished speech segment; nonce 0 outside a fire
   mismatch?(): void; // the player said their last troop isn't what they asked for
-  event?(kind: string, detail?: string): void;
+  event?(kind: string, detail?: string, nonce?: number): void;
+  schemeChanged?(id: string): void; // for the logs: which control scheme this player is on
 }
 
 export interface DeployHow {
   from: 'typed' | 'voice';
-  by: string; // what fired it: 'flick', 'key' or 'mouse'
+  by: string; // what fired it: 'flick', 'key', 'mouse', 'talk', 'pinch', 'fist', 'dwell'
   transcript: string;
 }
 
 interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean }
 
 // A fire waiting for the recogniser to finish its last words.
-interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcript }
+interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcript; t: number }
+
+// Words with when they arrived, so a commit can take only what was said since a point (talk's lock).
+class TimedTranscript extends Transcript {
+  private times: number[] = [];
+  private segs: string[] = [];
+  final(text: string): void {
+    super.final(text);
+    this.segs.push(text);
+    this.times.push(performance.now());
+  }
+  reset(): void {
+    super.reset();
+    this.segs = [];
+    this.times = [];
+  }
+  // The same words, minus finished segments that arrived before `from`.
+  since(from: number): TimedTranscript {
+    const out = new TimedTranscript();
+    this.segs.forEach((s, i) => this.times[i] >= from && out.final(s));
+    if (this.pending) out.interim(this.partialText);
+    return out;
+  }
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+// Index straight and the other fingers curled, roughly: index tip far from the wrist vs the rest.
+function pointing(f: HandFrame): number {
+  const w = f.world, d = (i: number) => Math.hypot(w[i].x - w[0].x, w[i].y - w[0].y, w[i].z - w[0].z);
+  const others = (d(12) + d(16) + d(20)) / 3;
+  return (d(8) / (others || 1e-9) - 1.1) / 0.6;
+}
+function sessionGet(k: string): string | null {
+  try { return sessionStorage.getItem(k) } catch { return null }
+}
+function sessionSet(k: string, v: string): void {
+  try { sessionStorage.setItem(k, v) } catch { /* private mode */ }
+}
+
+const PINCH_AIM_MS = 100; // a pinch aims from the knuckle this long before it closed
+const SCHEME_KEY = 'arena.scheme'; // a scheme picked on the setup screen, for this session
 
 const FLUSH_MS = 600; // how long a fire waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
 const LOST_MS = 1000; // hand out of view this long before "show your hand"
@@ -67,7 +113,7 @@ export class InputController {
   private mic = new Mic();
   private vad = new Vad({ ...VAD_DEFAULTS });
   private speech = new AutoSpeech(() => this.mic.media); // Cartesia, else the browser's recogniser
-  private prompt = new Transcript(); // words since the last fire or cancel
+  private prompt = new TimedTranscript(); // words since the last fire or cancel
   private firing: Firing | null = null;
   private skipUtterance = false; // the utterance in progress was cancelled: drop it until its final
 
@@ -75,7 +121,24 @@ export class InputController {
   private fy = new OneEuro(1.0, 0.007);
   private flicker = new FlickDetector();
   private fist = new FistDetector();
+  private pinch = new PinchDetector();
   private trail = new CursorHistory(); // the hand cursor, to aim from before a flick
+  private kx = new OneEuro(1.0, 0.007); // index knuckle, for pinch aiming
+  private ky = new OneEuro(1.0, 0.007);
+  private px = new OneEuro(1.0, 0.007); // palm centre, for fist aiming
+  private py = new OneEuro(1.0, 0.007);
+  private knuckleTrail = new CursorHistory();
+
+  // The active control scheme, and what it asked for.
+  scheme!: Scheme;
+  schemeHow: 'url' | 'picked' | 'random' = 'random';
+  private inst!: SchemeInstance;
+  private aimSet = false; // the scheme moved the cursor off the fingertip (palm, knuckle)
+  private aimAt: Pt | null = null;
+  private lockAt: Pt | null = null; // the scheme's held spot
+  private inFlight = new Map<number, { at: Pt; sent: boolean }>(); // begun deploys, until they settle
+  private handled = false; // an intent during this publish did something (a click that fired)
+  readonly listeners: { signal: ((s: Signal) => void)[]; intent: ((i: Intent, ok: boolean) => void)[] } = { signal: [], intent: [] };
   private flickT = -Infinity;
   private slips: number[] = []; // px each recent flick moved the fingertip, for tuning
   private prefs: Prefs = {
@@ -120,14 +183,17 @@ export class InputController {
       this.renderPanel();
     };
 
-    canvas.addEventListener('mousemove', e => (this.mouse = { x: e.clientX, y: e.clientY }));
+    canvas.addEventListener('mousemove', e => {
+      this.mouse = { x: e.clientX, y: e.clientY };
+      this.publish({ kind: 'mouse', t: performance.now(), at: this.mouse, phase: 'move' });
+    });
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
     // Clicking the board with words waiting fires them there. With nothing said it's an ordinary
     // click, which picks the spot for typing.
     canvas.addEventListener('mousedown', e => {
       this.clickTaken = false;
       if (e.button !== 0 || !this.prefs.mouseKeys || !this.prompt.text || this.firing) return;
-      this.clickTaken = this.fire({ x: e.clientX, y: e.clientY }, 'mouse');
+      this.clickTaken = this.publish({ kind: 'mouse', t: performance.now(), at: { x: e.clientX, y: e.clientY }, phase: 'down' });
     });
     // Space fires at the cursor (hand or mouse); Esc throws the words away. An empty text box
     // doesn't count as typing during a match: clicking the board focuses it.
@@ -136,17 +202,18 @@ export class InputController {
       (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) && !idleBox(t);
     addEventListener('keydown', e => {
       if (e.key === 'Escape') {
-        this.clear('key');
+        this.publish({ kind: 'key', t: performance.now(), key: 'Escape', repeat: e.repeat });
         if (this.menus()) menuBack();
       } else if (e.code === 'Space' && !typing(e.target)) {
         e.preventDefault(); // no page scroll, no clicking a focused button
         if (idleBox(e.target)) (e.target as HTMLInputElement).blur();
         if (e.repeat) return;
         // On a menu Space clicks the button under the hand or mouse, else the focused or main one.
-        if (this.menus()) activateUi(this.handCursor, { fallback: true, playing: this.host.playing() });
-        else this.fire(this.cursor(), 'key');
+        this.publish({ kind: 'key', t: performance.now(), key: 'Space', repeat: false });
       }
     });
+    const picked = pickScheme(new URLSearchParams(location.search).get('scheme'), sessionGet(SCHEME_KEY));
+    this.useScheme(picked.scheme, picked.how);
     this.mountUi();
     // Dev builds: drive the hand cursor without a camera (window.__hand.move(x, y), .flick(),
     // .clear()), for headless checks of the menus.
@@ -156,7 +223,19 @@ export class InputController {
         flick: () => {
           if (!this.handCursor) return;
           this.flickT = performance.now();
-          this.flicked(this.handCursor);
+          if (!this.menus()) this.noteSlip(this.handCursor);
+          this.publish({ kind: 'flick', t: this.flickT, aim: this.handCursor });
+        },
+        fist: () => this.publish({ kind: 'fist', t: performance.now(), closed: true }),
+        pinch: () => this.handCursor && this.publish({ kind: 'pinch', t: performance.now(), aim: this.handCursor }),
+        // A whole frame: drives the hand signal (and the intent gate) without a camera.
+        frame: (x: number, y: number) => {
+          this.handCursor = { x, y };
+          this.publish(this.handSignal(performance.now(), this.handCursor, this.handCursor, this.handCursor, null));
+        },
+        lost: () => {
+          this.handCursor = null;
+          this.publish({ kind: 'hand', t: performance.now(), visible: false });
         },
         clear: () => (this.handCursor = null),
       };
@@ -220,10 +299,10 @@ export class InputController {
   // What the board (pov.ts) draws over itself. Undefined while camera and mic are both off.
   view(): InputView | undefined {
     if (!this.tracker && !this.mic.on && !this.flashes.length) return undefined;
-    const playing = this.host.playing(), at = this.cursor();
+    const playing = this.host.playing(), at = this.lockAt ?? this.cursor();
     const words = this.firing ? '' : this.prompt.text;
     return {
-      cursor: this.handCursor && playing && !this.menus() ? { ...this.handCursor, state: this.cursorState(performance.now()) }
+      cursor: this.handPoint() && playing && !this.menus() ? { ...this.handPoint()!, state: this.cursorState(performance.now()) }
         : this.lostCursor && playing && performance.now() - this.lostAt < FADE_MS ? { ...this.lostCursor, state: 'open', fade: 1 - (performance.now() - this.lostAt) / FADE_MS } : null,
       prompt: playing && at && (words || this.vad.speaking) ? { x: at.x, y: at.y, text: words, speaking: this.vad.speaking } : null,
       flashes: this.flashes,
@@ -238,10 +317,14 @@ export class InputController {
     const f = this.tracker?.detect(now);
     if (f !== undefined) this.onHandFrame(f, now);
     if (this.mic.on) {
-      const ev = this.vad.push(now, this.mic.levelDb());
+      const db = this.mic.levelDb();
+      const ev = this.vad.push(now, db);
+      this.publish({ kind: 'level', t: now, db, loud: db > this.vad.o.thresholdDb });
+      if (ev) this.publish({ kind: 'voice', t: ev.t, phase: ev.kind });
       // Close each utterance when the talking stops, so its words are final before the next fire.
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
+    this.publish({ kind: 'tick', t: now });
     this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
     menuPointer.update(now, this.handCursor, this.host.playing());
     // Once the countdown is over, so it isn't missed under the versus card.
@@ -259,6 +342,7 @@ export class InputController {
     if (!f) {
       if (this.handCursor) { this.lostAt = now; this.lostCursor = this.handCursor }
       this.resetHand();
+      this.publish({ kind: 'hand', t: now, visible: false });
       this.drawPreviews();
       this.handLost(now);
       return;
@@ -267,23 +351,29 @@ export class InputController {
     const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
     this.trail.push(now, this.handCursor);
-    if (this.fist.update(now, f.world)) this.clear('fist');
+    const sc = (p: Pt2, fx: OneEuro, fy: OneEuro): Pt => {
+      const [a, b] = applyH(DEFAULT_H, p);
+      return { x: fx.filter(a * innerWidth, now / 1000), y: fy.filter(b * innerHeight, now / 1000) };
+    };
+    const knuckle = sc([1 - f.lm[5].x, f.lm[5].y], this.kx, this.ky);
+    const palmIdx = [0, 5, 9, 13, 17];
+    const palm = sc([1 - palmIdx.reduce((s, i) => s + f.lm[i].x, 0) / 5, palmIdx.reduce((s, i) => s + f.lm[i].y, 0) / 5], this.px, this.py);
+    this.knuckleTrail.push(now, knuckle);
+    const fistNow = this.fist.update(now, f.world);
+    const pinched = this.pinch.update(f.lm, f.vw, f.vh);
+    this.publish(this.handSignal(now, this.handCursor, knuckle, palm, f));
+    if (fistNow) this.publish({ kind: 'fist', t: now, closed: true });
     const onset = this.flicker.update(now, f.lm, f.vw, f.vh);
     if (onset !== null && this.fist.allowsFlick(now)) {
       this.flickT = now;
-      this.flicked(this.trail.at(onset) ?? this.handCursor);
+      const aim = this.trail.at(onset) ?? this.handCursor;
+      if (!this.menus()) this.noteSlip(aim);
+      this.publish({ kind: 'flick', t: now, aim });
     }
+    if (pinched && !this.fist.closed) this.publish({ kind: 'pinch', t: now, aim: this.knuckleTrail.at(now - PINCH_AIM_MS) ?? knuckle });
     this.drawPreviews();
   }
 
-  // On a menu a flick clicks the button the hand is on; in a match it fires, as before.
-  private flicked(aim: Pt): void {
-    if (this.menus()) activateUi(aim, { playing: this.host.playing() });
-    else {
-      this.noteSlip(aim);
-      this.fire(aim, 'flick');
-    }
-  }
 
   // The hand left the camera (or the camera stopped): the cursor fades where it was, and after a
   // second a gentle "show your hand" holds until it's back.
@@ -302,6 +392,9 @@ export class InputController {
     this.trail.clear();
     this.flicker.reset();
     this.fist.reset();
+    this.pinch.reset();
+    this.knuckleTrail.clear();
+    for (const f of [this.kx, this.ky, this.px, this.py]) f.reset();
   }
 
   // The hand works the menus (home, setup, dialogs, result) rather than aiming troops.
@@ -310,8 +403,140 @@ export class InputController {
   }
 
   private cursor(): Pt | null {
-    return this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null);
+    return this.handPoint() ?? (this.prefs.mouseKeys ? this.mouse : null);
   }
+
+  // The hand's cursor: the fingertip, unless the scheme aims with another part of the hand.
+  private handPoint(): Pt | null {
+    return this.aimSet ? this.aimAt : this.handCursor;
+  }
+
+  // ---------- schemes: signals in, intents out ----------
+
+  useScheme(s: Scheme, how: 'url' | 'picked' | 'random' = 'picked'): void {
+    this.scheme = s;
+    this.schemeHow = how;
+    this.aimSet = false;
+    this.aimAt = this.lockAt = null;
+    const ctx: SchemeCtx = {
+      menus: () => this.menus(),
+      playing: () => this.host.playing(),
+      cursor: () => this.cursor(),
+      waiting: () => this.prompt.text,
+      camera: () => !!this.tracker,
+      canDeployAt: p => this.host.playing() && this.host.canDeploy(this.host.toWorld(p.x, p.y)),
+    };
+    this.inst = s.create(i => this.act(i), ctx);
+    if (how === 'picked') sessionSet(SCHEME_KEY, s.id);
+    this.host.event?.('scheme', `${s.id} (${how})`);
+    this.host.schemeChanged?.(s.id);
+    if (this.preview) this.renderPanel();
+  }
+
+  // Pick a scheme by id (the setup picker, the workshop page). False if there's no such scheme.
+  setScheme(id: string): boolean {
+    const s = schemeById(id);
+    if (!s) return false;
+    this.useScheme(s, 'picked');
+    return true;
+  }
+
+  get schemes(): Scheme[] {
+    return SCHEMES;
+  }
+
+  // Hand a signal to the scheme (and the workshop page). True if an intent it caused did something.
+  publish(s: Signal): boolean {
+    this.handled = false;
+    for (const l of this.listeners.signal) l(s);
+    try {
+      this.inst?.on(s);
+    } catch (e) {
+      console.error(`scheme ${this.scheme?.id} failed on ${s.kind}:`, e);
+    }
+    return this.handled;
+  }
+
+  private handSignal(t: number, cursor: Pt, knuckle: Pt, palm: Pt, f: HandFrame | null): Signal {
+    const playing = this.host.playing();
+    const ext = f ? extension(f.world) : 2;
+    const pinch = this.pinch.ratio;
+    return {
+      kind: 'hand', t, visible: true, cursor, knuckle, palm,
+      overHalf: playing && !this.menus() && this.host.canDeploy(this.host.toWorld(cursor.x, cursor.y)),
+      // Rough scores from the landmarks (MediaPipe's gesture model isn't loaded).
+      gestures: {
+        Closed_Fist: clamp01((1.6 - ext) / 0.6),
+        Open_Palm: clamp01((ext - 1.4) / 0.5),
+        Pointing_Up: f ? clamp01(pointing(f)) : 0,
+        Pinch: clamp01((0.8 - pinch) / 0.4),
+      },
+    };
+  }
+
+  // Carry out what the scheme asked for.
+  private act(i: Intent): boolean {
+    let ok = false;
+    switch (i.kind) {
+      case 'aim':
+        this.aimSet = true;
+        this.aimAt = i.at;
+        ok = true;
+        break;
+      case 'lock':
+        this.lockAt = i.at;
+        ok = true;
+        break;
+      case 'commit': {
+        const at = i.at ?? this.lockAt ?? this.cursor();
+        this.lockAt = null;
+        ok = this.fire(at, i.by, i.t, i.from);
+        break;
+      }
+      case 'cancel':
+        ok = this.cancelPending(i.why);
+        break;
+      case 'clear':
+        this.lockAt = null;
+        ok = this.clear(i.why as 'fist' | 'key');
+        break;
+      case 'uiActivate':
+        ok = activateUi(i.at ?? (i.fallback ? this.handCursor : null), { fallback: i.fallback, playing: this.host.playing() });
+        break;
+    }
+    if (ok) this.handled = true;
+    for (const l of this.listeners.intent) l(i, ok);
+    return ok;
+  }
+
+  // Take back the deploy still being summoned: the words still being finalised, else the newest
+  // one whose deploy_troop hasn't gone out. Nothing has been paid by then, so it's a full refund.
+  private cancelPending(why: string): boolean {
+    if (this.firing) return this.clear(why as 'fist');
+    const open = [...this.inFlight].filter(([, v]) => !v.sent);
+    if (!open.length) return false;
+    const [nonce, { at }] = open[open.length - 1];
+    this.inFlight.delete(nonce);
+    this.flash(at, 'cancel', 'cancelled');
+    this.host.cancel(nonce, `cancelled (${why})`, '');
+    this.host.event?.('deploy:cancelled', why, nonce);
+    this.publish({ kind: 'deploy', t: performance.now(), phase: 'done', nonce });
+    return true;
+  }
+
+  // From the game: deploy_troop went out for this nonce (too late to cancel), or it settled.
+  deploySent(nonce: number): void {
+    const f = this.inFlight.get(nonce);
+    if (!f) return;
+    f.sent = true;
+    this.publish({ kind: 'deploy', t: performance.now(), phase: 'sent', nonce });
+  }
+
+  deployDone(nonce: number): void {
+    if (!this.inFlight.delete(nonce)) return;
+    this.publish({ kind: 'deploy', t: performance.now(), phase: 'done', nonce });
+  }
+
 
   // How far the fingertip moved between the flick starting and registering: what aiming from
   // before the flick saves. Shown in the panel and logged, for tuning.
@@ -331,8 +556,13 @@ export class InputController {
 
   // Send the words (or the typed text) to the spot at p. True if it handled the input, even by
   // refusing it, so a mouse press that fired isn't also a click.
-  private fire(p: Pt | null, by: string): boolean {
+  private fire(p: Pt | null, by: string, t = performance.now(), from?: number): boolean {
     if (!p || !this.host.playing() || this.firing) return false;
+    if (from !== undefined) {
+      const kept = this.prompt.since(from - 150); // a final can land a moment before the sound started
+      if (kept.text !== this.prompt.text) this.host.event?.('prompt:dropped', this.prompt.text.slice(0, kept.text ? -kept.text.length : undefined));
+      this.prompt = kept;
+    }
     const said = this.prompt.text, typed = this.host.typedText().trim();
     if (!said && !typed) {
       this.missed(p);
@@ -345,8 +575,12 @@ export class InputController {
     }
     const nonce = this.host.begin(spot, by);
     if (nonce === null) return false;
-    // The prompt keeps taking words until the recogniser has finished the last of them.
-    this.firing = { nonce, spot, at: p, by, words: this.prompt };
+    // Words up to the fire: the recogniser is finalised, and finished words that arrive while it
+    // flushes belong to this troop; anything said after starts the next one.
+    this.firing = { nonce, spot, at: p, by, words: this.prompt, t };
+    this.prompt = new TimedTranscript();
+    this.inFlight.set(nonce, { at: p, sent: false });
+    this.publish({ kind: 'deploy', t, phase: 'pending', nonce });
     this.flash(p, 'deploy', '', said || typed);
     this.host.released?.(nonce, said);
     void this.land(this.firing);
@@ -357,7 +591,6 @@ export class InputController {
     if (this.mic.on && f.words.text) await this.speech.flush(FLUSH_MS);
     if (this.firing !== f) return; // cancelled meanwhile
     this.firing = null;
-    this.prompt = new Transcript();
     const d = chooseDescription(this.host.typedText(), f.words.text);
     if (d.ok) {
       if (d.from === 'typed') this.host.clearTyped();
@@ -366,22 +599,29 @@ export class InputController {
     }
     if (d.reason === 'cancel') this.flash(f.at, 'cancel', 'cancelled');
     else this.missed(f.at);
+    this.inFlight.delete(f.nonce);
+    this.publish({ kind: 'deploy', t: performance.now(), phase: 'done', nonce: f.nonce });
     this.host.cancel(f.nonce, d.reason === 'cancel' ? 'cancelled' : 'cancelled: no description heard', f.words.text);
   }
 
   // Throw away the words said so far, and a fire still waiting on its last words.
-  private clear(why: 'fist' | 'key' | 'said' | 'mismatch'): void {
+  private clear(why: 'fist' | 'key' | 'said' | 'mismatch'): boolean {
     const f = this.firing, words = f?.words.text ?? this.prompt.text;
-    if (!f && !words) return;
-    if (this.prompt.pending) this.skipUtterance = true; // its final would bring the words back
+    if (!f && !words) return false;
+    if (this.prompt.pending || f?.words.pending) this.skipUtterance = true; // its final would bring the words back
     this.firing = null;
-    this.prompt = new Transcript();
+    this.prompt = new TimedTranscript();
+    if (f) {
+      this.inFlight.delete(f.nonce);
+      this.publish({ kind: 'deploy', t: performance.now(), phase: 'done', nonce: f.nonce });
+    }
     if (this.mic.on) void this.speech.flush(FLUSH_MS);
     const at = f?.at ?? this.cursor();
     if (why !== 'mismatch' && at) this.flash(at, 'cancel', 'cleared', words);
     if (f) this.host.cancel(f.nonce, `cancelled (${why})`, words);
     this.host.event?.('prompt:cleared', `${why}: ${words}`);
     if (why !== 'mismatch') this.host.status('');
+    return true;
   }
 
   private words(text: string, final: boolean): void {
@@ -393,13 +633,21 @@ export class InputController {
       return;
     }
     // Act on interim words too: waiting for the final result adds most of a second.
-    if (isCancel(text)) return this.clear('said');
+    const sig = (cancel: boolean) => this.publish({ kind: 'words', t: performance.now(), text, final, waiting: this.prompt.text, cancel });
+    if (isCancel(text)) {
+      this.clear('said');
+      sig(true);
+      return;
+    }
     if (isMismatch(text)) {
       this.clear('mismatch');
       return this.flagMismatch();
     }
-    if (final) this.prompt.final(text);
+    // While a fire is finalising, finished words are its last ones; new partials are the next troop.
+    if (final && this.firing) this.firing.words.final(text);
+    else if (final) this.prompt.final(text);
     else this.prompt.interim(text);
+    sig(false);
     const all = this.prompt.text;
     if (all && this.host.playing() && !this.firing) {
       this.host.status(`“${all}”`);
@@ -506,7 +754,8 @@ export class InputController {
     // match) it's drawn here, above everything, with the dwell ring filling round it.
     const now = performance.now(), dwell = menuPointer.dwellProgress(now);
     const p = this.handCursor && (!this.host.playing() || this.menus() || dwell > 0) ? this.handCursor : null;
-    if (!p && !this.overlayDrawn) return;
+    const ring = this.host.playing() && !this.menus() ? this.inst?.ring?.(now) ?? null : null; // the scheme's own (dwell to send)
+    if (!p && !ring && !this.overlayDrawn) return;
     const c = this.overlay, dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
     if (c.width !== w * dpr || c.height !== h * dpr) {
       c.width = w * dpr;
@@ -517,7 +766,8 @@ export class InputController {
     g.clearRect(0, 0, w, h);
     if (p && (!this.host.playing() || this.menus())) drawCursor(g, p.x, p.y, this.cursorState(now));
     if (p && dwell > 0) drawDwell(g, p.x, p.y, dwell);
-    this.overlayDrawn = !!p;
+    if (ring && ring.k > 0.05) drawDwell(g, ring.at.x, ring.at.y, ring.k);
+    this.overlayDrawn = !!p || !!ring;
   }
 
   // ---------- UI ----------
@@ -610,6 +860,7 @@ export class InputController {
   }
 
   private hintText(): string {
+    if (this.scheme.id !== 'flick' && this.mic.on && this.speech.available) return this.scheme.howTo;
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : 'Turn on the Mic (top left) to speak troops in';
     const send = this.tracker ? 'point and flick your wrist' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'make a fist' : 'press Esc';

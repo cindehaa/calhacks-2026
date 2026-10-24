@@ -12,10 +12,7 @@ export const keys: Scheme = {
     let mouse: Pt | null = null;
     return {
       on(s) {
-        if (s.kind === 'mouse') {
-          mouse = s.at;
-          emit({ kind: 'aim', at: mouse });
-        }
+        if (s.kind === 'mouse') mouse = s.at;
         keysAndMouse(s, emit, ctx, { fireAt: () => mouse, menuAt: () => mouse });
       },
     };

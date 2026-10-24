@@ -14,7 +14,7 @@ import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
-import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
+import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logScheme, logUtterance } from './telemetry';
 import { crownSvg, shieldSvg } from './art';
 import { clock, reasons, type RoundSummary } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
@@ -632,6 +632,7 @@ function attempt(nonce: number, by: string): Attempt {
 }
 
 function settle(nonce: number, outcome: string) {
+  input.deployDone(nonce);
   const a = attempts.get(nonce);
   if (!a) return;
   attempts.delete(nonce);
@@ -647,6 +648,8 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     return false;
   }
   const had = m.elixir; // for the burnt sticks, before the payment shows
+  if (cancelledNonces.has(nonce)) return false; // cancelled while it was being designed: never sent, nothing paid
+  input.deploySent(nonce);
   try {
     await m.deployTroop(nonce, x, y, description, d, spriteUrl);
     settle(nonce, 'deployed');
@@ -751,7 +754,9 @@ function beginAt(spot: [number, number], by: string): number | null {
 
 // An empty message cancels quietly: a quick click that picked a typing spot, not a deploy attempt,
 // so it isn't logged.
+const cancelledNonces = new Set<number>(); // cancelled before deploy_troop went out
 function cancelAt(nonce: number, msg: string, transcript = '') {
+  cancelledNonces.add(nonce);
   const a = attempts.get(nonce);
   if (a) a.transcript ||= transcript;
   if (msg) settle(nonce, msg);
@@ -805,7 +810,8 @@ const input = new InputController(board.canvas, {
   released: (nonce, words) => drops.release(nonce, words, performance.now()),
   heard: (text, nonce) => logUtterance(text, nonce),
   mismatch: flagMismatch,
-  event: (kind, detail) => logEvent(kind, detail),
+  event: (kind, detail, nonce) => logEvent(kind, detail, nonce),
+  schemeChanged: id => logScheme(id),
 });
 
 // "That's wrong" (or X): the last troop isn't what the player asked for. The best signal the

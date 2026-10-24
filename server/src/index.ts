@@ -179,8 +179,15 @@ const matchLog = table(
     towersLost1: t.u8(),
     cappedSecs0: t.f32(), // seconds sat at full elixir (wasted refill)
     cappedSecs1: t.f32(),
+    // Each side's control scheme (client/src/input/schemes), for A/B comparing them. Defaults let a
+    // database from before them take the columns without wiping its rows.
+    scheme0: t.string().default(''),
+    scheme1: t.string().default(''),
   }
 );
+
+// Each player's current control scheme, set by log_scheme; stamped on match and generation rows.
+const playerScheme = table({ name: 'player_scheme' }, { identity: t.identity().primaryKey(), scheme: t.string() });
 
 // The round each room and each player is in, so log rows attach to it without the client knowing
 // ids. A player keeps their last round after it ends, so complaints made afterwards still land on it.
@@ -223,6 +230,7 @@ const generation = table(
     // Read from the design JSON, so the reducer and the browser didn't change. The default lets a
     // database from before it take the column without wiping its rows, like the quirk columns.
     wish: t.string().default(''),
+    scheme: t.string().default(''), // the player's control scheme when it was logged
   }
 );
 
@@ -293,7 +301,7 @@ const troopLog = table(
 
 const spacetimedb = schema({
   player, room, troop, unit, tower, pending, matchTimer,
-  matchLog, roomMatch, playerMatch, generation, utterance, event, troopLog,
+  matchLog, roomMatch, playerMatch, playerScheme, generation, utterance, event, troopLog,
 });
 export default spacetimedb;
 
@@ -683,9 +691,24 @@ export const logGeneration = spacetimedb.reducer(
       design: cut(a.design, 1000),
       spriteUrl: cut(a.spriteUrl, 2048),
       wish: wishOf(a.design, a.raw),
+      scheme: schemeOf(ctx, ctx.sender),
     });
   }
 );
+
+// The control scheme this player is on, for A/B. Stamped on their side of the round they're in (if
+// it's still running) and on their later generation rows.
+export const logScheme = spacetimedb.reducer({ scheme: t.string() }, (ctx, a) => {
+  const scheme = a.scheme.slice(0, 20);
+  if (ctx.db.playerScheme.identity.find(ctx.sender)) ctx.db.playerScheme.identity.update({ identity: ctx.sender, scheme });
+  else ctx.db.playerScheme.insert({ identity: ctx.sender, scheme });
+  const m = ctx.db.matchLog.id.find(currentMatch(ctx));
+  if (!m || m.endedAt) return;
+  if (m.player0.equals(ctx.sender)) ctx.db.matchLog.id.update({ ...m, scheme0: scheme });
+  else if (m.player1?.equals(ctx.sender)) ctx.db.matchLog.id.update({ ...m, scheme1: scheme });
+});
+
+const schemeOf = (ctx: Ctx, who: Identity | undefined) => (who && ctx.db.playerScheme.identity.find(who)?.scheme) || '';
 
 // Bot rounds run in the browser, so it reports their start, each troop and the result.
 export const logBotStart = spacetimedb.reducer({ level: t.string() }, (ctx, { level }) => {
@@ -741,6 +764,7 @@ function openMatch(ctx: Ctx, roomCode: string, mode: string, p0: Identity, p1: I
   return ctx.db.matchLog.insert({
     id: 0n, roomCode, mode, player0: p0, player1: p1, startedAt: ctx.timestamp, endedAt: undefined, endReason: '',
     winner: NO_WINNER, towersLost0: 0, towersLost1: 0, cappedSecs0: 0, cappedSecs1: 0,
+    scheme0: schemeOf(ctx, p0), scheme1: schemeOf(ctx, p1),
   });
 }
 

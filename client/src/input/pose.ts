@@ -83,3 +83,48 @@ export class FistDetector {
     this.fired = false;
   }
 }
+
+// ---------- pinch ----------
+// Thumb tip against a finger's last segment, in hand sizes (the measure and thresholds from the
+// earlier pinch controls). Either the index or the middle finger counts, whichever is closer, so
+// a pinch that drifts between them still reads.
+export const PINCH_DEFAULTS = { on: 0.45, off: 0.65 };
+const THUMB_TIP = 4;
+const PINCH_SEGMENTS: [number, number][] = [[7, 8], [11, 12]]; // index, middle: DIP → TIP
+
+// Distance from p to the segment ab. The thumb meets the pad of the finger, not its tip landmark.
+export function segDist(p: number[], a: number[], b: number[]): number {
+  const ab = a.map((v, i) => b[i] - v), ap = a.map((v, i) => p[i] - v);
+  const len2 = ab.reduce((s, v) => s + v * v, 0) || 1e-9;
+  const t = Math.max(0, Math.min(1, ab.reduce((s, v, i) => s + v * ap[i], 0) / len2));
+  return Math.hypot(...ap.map((v, i) => v - t * ab[i]));
+}
+
+export function pinchMetric(lm: Landmark[], vw: number, vh: number): number {
+  const P = (i: number) => [lm[i].x * vw, lm[i].y * vh];
+  const s = handSize(lm, vw, vh);
+  return Math.min(...PINCH_SEGMENTS.map(([a, b]) => segDist(P(THUMB_TIP), P(a), P(b)))) / s;
+}
+
+// True once per pinch, on the frame it closes; it has to open past `off` before the next.
+export class PinchDetector {
+  ratio = 1;
+  private hyst: Hysteresis;
+  constructor(readonly o = PINCH_DEFAULTS) {
+    this.hyst = new Hysteresis(o.on, o.off);
+  }
+  get closed(): boolean {
+    return this.hyst.on;
+  }
+  update(lm: Landmark[], vw: number, vh: number): boolean {
+    return this.push(pinchMetric(lm, vw, vh));
+  }
+  push(ratio: number): boolean {
+    this.ratio = ratio;
+    const was = this.hyst.on;
+    return this.hyst.update(ratio) && !was;
+  }
+  reset(): void {
+    this.hyst.reset();
+  }
+}

@@ -46,6 +46,7 @@ import LogBotStartReducer from "./log_bot_start_reducer";
 import LogBotTroopReducer from "./log_bot_troop_reducer";
 import LogEventReducer from "./log_event_reducer";
 import LogGenerationReducer from "./log_generation_reducer";
+import LogSchemeReducer from "./log_scheme_reducer";
 import LogUtteranceReducer from "./log_utterance_reducer";
 import SetNameReducer from "./set_name_reducer";
 import SetTroopSpriteReducer from "./set_troop_sprite_reducer";
@@ -162,6 +163,7 @@ const reducersSchema = __reducers(
   __reducerSchema("log_bot_troop", LogBotTroopReducer),
   __reducerSchema("log_event", LogEventReducer),
   __reducerSchema("log_generation", LogGenerationReducer),
+  __reducerSchema("log_scheme", LogSchemeReducer),
   __reducerSchema("log_utterance", LogUtteranceReducer),
   __reducerSchema("set_name", SetNameReducer),
   __reducerSchema("set_troop_sprite", SetTroopSpriteReducer),

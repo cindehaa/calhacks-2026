@@ -49,6 +49,8 @@ export const Generation = __t.object("Generation", {
   design: __t.string(),
   cost: __t.u8(),
   spriteUrl: __t.string(),
+  wish: __t.string(),
+  scheme: __t.string(),
 });
 export type Generation = __Infer<typeof Generation>;
 
@@ -66,6 +68,8 @@ export const MatchLog = __t.object("MatchLog", {
   towersLost1: __t.u8(),
   cappedSecs0: __t.f32(),
   cappedSecs1: __t.f32(),
+  scheme0: __t.string(),
+  scheme1: __t.string(),
 });
 export type MatchLog = __Infer<typeof MatchLog>;
 
@@ -101,6 +105,12 @@ export const PlayerMatch = __t.object("PlayerMatch", {
   matchId: __t.u64(),
 });
 export type PlayerMatch = __Infer<typeof PlayerMatch>;
+
+export const PlayerScheme = __t.object("PlayerScheme", {
+  identity: __t.identity(),
+  scheme: __t.string(),
+});
+export type PlayerScheme = __Infer<typeof PlayerScheme>;
 
 export const Room = __t.object("Room", {
   code: __t.string(),

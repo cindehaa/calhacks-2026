@@ -143,6 +143,9 @@ export class Transcript {
   get pending(): boolean {
     return !!this.partial;
   }
+  get partialText(): string {
+    return this.partial;
+  }
   get text(): string {
     return [...this.segments, this.partial].filter(Boolean).join(' ').trim();
   }
