@@ -7,6 +7,8 @@ import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, TOUCH, type DeployHow } from './input/controller';
+import { isCancel, Transcript } from './input/speech';
+import { spokenLetters } from './input/spell';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
@@ -326,10 +328,46 @@ $('copyBtn').onclick = () => {
     setTimeout(() => (b.textContent = 'Copy'), 1200);
   }, () => {});
 };
+// With a code box focused, saying the letters fills them in; the fourth letter joins. Words
+// add on to the letters already there, and a full code starts over.
+const codeWords = new Transcript();
+let codeBase = '';
+function codeAfresh() {
+  codeWords.reset();
+  const v = codeIns.map(c => c.value).join('');
+  codeBase = v.length < codeIns.length ? v : '';
+}
+function dictateCode(raw: string, final: boolean, epoch: number): boolean {
+  if ($('raven').hidden || !codeIns.includes(document.activeElement as HTMLInputElement)) return false;
+  if (/^(clear|clear it|start over)$/i.test(raw.trim().replace(/[.,!?]/g, '')) || isCancel(raw)) {
+    codeIns.forEach(c => (c.value = ''));
+    codeIns[0].focus();
+    codeAfresh();
+    return true;
+  }
+  if (final) codeWords.final(raw, epoch);
+  else codeWords.interim(raw, epoch);
+  const code = (codeBase + spokenLetters(codeWords.text)).slice(0, codeIns.length);
+  codeIns.forEach((c, k) => (c.value = code[k] ?? ''));
+  codeIns[Math.min(code.length, codeIns.length - 1)].focus();
+  if (code.length === codeIns.length && final && !codeWords.pending) {
+    codeAfresh();
+    $<HTMLFormElement>('joinForm').requestSubmit();
+  }
+  return true;
+}
+$('joinForm').addEventListener('focusin', e => {
+  if (!codeIns.includes((e as FocusEvent).relatedTarget as HTMLInputElement)) codeAfresh();
+  $('codeHint').hidden = !input.listening;
+});
+$('joinForm').addEventListener('focusout', e => {
+  if (!codeIns.includes((e as FocusEvent).relatedTarget as HTMLInputElement)) $('codeHint').hidden = true;
+});
 codeIns.forEach((el, i) => {
   el.oninput = () => {
     el.value = el.value.replace(/[^a-z0-9]/gi, '').slice(-1).toUpperCase();
     if (el.value && i < codeIns.length - 1) codeIns[i + 1].focus();
+    codeAfresh();
   };
   el.onkeydown = e => { if (e.key === 'Backspace' && !el.value && i > 0) codeIns[i - 1].focus() };
   el.onpaste = e => {
@@ -815,6 +853,7 @@ const input = new InputController(board.canvas, {
   released: (nonce, words) => drops.release(nonce, words, performance.now()),
   heard: (text, nonce) => logUtterance(text, nonce),
   mismatch: flagMismatch,
+  dictate: dictateCode,
   event: (kind, detail, nonce) => logEvent(kind, detail, nonce),
 });
 

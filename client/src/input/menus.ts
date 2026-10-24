@@ -13,7 +13,7 @@ import type { Pt } from './trail';
 export const MENU_DWELL = false; // true turns on dwell-to-click
 export const DWELL_MS = 1000;
 
-const TARGETS = 'button:not(:disabled), input[type=checkbox]:not(:disabled)';
+const TARGETS = 'button:not(:disabled), input[type=checkbox]:not(:disabled), input.codeIn';
 const MATCH_TARGETS = '#tools button:not(:disabled)'; // all the hand can reach mid-match
 // Dialogs over a match: while one is open the hand works menus, not the board.
 const DIALOGS = ['pause', 'forfeitAsk', 'tutorial', 'setup', 'raven'];
@@ -91,6 +91,7 @@ function press(el: HTMLElement, at: Pt | null): void {
     blip('press'); // no PointerEvent constructor: at least the tick
   }
   el.click();
+  if (el instanceof HTMLInputElement && el.type !== 'checkbox') el.focus(); // a text box: type or talk into it
 }
 
 // Hover state and dwell for the hand cursor, updated every frame by the controller.
