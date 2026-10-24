@@ -236,7 +236,7 @@ function frame() {
     warmedFor = m.key;
     warmDesigner();
   }
-  const left = Math.max(0, MATCH_SECONDS - m.time);
+  const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
   $('roomInfo').textContent = `${m.label}${left <= 30 && m.status === 'playing' ? ' · double elixir' : ''}`;
   const elixir = m.elixir;

@@ -2,7 +2,7 @@
 // Combat itself lives in shared/sim.ts; this file only moves rows in and out of it.
 import { ScheduleAt } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import { ELIXIR_START, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR_START, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import type { VoiceStyle } from '../../shared/troop';
@@ -205,7 +205,7 @@ export const startMatch = spacetimedb.reducer(ctx => {
   ctx.db.room.code.update({
     ...r,
     status: 'playing',
-    time: 0,
+    time: -COUNTDOWN,
     elixir0: ELIXIR_START,
     elixir1: ELIXIR_START,
     winner: NO_WINNER,
@@ -433,6 +433,7 @@ function myRoom(ctx: Ctx): RoomRow {
 function myMatch(ctx: Ctx) {
   const r = myRoom(ctx);
   if (r.status !== 'playing') throw new SenderError('match not running');
+  if (r.time < 0) throw new SenderError('match starting');
   const side: Side = r.host.equals(ctx.sender) ? 0 : 1;
   return { r, side };
 }

@@ -8,6 +8,7 @@ export const MID_Y = ARENA_H / 2;
 export const LANE_X = [3, 9, 15];
 
 export const MATCH_SECONDS = 90;
+export const COUNTDOWN = 3; // "3-2-1, Fight!": matches start at time −3, with no deploys or elixir until 0
 export const DOUBLE_ELIXIR_AT = 60; // last 30 s
 export const ELIXIR_MAX = 10;
 export const ELIXIR_START = 5;

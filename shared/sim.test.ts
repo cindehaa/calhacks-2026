@@ -82,3 +82,15 @@ test('opposing troops fight each other before the towers', () => {
   assert.equal(s.units.filter(u => u.side === 1).length, 0, 'goblin should lose to the knight');
   assert.equal(s.towers.filter(t => t.hp < t.maxHp && t.side === 0).length, 0);
 });
+
+test('the pre-match countdown freezes elixir and units', () => {
+  const s = newMatch();
+  s.time = -3;
+  spawn(s, 0, ANCHORS[0], LANE_X[0], 10);
+  run(s, 2.9);
+  assert.ok(s.time < 0 && s.time > -0.2);
+  assert.equal(s.elixir[0], 5);
+  assert.equal(s.units[0].delay, DEPLOY_DELAY);
+  run(s, 1);
+  assert.ok(s.time > 0.8 && s.elixir[0] > 5);
+});

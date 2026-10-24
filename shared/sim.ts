@@ -92,6 +92,11 @@ const radius = (t: Target) => (t.kind === 'unit' ? UNIT_RADIUS : TOWER_RADIUS);
 const reach = (range: number) => (range <= 1 ? 0.3 : range);
 
 export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepResult {
+  // Pre-match countdown (negative time): only the clock runs.
+  if (s.time < 0) {
+    s.time = Math.min(0, s.time + dt);
+    return { deadUnitIds: [], over: false, winner: null };
+  }
   s.time += dt;
   const rate = ELIXIR_PER_SEC * (s.time >= DOUBLE_ELIXIR_AT ? 2 : 1);
   s.elixir = [Math.min(ELIXIR_MAX, s.elixir[0] + rate * dt), Math.min(ELIXIR_MAX, s.elixir[1] + rate * dt)];

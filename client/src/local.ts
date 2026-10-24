@@ -2,7 +2,7 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
+import { COUNTDOWN, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, step, type SimState } from '../../shared/sim';
@@ -100,6 +100,7 @@ export class LocalMatch implements MatchSource {
 
   private reset() {
     this.s = newMatch();
+    this.s.time = -COUNTDOWN;
     this.locks = [];
     this.troopRows.clear();
     this.unitTroop.clear();
@@ -111,6 +112,7 @@ export class LocalMatch implements MatchSource {
 
   // The bot goes through the same lock → deploy path as you, so its drop is telegraphed.
   private runBot() {
+    if (this.s.time < 0) return;
     const cfg = BOT_LEVELS[this.level];
     if (this.botMove) {
       if (this.s.time < this.botMove.at) return;
@@ -135,6 +137,7 @@ export class LocalMatch implements MatchSource {
 
   private mustPlay() {
     if (this.status !== 'playing') throw new Error('match not running');
+    if (this.s.time < 0) throw new Error('match starting');
   }
 
   private lock(side: Side, nonce: number, x: number, y: number) {
