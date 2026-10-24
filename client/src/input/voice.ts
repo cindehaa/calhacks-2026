@@ -71,7 +71,11 @@ export class Mic {
     this.ctx = new AudioContext();
     this.an = this.ctx.createAnalyser();
     this.an.fftSize = this.buf.length;
-    this.ctx.createMediaStreamSource(this.stream).connect(this.an);
+    // Into a muted sink so the graph is always pulled; an analyser on a dead end read silence in
+    // headless Chrome.
+    const sink = this.ctx.createGain();
+    sink.gain.value = 0;
+    this.ctx.createMediaStreamSource(this.stream).connect(this.an).connect(sink).connect(this.ctx.destination);
     await this.ctx.resume();
   }
 
