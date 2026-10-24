@@ -6,7 +6,7 @@
   <title>Arena</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Cinzel:wght@600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@500;700;800&family=Chakra+Petch:wght@500;600;700&family=Cinzel+Decorative:wght@700&family=Cinzel:wght@600;700;800;900&display=swap">
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -46,7 +46,7 @@
     <div class="vignette"></div>
     <div class="titleInner">
       <h1 class="wordmark">Arena</h1>
-      <p class="tagline">The frost draws closer every night.</p>
+      <p class="tagline">Say a troop. Watch it fight.</p>
       <button id="enterBtn" class="pressStart">Press any key</button>
     </div>
   </div>
@@ -59,9 +59,11 @@
     <img class="frostCorner tl" src="/ui/frost-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-br.svg" alt="">
     <div class="vignette"></div>
     <h1 class="wordmark homeMark">Arena</h1>
+    <div class="mist back" aria-hidden="true"></div>
     <div class="islandWrap" aria-hidden="true">
       <div class="islandShadow"></div>
       <img class="island" src="/ui/island.svg" alt="">
+      <div class="mist front"></div>
       <div class="islandLight"><i style="--x:50%;--y:10.6%"></i><i style="--x:33.6%;--y:18.6%"></i><i style="--x:66.4%;--y:18.6%"></i><i style="--x:31.6%;--y:38.8%"></i><i style="--x:50%;--y:40.7%;--s:1.3"></i><i style="--x:68.4%;--y:38.8%"></i></div>
     </div>
 
@@ -69,10 +71,10 @@
       <img src="/ui/banner-raven.svg" alt="">
       <div class="bannerBody">
         <span class="sigil"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg></span>
-        <span class="bHouse">House</span><span class="bName">Raven</span><span class="bRule"></span>
-        <input id="nameInput" maxlength="20" placeholder="Your name" spellcheck="false" aria-label="Your name" title="Click to rename">
+        <span class="bHouse">Blue side</span>
+        <input id="nameInput" class="bName" maxlength="20" placeholder="Your name" spellcheck="false" aria-label="Your name" title="Click to rename"><span class="bRule"></span>
         <div class="bRank">
-          <span class="bRankRow"><span class="bRankName" id="emberRank">Cinder</span><span class="bEmbers"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><b id="emberCount">0</b></span></span>
+          <span class="bRankRow"><span class="bRankName" id="emberRank">Bronze</span><span class="bEmbers" title="Points"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><b id="emberCount">0</b> pts</span></span>
           <span class="bBar"><i id="emberBar"></i></span>
           <span class="bNext" id="emberNext"></span>
         </div>
@@ -82,35 +84,34 @@
       <img src="/ui/banner-sun.svg" alt="">
       <div class="bannerBody">
         <span class="sigil"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
-        <span class="bHouse">House</span><span class="bName">Sun</span><span class="bRule"></span>
-        <span class="bLine">Your rival across the river</span>
-        <span class="bWait"><i></i>Awaiting a foe</span>
+        <span class="bHouse">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
+        <span class="bWait"><i></i>Waiting for a match</span>
       </div>
     </div>
 
     <div class="orders">
       <div class="orderSide">
-        <button id="botBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Training Yard</b><small>Practise against a bot</small></span></button>
+        <button id="botBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Practice</b><small>Play against the bot</small></span></button>
         <div id="botLevel" class="levels" role="radiogroup" aria-label="Bot difficulty">
           <button role="radio" data-level="easy">Easy</button><button role="radio" data-level="normal">Normal</button><button role="radio" data-level="hard">Hard</button>
         </div>
       </div>
-      <button id="battleBtn" class="slab amber battle"><span class="face"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>To Battle</b><small>Find a worthy foe</small></span></span></button>
+      <button id="battleBtn" class="slab amber battle"><span class="face"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>Play online</b><small>Start a room and invite a friend</small></span></span></button>
       <div class="orderSide">
-        <button id="ravenBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg><b>Send a Raven</b><small>Fight a friend by code</small></span></button>
+        <button id="ravenBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg><b>Join a room</b><small>Enter a friend’s code</small></span></button>
         <span class="levels ghost" aria-hidden="true"></span>
       </div>
     </div>
     <p id="lobbyError" class="error homeError"></p>
-    <footer class="hubFoot"><span id="hubNet" class="hubNet joining">Connecting…</span><span class="hubCredit">Cal Hacks 13.0 · Claude, Cartesia, SpacetimeDB</span></footer>
+    <footer class="hubFoot"><span id="hubNet" class="hubNet joining">Connecting…</span><span class="hubCredit">Built at Cal Hacks 13.0 with Claude, Cartesia and SpacetimeDB</span></footer>
   </div>
 
   <div id="raven" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="ravenTitle">
     <div class="gPanel ravenPanel"><div class="gFace">
       <div class="ravenHead">
-        <div><span class="gLabel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg> To battle · with a friend</span>
-          <h2 id="ravenTitle">Send a Raven</h2>
-          <p class="sub" id="ravenSub">Share your room code. Your ally enters it on their home screen.</p></div>
+        <div><span class="gLabel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg> Online match</span>
+          <h2 id="ravenTitle">Play a friend</h2>
+          <p class="sub" id="ravenSub">Send this code to a friend. They enter it under Join a room.</p></div>
         <button id="ravenClose" class="slab stone icon" aria-label="Close"><span class="face"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></button>
       </div>
       <div class="ravenSection">
@@ -121,20 +122,20 @@
       <div class="houses">
         <div class="houseMe" id="slotMe"></div><span class="vs">VS</span><div class="houseFoe" id="slotFoe"></div>
       </div>
-      <button id="startBtn" class="slab amber wide" disabled><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>Take the Field</b><small id="startSub">Opens when your ally arrives</small></span></span></button>
-      <div class="gDivider"><i></i><span class="gLabel muted">Or answer a raven</span><i></i></div>
+      <button id="startBtn" class="slab amber wide" disabled><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>Start match</b><small id="startSub">Waiting for your friend to join</small></span></span></button>
+      <div class="gDivider"><i></i><span class="gLabel muted">Or join a friend’s room</span><i></i></div>
       <form id="joinForm" class="codeRow" autocomplete="off">
         <div class="codeSlabs"><input class="codeIn" maxlength="1" aria-label="Code letter 1" spellcheck="false"><input class="codeIn" maxlength="1" aria-label="Code letter 2" spellcheck="false"><input class="codeIn" maxlength="1" aria-label="Code letter 3" spellcheck="false"><input class="codeIn" maxlength="1" aria-label="Code letter 4" spellcheck="false"></div>
-        <button class="slab stone" id="answerBtn"><span class="face"><b>Answer</b></span></button>
+        <button class="slab stone" id="answerBtn"><span class="face"><b>Join</b></span></button>
       </form>
       <p id="ravenError" class="error"></p>
     </div></div>
   </div>
 
   <div id="versus" hidden aria-live="polite">
-    <div class="vsSide vsMe"><span class="vsShield" id="vsMeShield"></span><span class="vsName" id="vsMe"></span><span class="vsTag">House Raven</span></div>
+    <div class="vsSide vsMe"><span class="vsShield" id="vsMeShield"></span><span class="vsName" id="vsMe"></span><span class="vsTag">Blue side</span></div>
     <div class="vsMid">VS</div>
-    <div class="vsSide vsThem"><span class="vsShield" id="vsThemShield"></span><span class="vsName" id="vsThem"></span><span class="vsTag" id="vsThemTag">House Sun</span></div>
+    <div class="vsSide vsThem"><span class="vsShield" id="vsThemShield"></span><span class="vsName" id="vsThem"></span><span class="vsTag" id="vsThemTag">Red side</span></div>
   </div>
 
   <div id="pause" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
@@ -149,9 +150,9 @@
 
   <div id="forfeitAsk" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="forfeitTitle">
     <div class="gPanel menuPanel"><div class="gFace">
-      <h2 id="forfeitTitle">Yield the field?</h2>
-      <p class="sub">Your foe wins right away and the frost takes your embers. The battle keeps going while you decide.</p>
-      <button id="keepBtn" class="slab amber"><span class="face"><b>Keep fighting</b></span></button>
+      <h2 id="forfeitTitle">Forfeit this match?</h2>
+      <p class="sub">Your opponent wins right away and you lose points. The match keeps going while you decide.</p>
+      <button id="keepBtn" class="slab amber"><span class="face"><b>Keep playing</b></span></button>
       <button id="forfeitYes" class="slab red"><span class="face"><b>Forfeit</b></span></button>
     </div></div>
   </div>
@@ -162,12 +163,12 @@
     <div id="resultFrost"><img class="frostCorner tl" src="/ui/frost-heavy-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-heavy-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-heavy-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-heavy-br.svg" alt=""></div>
     <div class="banner left small" id="resBanMe">
       <img src="/ui/banner-raven.svg" alt="">
-      <div class="bannerBody"><span class="sigil"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg></span><span class="bHouse">House</span><span class="bName">Raven</span><span class="bRule"></span>
+      <div class="bannerBody"><span class="sigil"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg></span><span class="bHouse">Blue side</span><span class="bName">You</span><span class="bRule"></span>
         <span class="bLine" id="resMeName"></span><span class="bTag" id="resMeTag"></span></div>
     </div>
     <div class="banner right small" id="resBanFoe">
       <img src="/ui/banner-sun.svg" alt="">
-      <div class="bannerBody"><span class="sigil"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span><span class="bHouse">House</span><span class="bName">Sun</span><span class="bRule"></span>
+      <div class="bannerBody"><span class="sigil"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span><span class="bHouse">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
         <span class="bLine" id="resFoeName"></span><span class="bTag" id="resFoeTag"></span></div>
     </div>
     <div class="resultCol">
@@ -178,7 +179,7 @@
         <div id="crowns" class="crowns"></div>
         <div class="slabStatic emberReward" id="emberReward"><div class="face">
           <span class="erIcon" id="erIcon"></span>
-          <span class="erDelta"><b id="emberDelta"></b><small>Embers</small></span><i></i>
+          <span class="erDelta"><b id="emberDelta"></b><small>Points</small></span><i></i>
           <span class="erRank"><b id="erRank"></b><small id="erNext"></small></span>
         </div></div>
       </div>
@@ -187,7 +188,7 @@
         <div class="stats" id="stats"></div>
       </div></div>
       <div class="actions">
-        <button id="rematchBtn" class="slab amber battle mid"><span class="face"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b id="rematchText">Ride Again</b><small id="rematchSub">Find another foe</small></span></span></button>
+        <button id="rematchBtn" class="slab amber battle mid"><span class="face"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b id="rematchText">Rematch</b><small id="rematchSub">Same opponent</small></span></span></button>
         <button id="lobbyBtn" class="slab stone"><span class="face"><b>Home</b></span></button>
       </div>
     </div>

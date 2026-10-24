@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { applyDelta, emberDelta, rankOf } from './embers';
 import { reasons, type RoundSummary } from './chronicle';
 
-test('ranks climb with embers', () => {
-  assert.deepEqual(rankOf(0), { name: 'Cinder', next: 'Kindling', nextAt: 100 });
-  assert.equal(rankOf(99).name, 'Cinder');
-  assert.equal(rankOf(100).name, 'Kindling');
-  assert.deepEqual(rankOf(5000), { name: 'Beacon', next: null, nextAt: null });
+test('ranks climb with points', () => {
+  assert.deepEqual(rankOf(0), { name: 'Bronze', next: 'Silver', nextAt: 100 });
+  assert.equal(rankOf(99).name, 'Bronze');
+  assert.equal(rankOf(100).name, 'Silver');
+  assert.deepEqual(rankOf(5000), { name: 'Diamond', next: null, nextAt: null });
 });
 
-test('wins add embers, losses give them to the frost, never below zero', () => {
+test('wins add points, losses take some, never below zero', () => {
   assert.equal(emberDelta('win', 'online'), 30);
   assert.equal(emberDelta('lose', 'normal'), -10);
   assert.equal(emberDelta('draw', 'hard'), 0);
@@ -32,5 +32,5 @@ test('a loss names the king tower and the troop that did it', () => {
 });
 
 test('a forfeit says so first', () => {
-  assert.equal(reasons({ ...base, forfeit: true, towersTaken: 0 })[0], 'Your foe yielded the field');
+  assert.equal(reasons({ ...base, forfeit: true, towersTaken: 0 })[0], 'Your opponent forfeited');
 });

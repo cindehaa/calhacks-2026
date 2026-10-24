@@ -1,13 +1,13 @@
-// Embers: the player's warmth, kept in this browser. Wins add embers, losses give some to the
-// frost; the total sets your rank, from Cinder up to Beacon.
+// Points, kept in this browser (stored as "embers"). Wins add points, losses take some away;
+// the total sets your rank, from Bronze up to Diamond.
 import type { BotLevel } from '../../shared/bot';
 
 export const RANKS = [
-  { name: 'Cinder', at: 0 },
-  { name: 'Kindling', at: 100 },
-  { name: 'Hearth', at: 300 },
-  { name: 'Bonfire', at: 600 },
-  { name: 'Beacon', at: 1000 },
+  { name: 'Bronze', at: 0 },
+  { name: 'Silver', at: 100 },
+  { name: 'Gold', at: 300 },
+  { name: 'Platinum', at: 600 },
+  { name: 'Diamond', at: 1000 },
 ] as const;
 
 export interface Rank { name: string; next: string | null; nextAt: number | null }

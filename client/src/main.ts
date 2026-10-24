@@ -50,7 +50,7 @@ function netMsg(s: string) {
   $('netStatus').textContent = s;
   // The hub says it plainly; the HUD keeps the raw status for debugging.
   const state = !s ? 'online' : s === 'connected' || s === 'connecting…' ? 'joining' : 'off';
-  $('hubNet').textContent = { online: 'Online', joining: 'Connecting…', off: 'Offline · the Training Yard still works' }[state];
+  $('hubNet').textContent = { online: 'Online', joining: 'Connecting…', off: 'Offline · practice still works' }[state];
   $('hubNet').className = `hubNet ${state}`;
   $('hubNet').title = s;
 }
@@ -140,7 +140,7 @@ for (const id of ['lobby', 'raven', 'pause', 'forfeitAsk', 'result']) {
   $(id).addEventListener('click', e => { if ((e.target as HTMLElement).closest('button')) sfx.play('click') });
 }
 
-// Embers: your warmth, kept in this browser.
+// Points and rank, kept in this browser.
 let embers = loadEmbers();
 function renderEmbers() {
   const rank = rankOf(embers);
@@ -153,8 +153,13 @@ function renderEmbers() {
 renderEmbers();
 
 $('botBtn').onclick = () => startBot(botLevel);
-// No matchmaking yet: To Battle opens the same room pop-up as Send a Raven.
-$('battleBtn').onclick = $('ravenBtn').onclick = () => openRaven();
+// No matchmaking yet: Play online and Join a room open the same room pop-up; Join starts at the code boxes.
+$('battleBtn').onclick = () => openRaven();
+$('ravenBtn').onclick = () => {
+  openRaven();
+  renderRaven();
+  codeIns[0].focus();
+};
 $('camBtn').onclick = e => {
   setup.open();
   (e.currentTarget as HTMLElement).blur();
@@ -260,19 +265,19 @@ function renderRaven() {
   if (!show) return;
   const hosting = !!r && !!net && r.host.isEqual(net.identity);
   $('ravenSub').textContent = !net
-    ? 'The ravens can’t reach the war council right now. The Training Yard still works.'
-    : r && !hosting ? 'You answered their raven. Either of you can take the field.'
-    : 'Share your room code. Your ally enters it on their home screen.';
+    ? 'Can’t reach the server right now. Practice against the bot still works.'
+    : r && !hosting ? 'You joined their room. Either of you can start the match.'
+    : 'Send this code to a friend. They enter it under Join a room.';
   setHtml('codeSlabs', (r?.code ?? '····').split('').map(c => `<span class="code">${escapeHtml(c)}</span>`).join(''));
   const meName = myName();
-  setHtml('slotMe', `${shieldSvg('raven', initial(meName), 50)}<div><span class="hName">${escapeHtml(meName)}</span><span class="hHouse">House Raven</span></div>`);
+  setHtml('slotMe', `${shieldSvg('raven', initial(meName), 50)}<div><span class="hName">${escapeHtml(meName)}</span><span class="hHouse">Blue side</span></div>`);
   const foeId = r ? (hosting ? r.guest : r.host) : undefined;
   const foe = foeId && net ? net.conn.db.player.identity.find(foeId) : undefined;
   setHtml('slotFoe', foe
-    ? `<div><span class="hName">${escapeHtml(foe.name)}</span><span class="hHouse">House Sun${foe.online ? '' : ' · away'}</span></div>${shieldSvg('sun', initial(foe.name), 50)}`
-    : `<div><span class="hName waiting">Awaiting an ally…</span><span class="hHouse">House Sun</span></div>${shieldSvg('sun', '', 50, true)}`);
+    ? `<div><span class="hName">${escapeHtml(foe.name)}</span><span class="hHouse">Red side${foe.online ? '' : ' · away'}</span></div>${shieldSvg('sun', initial(foe.name), 50)}`
+    : `<div><span class="hName waiting">Waiting for a friend…</span><span class="hHouse">Red side</span></div>${shieldSvg('sun', '', 50, true)}`);
   $<HTMLButtonElement>('startBtn').disabled = !r?.guest;
-  $('startSub').textContent = r?.guest ? 'Both houses stand ready' : 'Opens when your ally arrives';
+  $('startSub').textContent = r?.guest ? 'Both players are here' : 'Waiting for your friend to join';
   $<HTMLButtonElement>('copyBtn').disabled = !r;
   $<HTMLButtonElement>('answerBtn').disabled = !net;
 }
@@ -291,7 +296,7 @@ interface Round {
   theirKingFellAt: number | null;
   deploys: number;
   elixirSpent: number;
-  shown: boolean; // result screen filled and embers awarded
+  shown: boolean; // result screen filled and points awarded
 }
 const newRound = (): Round => ({ cappedSecs: 0, myKingFellAt: null, theirKingFellAt: null, deploys: 0, elixirSpent: 0, shown: false });
 let round = newRound();
@@ -362,19 +367,17 @@ function renderResult() {
   const res = $('result');
   res.className = `screen gScreen result ${outcome}`;
   $<HTMLImageElement>('resultBg').src = `/ui/${outcome === 'win' ? 'gold' : outcome === 'lose' ? 'ice' : 'home'}.svg`;
-  const heading = { win: 'The day is won', lose: 'The day is lost', draw: 'The day is undecided' }[outcome];
-  $('resultLabel').textContent = `${heading} · ${m.label} · ${clockText(m, true)}`;
+  $('resultLabel').textContent = `${m.label} · ${clockText(m, true)}`;
   $('resultText').textContent = { win: 'Victory', lose: 'Defeat', draw: 'Draw' }[outcome].toUpperCase();
-  $('resultLine').textContent = summary.forfeit && outcome === 'lose' && iForfeited ? 'You yielded the field to the frost.'
-    : { win: 'Your hearth burns brighter.', lose: 'The frost claims your warmth.', draw: 'Both hearths still burn.' }[outcome];
+  $('resultLine').textContent = !summary.forfeit ? '' : outcome === 'lose' && iForfeited ? 'You forfeited.' : outcome === 'win' ? 'Your opponent forfeited.' : '';
   const tone = outcome === 'lose' ? 'ice' : 'gold';
   $('crowns').innerHTML = [0, 1, 2].map(i => crownSvg(i < summary.towersTaken ? tone : `empty-${tone}`, 64)).join('');
   $('erIcon').innerHTML = outcome === 'lose' ? SNOW_ICON : FLAME_ICON;
   $('emberDelta').textContent = delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : '0';
   const rk = rankOf(embers);
   $('erRank').textContent = rk.name;
-  $('erNext').textContent = rk.next ? `${embers.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${embers.toLocaleString('en-US')} embers`;
-  $('whyLabel').textContent = { win: 'How the day was won', lose: 'How the day was lost', draw: 'How the day stood' }[outcome];
+  $('erNext').textContent = rk.next ? `${embers.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${embers.toLocaleString('en-US')} points`;
+  $('whyLabel').textContent = { win: 'Why you won', lose: 'Why you lost', draw: 'How it ended' }[outcome];
   $('whyList').innerHTML = reasons(summary).map(r => `<li>${escapeHtml(r)}</li>`).join('');
   const damage = theirs.reduce((n, t) => n + Math.max(0, t.maxHp - Math.max(0, t.hp)), 0);
   $('stats').innerHTML = [[`${summary.towersTaken}–${summary.towersLost}`, 'Towers'], [Math.round(damage).toLocaleString('en-US'), 'Tower damage'],
@@ -387,11 +390,11 @@ function renderResult() {
   banner('resBanFoe', 'sun', outcome === 'win');
   $('resMeName').textContent = myName();
   $('resFoeName').textContent = foeName(m);
-  const tag = (won: boolean) => outcome === 'draw' ? 'Holding the line' : won ? 'Victorious' : 'Banished to the frost';
+  const tag = (won: boolean) => outcome === 'draw' ? 'Draw' : won ? 'Winner' : 'Defeated';
   $('resMeTag').textContent = tag(outcome === 'win');
   $('resFoeTag').textContent = tag(outcome === 'lose');
-  $('rematchText').textContent = { win: 'Ride Again', lose: 'Avenge', draw: 'Fight Again' }[outcome];
-  $('rematchSub').textContent = { win: 'Find another foe', lose: 'Reclaim your warmth', draw: 'Settle it' }[outcome];
+  $('rematchText').textContent = 'Rematch';
+  $('rematchSub').textContent = local ? `Same bot, ${local.level}` : 'Same opponent';
 }
 
 // ---------- versus card, pause and forfeit ----------
@@ -408,7 +411,7 @@ function renderVersus(m: MatchSource | null) {
     $('vsMeShield').innerHTML = shieldSvg('raven', initial(me), 92);
     $('vsThem').textContent = them;
     $('vsThemShield').innerHTML = shieldSvg('sun', initial(them), 92);
-    $('vsThemTag').textContent = 'House Sun';
+    $('vsThemTag').textContent = 'Red side';
     sfx.play('versus');
   }
   vsShown = show;

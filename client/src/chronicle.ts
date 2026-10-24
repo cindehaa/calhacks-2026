@@ -1,4 +1,4 @@
-// The end-of-round story: why the day was won or lost, and the numbers behind it. Pure, so the
+// The end-of-round story: why you won or lost, and the numbers behind it. Pure, so the
 // result screen and the tests share it.
 
 export interface RoundSummary {
@@ -22,8 +22,8 @@ const num = (n: number) => Math.round(n).toLocaleString('en-US');
 export function reasons(s: RoundSummary): string[] {
   const out: string[] = [];
   if (s.outcome === 'win') {
-    if (s.forfeit) out.push('Your foe yielded the field');
-    if (s.theirKingDown) out.push(`You toppled their king tower${s.theirKingFellAt !== null ? ` at ${clock(s.theirKingFellAt)}` : ''}`);
+    if (s.forfeit) out.push('Your opponent forfeited');
+    if (s.theirKingDown) out.push(`You destroyed their king tower${s.theirKingFellAt !== null ? ` at ${clock(s.theirKingFellAt)}` : ''}`);
     const princess = s.towersTaken - (s.theirKingDown ? 1 : 0);
     if (princess >= 2) out.push('You took both princess towers');
     else if (princess === 1) out.push('You took a princess tower');
@@ -31,7 +31,7 @@ export function reasons(s: RoundSummary): string[] {
     if (!s.myKingStruck) out.push('Your king tower was never struck');
     if (s.myBest && s.myBest.damage > 0) out.push(`${s.myBest.name} dealt ${num(s.myBest.damage)} damage`);
   } else if (s.outcome === 'lose') {
-    if (s.forfeit) out.push('You yielded the field');
+    if (s.forfeit) out.push('You forfeited');
     if (s.myKingDown) out.push(`Your king tower fell${s.myKingFellAt !== null ? ` at ${clock(s.myKingFellAt)}` : ''}`);
     else if (s.towersLost > 0) out.push(`They took ${s.towersLost === 1 ? 'one' : s.towersLost} of your towers`);
     if (s.theirBest && s.theirBest.towerDamage > 0) out.push(`Their ${s.theirBest.name} did ${num(s.theirBest.towerDamage)} to your towers`);
