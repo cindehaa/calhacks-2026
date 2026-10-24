@@ -26,6 +26,9 @@ import type { Intent, Scheme, SchemeCtx, SchemeInstance, Signal } from './scheme
 import { DEV_MODE } from '../devmode';
 import './input.css';
 
+// A phone or tablet: no hover, Space or Esc, so the hints say tap.
+export const TOUCH = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+
 type Spot = [number, number]; // world coords
 
 // What the game provides. begin() starts the server-side deploy clock and returns its handle
@@ -584,7 +587,7 @@ export class InputController {
     sfx.play('miss');
     if (this.hinted) return;
     this.hinted = true;
-    const send = this.tracker ? 'pinch thumb and middle finger' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? 'pinch thumb and middle finger' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
     notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
   }
@@ -778,8 +781,8 @@ export class InputController {
 
   private hintText(): string {
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
-    const send = this.tracker ? 'pinch thumb and middle finger' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
-    const clear = this.tracker ? 'make a fist' : 'press Esc';
+    const send = this.tracker ? 'pinch thumb and middle finger' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const clear = this.tracker ? 'make a fist' : TOUCH ? 'say “cancel”' : 'press Esc';
     if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;
     return `Say the troop, then ${send} to send it · ${clear} to cancel`;
   }

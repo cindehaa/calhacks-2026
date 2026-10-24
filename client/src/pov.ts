@@ -33,6 +33,10 @@ export type Eye = keyof typeof EYES;
 // toward the cursor; starting a match flies the camera down to your eye.
 const HOME = { d: 30, h: 29, look: 1.5, fov: 40, sway: 0.1, lean: 0.12 };
 const FLY_S = 1.6; // seconds from the home view to your eye
+// A portrait screen (a phone) can't fit the arena's width from your eye, so the match camera rises
+// to a steeper view fitted to the whole board, which is portrait too. It blends in as the space
+// above the dock narrows from `wide` to `narrow`.
+const TALL = { pitch: -1.05, fov: 50, wide: 1.2, narrow: 0.8, top: 64 };
 interface Pose { x: number; y: number; z: number; pitch: number; yaw: number; fov: number }
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
@@ -130,6 +134,8 @@ export class PovBoard {
   private home = 1; // 1 on the home screen, 0 in a match, between while the camera flies
   private homeMode = true;
   private homeBack = 0; // how much further from the arena the home view stands than a match's eye
+  private tall = 0; // 0 on a wide screen, 1 on a portrait one (TALL)
+  private tallPose: Pose = { x: 0, y: 30, z: 20, pitch: TALL.pitch, yaw: 0, fov: TALL.fov };
   private flyAt = -10;
   private flyFrom: Pose | null = null;
   private last = performance.now();
@@ -247,7 +253,10 @@ export class PovBoard {
     this.canvas.height = this.h * dpr;
     // Centre the view on the part of the screen above the dock, so the near bank isn't under it.
     const dock = (document.getElementById('dock')?.offsetHeight ?? 130) + 20;
-    this.cam.aspect = this.w / Math.max(1, this.h - dock);
+    const above = Math.max(1, this.h - dock);
+    this.cam.aspect = this.w / above;
+    this.tall = Math.min(1, Math.max(0, (TALL.wide - this.cam.aspect) / (TALL.wide - TALL.narrow)));
+    if (this.tall > 0) this.tallPose = fitBoard(this.cam.aspect, TALL.top / above);
     this.cam.setViewOffset(this.w, this.h - dock, 0, 0, this.w, this.h);
     this.cam.updateProjectionMatrix();
   }
@@ -455,12 +464,14 @@ export class PovBoard {
   }
 
   private eyePose(now: number, real: number): Pose {
-    const e = EYES[this.eye];
+    const e = EYES[this.eye], f = this.tallPose, k = this.tall;
     const [shx, shy] = this.fx.shake();
     const [jx, jy] = this.juice.shake(real);
+    const mix = (a: number, b: number) => a + (b - a) * k;
+    // The fitted portrait view has no room to spare, so it doesn't turn toward the cursor.
     return {
-      x: Math.sin(now * 0.7) * 0.05 + shx * 0.01 + jx, y: e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01 + jy, z: MID_Y - e.y,
-      pitch: e.pitch + this.pitch + this.juice.pitchNudge(real), yaw: this.yaw, fov: e.fov + this.juice.fovKick(real),
+      x: Math.sin(now * 0.7) * 0.05 + shx * 0.01 + jx, y: mix(e.h, f.y) + Math.sin(now * 1.4) * 0.03 + shy * 0.01 + jy, z: mix(MID_Y - e.y, f.z),
+      pitch: mix(e.pitch, f.pitch) + this.pitch * (1 - k) + this.juice.pitchNudge(real), yaw: this.yaw * (1 - k), fov: mix(e.fov, f.fov) + this.juice.fovKick(real),
     };
   }
 
@@ -524,12 +535,14 @@ export class PovBoard {
       const r = towerRadius(tw.lane ?? 0);
       // From the top eye your king is a lookout tall enough to stand on at eye height.
       // On the home screen it's an ordinary king; it rises into the lookout as the camera flies down.
-      const lookout = king && mine && this.eye === 'top' && this.home < 0.5;
-      const tall = king && mine && this.eye === 'top' ? (EYES.top.h - 1.4) / 2.2 : king ? 1.3 : 1;
+      // The portrait view looks down from above, so there your king is ordinary and solid.
+      const onTop = king && mine && this.eye === 'top' && this.tall < 0.5;
+      const lookout = onTop && this.home < 0.5;
+      const tall = onTop ? (EYES.top.h - 1.4) / 2.2 : king ? 1.3 : 1;
       t.grp.scale.set(r, king ? 1.3 + (tall - 1.3) * (1 - this.home) : 1, r);
       // Your own king sits right under the camera: ghost it so it doesn't hide the board. From the
       // top eye you stand on it, so it stays solid and its rim frames the bottom of the view.
-      const ghost = king && mine && !lookout && this.home < 0.5;
+      const ghost = king && mine && !lookout && this.home < 0.5 && this.tall < 0.5;
       for (const m of [t.base.material as THREE.MeshStandardMaterial, t.mat]) {
         m.transparent = ghost;
         m.opacity = ghost ? 0.28 : 1;
@@ -1456,6 +1469,48 @@ export function flameGlyph(g: CanvasRenderingContext2D, x: number, y: number, h:
   tongue(1);
   g.fillStyle = '#ffe9a8';
   const yy = y; y = yy + r * 0.28; tongue(0.5); y = yy;
+}
+
+// The portrait view: down the middle at TALL's pitch, as close as it can stand with the whole board
+// and the far towers on screen, clear of the `top` share of the height (the tools) and centred in
+// what's left.
+function fitBoard(aspect: number, top: number): Pose {
+  const cam = new THREE.PerspectiveCamera(TALL.fov, aspect, 0.05, 250);
+  cam.rotation.set(TALL.pitch, 0, 0);
+  const fwd = new THREE.Vector3(0, Math.sin(TALL.pitch), -Math.cos(TALL.pitch));
+  const hw = ARENA_W / 2 + 0.4, hh = MID_Y + 0.4;
+  const pts = [[-hw, 0, hh], [hw, 0, hh], [-hw, 0, -hh], [hw, 0, -hh], [0, 4.5, 3 - MID_Y]].map(([x, y, z]) => new THREE.Vector3(x, y, z));
+  const room = (2 - 2 * top) * 0.97, mid = -top;
+  const v = new THREE.Vector3();
+  let tz = 0, d = 30;
+  // How far the points reach across (|x|) and up and down the screen, standing d back from (0, 0, tz).
+  const span = (): [number, number, number] => {
+    cam.position.set(0, 0, tz).addScaledVector(fwd, -d);
+    cam.updateMatrixWorld();
+    let x = 0, y0 = Infinity, y1 = -Infinity;
+    for (const p of pts) {
+      v.copy(p).applyMatrix4(cam.matrixWorldInverse);
+      if (v.z > -0.1) return [Infinity, -Infinity, Infinity]; // behind the camera
+      v.applyMatrix4(cam.projectionMatrix);
+      x = Math.max(x, Math.abs(v.x));
+      y0 = Math.min(y0, v.y);
+      y1 = Math.max(y1, v.y);
+    }
+    return [x, y0, y1];
+  };
+  for (let i = 0; i < 5; i++) {
+    let lo = 5, hi = 200;
+    for (let j = 0; j < 28; j++) {
+      d = (lo + hi) / 2;
+      const [x, y0, y1] = span();
+      if (x > 0.97 || y1 - y0 > room) lo = d; else hi = d;
+    }
+    d = hi;
+    const [, y0, y1] = span();
+    tz -= ((y0 + y1) / 2 - mid) * d * Math.tan((TALL.fov * Math.PI) / 360) / Math.abs(Math.sin(TALL.pitch));
+  }
+  span();
+  return { x: 0, y: cam.position.y, z: cam.position.z, pitch: TALL.pitch, yaw: 0, fov: TALL.fov };
 }
 
 const still = () => {

@@ -6,7 +6,7 @@ import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
-import { InputController, type DeployHow } from './input/controller';
+import { InputController, TOUCH, type DeployHow } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
@@ -30,6 +30,7 @@ import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
 import { boardReactions, homeReactions, menuReactions } from './react';
 import { inject as injectAnalytics } from '@vercel/analytics';
+import './mobile.css';
 
 injectAnalytics(); // Vercel Web Analytics: page views on the deployed site; dev only logs them to the console
 
@@ -838,8 +839,10 @@ $<HTMLFormElement>('describe').onsubmit = e => {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
+  if (TOUCH) input.blur(); // put the keyboard away so the board shows again
   deployDescription(text);
 };
+if (TOUCH) $<HTMLInputElement>('descInput').placeholder = 'Type a troop, then Go · tap your half to pick the spot';
 
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
