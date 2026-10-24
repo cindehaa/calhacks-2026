@@ -77,7 +77,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
       : devicesOk ? 'camera and mic are on'
       : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: say a troop, then click or press Space to send it`
       : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
-      : 'aim with your hand, speak to summon');
+      : 'aim with your hand, say your troop out loud');
     const dev = q<HTMLButtonElement>('[data-act="devices"]');
     dev.hidden = devicesOk;
     dev.disabled = asking || starting;

@@ -418,3 +418,34 @@ body.inHub #inputPanel { display: none; }
 .home .mist.back { translate: calc(var(--px) * -14px) 0; transition: translate .6s ease-out; }
 .home .islandWrap { translate: calc(var(--px) * 12px) calc(var(--py) * 7px); transition: translate .5s ease-out; }
 @media (prefers-reduced-motion: reduce) { .home .gBg, .home .mist.back, .home .islandWrap { translate: none; transform: none; } }
+
+/* first-run overlays (setup, how to play) in the same faceted stone as the menus */
+#setup, #tutorial { font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #05060cb8, #020308f0 80%); }
+#setup .panel, #tutorial .panel { --c: 18px; border: 0; border-radius: 0; border-bottom: 8px solid #0e1230; padding: 30px 32px 28px; gap: 16px;
+  clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+  background: linear-gradient(160deg, #212853 0 56%, #1a2045 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; }
+#setup .panel h1, #tutorial .panel h1 { font: 800 30px/1.1 var(--cinzel); letter-spacing: .03em; color: #fff; }
+#setup .sub, #tutorial .sub { font-size: 16px; line-height: 1.4; }
+#setup .panel .sub + .sub { margin-top: 6px; }
+#setup .panel button, #tutorial .panel button { height: 42px; padding: 0 18px; border: 0; border-radius: 0; border-bottom: 4px solid #0b0e22; font: 700 15px var(--chakra); letter-spacing: .06em; color: #fff;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); background: linear-gradient(160deg, #2e3558 0 56%, #252b4a 56% 100%); }
+#setup .panel button:hover, #tutorial .panel button:hover { background: linear-gradient(160deg, #38406a 0 56%, #2e3558 56% 100%); }
+#setup .panel button.ghost { color: var(--muted); background: transparent; border-bottom-color: transparent; padding: 0 4px; }
+#setup .panel button.ghost:hover { color: #fff; background: transparent; }
+#setup [data-act="done"], #setup [data-act="devices"], #tutClose { color: #1a0e00 !important; border-bottom-color: var(--amberSide) !important; background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%) !important; }
+#setup .panel button:disabled { color: var(--muted) !important; border-bottom-color: #0b0e22 !important; background: linear-gradient(160deg, #252b4a 0 56%, #1c2140 56% 100%) !important; opacity: 1; }
+#setup .setupCam { border: 0; border-radius: 0; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background: #0a0d1b; }
+#setup .setupHint { font: 600 14px var(--chakra); letter-spacing: .14em; text-transform: uppercase; color: #8e96b3a0; }
+#setup .steps li b, #tutorial li b { color: #fff; font-weight: 700; }
+#setup .stepDot, #tutorial li::before { border-radius: 0; background: #2e3558; color: var(--amber); font: 800 13px var(--chakra);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+#setup .steps li.done .stepDot { background: #4ac987; color: #0b1a10; }
+#setup .setupMeter { border-radius: 0; background: #0a0d1b; } #setup .setupMeter i.speaking { background: var(--amber); }
+#tutorial li { font-size: 16px; line-height: 1.4; color: #b9c0d8; }
+#tutorial li:nth-child(6)::before { background: #2e3558; }
+#tutorial kbd { border: 0; border-bottom: 2px solid #0b0e22; border-radius: 0; background: #2e3558; color: #fff; font: 700 12px var(--chakra); padding: 1px 6px; }
+#tutorial .tutTimer { background: #0e1230; } #tutorial .tutTimer i { background: var(--amber); }
+#setup .panel h1 { margin-bottom: 8px; }
+#setup .steps li b { font-size: 17px; }
+#setup .steps li .sub { font-size: 15px; }
+#setup .stepDot, #tutorial li::before { width: 26px; height: 26px; font-size: 14px; }
