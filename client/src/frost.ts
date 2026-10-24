@@ -48,7 +48,8 @@ uniform vec3 uIce, uIceMid, uIceDeep;
 float frostHash(float n) { return fract(sin(n * 12.9898 + uSeed * 78.233) * 43758.5453); }`)
     .replace('#include <color_fragment>', `#include <color_fragment>
   // The crust's edge is uneven: each of the 8 corners stands at its own height and each face
-  // rises to one peak somewhere across it, so the line is a run of big crystal facets.
+  // rises to one peak somewhere across it, so the line is a run of big crystal facets, with a
+  // fine bite along it.
   float seg = atan(vFrostPos.x, vFrostPos.z) * 1.2732395 + 8.0;
   float face = mod(floor(seg), 8.0), across = fract(seg);
   float up = vFrostPos.y + 1.1, reach = uFrost * 2.2;
@@ -58,16 +59,41 @@ float frostHash(float n) { return fract(sin(n * 12.9898 + uSeed * 78.233) * 4375
   float peak = max(c0, c1) + 0.35 + 0.5 * frostHash(face + 40.0);
   float t = across < peakAt ? across / peakAt : (1.0 - across) / (1.0 - peakAt);
   float corner = mix(c0, c1, step(peakAt, across));
-  float edge = reach + amp * (mix(corner, peak, t) - 0.75);
+  float edge = reach + amp * (mix(corner, peak, t) - 0.75) - 0.03 * abs(fract(across * 6.0) * 2.0 - 1.0);
   float aa = max(fwidth(up), 1e-4);
   float frosted = step(0.001, uFrost) * smoothstep(aa, -aa, up - edge);
-  // A bright band where light catches the crust's edge, then each face splits at its peak into a
-  // lit and a shadow facet.
-  float rim = smoothstep(aa, -aa, edge - 0.09 - up);
-  vec3 ice = mix(uIceMid, uIceDeep, step(peakAt, across) * 0.7);
-  diffuseColor.rgb = mix(diffuseColor.rgb, mix(ice, uIce, rim), frosted);`)
-    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.25, frosted);')
-    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += frosted * mix(uIceMid * 0.32, uIce * 0.55, rim);');
+  float rim = smoothstep(aa, -aa, edge - 0.08 - up);
+  // Inside, the ice is a mosaic of small triangular facets, each its own shade and clarity: milky
+  // facets hide the stone, clear ones let it show through tinted blue. Some facet edges carry a
+  // hairline crack.
+  vec2 fp = vec2(across * 0.84, up) / 0.3;
+  fp.x += fp.y * 0.5;
+  vec2 fc = floor(fp), ff = fract(fp);
+  float upper = step(ff.x, ff.y);
+  float cell = fc.x * 7.0 + fc.y * 131.0 + upper * 3.0 + face * 977.0;
+  float shade = frostHash(cell), clarity = frostHash(cell + 0.5);
+  float toEdge = upper > 0.5 ? min(min(ff.x, 1.0 - ff.y), (ff.y - ff.x) * 0.707) : min(min(ff.y, 1.0 - ff.x), (ff.x - ff.y) * 0.707);
+  float faa = max(fwidth(toEdge), 1e-4);
+  float crack = step(0.84, frostHash(cell + 0.25)) * smoothstep(0.035 + faa, 0.035 - faa, toEdge);
+  vec3 ice = mix(uIceMid, uIceDeep, step(peakAt, across) * 0.6 + (shade - 0.5) * 0.5);
+  ice = mix(ice, uIce, step(0.8, shade) * 0.45);
+  vec3 seen = mix(diffuseColor.rgb * vec3(0.7, 0.95, 1.35), ice, 0.5 + 0.42 * step(0.35, clarity));
+  seen = mix(seen, uIce, crack * 0.75);
+  // Glints: a few tiny bright facets scattered through the ice.
+  vec2 gp = vec2(across * 0.84, up) / 0.05;
+  float glint = step(0.975, frostHash(floor(gp.x) * 53.0 + floor(gp.y) * 389.0 + face * 11.0)) * (1.0 - rim);
+  diffuseColor.rgb = mix(diffuseColor.rgb, mix(seen, uIce, rim), frosted);`)
+    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.2, frosted);')
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  // Light seems to pass through the ice: it glows most where you see it edge-on.
+  float fres = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 2.0);
+  totalEmissiveRadiance += frosted * (mix(uIceMid * (0.18 + 0.12 * step(0.35, clarity)), uIce * 0.55, rim) + uIce * (fres * 0.45 + glint * 0.9 + crack * 0.2));`);
+}
+
+// The crystals' translucent glow, as in the crust: brighter edge-on.
+function glowIce(shader: THREE.WebGLProgramParametersWithUniforms): void {
+  shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  totalEmissiveRadiance += vec3(0.86, 0.91, 0.96) * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 2.0) * 0.6;`);
 }
 
 // Ice crystals in clumps round each tower's foot and icicles off its crown, every tower's in one
@@ -84,8 +110,12 @@ export class TowerIce {
   constructor(scene: THREE.Scene, max = 160) {
     // A six-sided crystal: a prism with a pointed tip, standing on its base, tip at y = 1.
     const geo = new THREE.LatheGeometry([new THREE.Vector2(0, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 0.68), new THREE.Vector2(0, 1)], 6);
-    const mat = new THREE.MeshStandardMaterial({ color: '#b9d5ec', emissive: ICE_DEEP, emissiveIntensity: 0.4, roughness: 0.25, flatShading: true });
+    const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: ICE_DEEP, emissiveIntensity: 0.3, roughness: 0.15, flatShading: true, transparent: true, opacity: 0.78 });
+    mat.onBeforeCompile = glowIce;
     this.mesh = new THREE.InstancedMesh(geo, mat, max);
+    // Each crystal its own tint, from frost white to deep ice.
+    const tint = new THREE.Color(), tints = [ICE, '#c4dbee', ICE_DEEP, '#b4d2ea', ICE_SHADE];
+    for (let i = 0; i < max; i++) this.mesh.setColorAt(i, tint.set(tints[Math.floor(hash(i, 3) * tints.length)]));
     this.mesh.frustumCulled = false; // instances spread over the whole board
     this.mesh.count = 0;
     scene.add(this.mesh);
