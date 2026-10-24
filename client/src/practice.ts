@@ -56,7 +56,7 @@ export function initPractice(input: InputController): { run(): Promise<PracticeE
     msg.textContent = hits >= SPOTS.length ? 'All three hit. You’re set.'
       : now < sayUntil ? say
       : !seen ? 'Show your hand to the camera.'
-      : 'Point at the target, then touch your thumb to your index finger.';
+      : 'Point at the target, then touch your thumb to your middle finger.';
     count.textContent = `${Math.min(hits + 1, SPOTS.length)} of ${SPOTS.length}`;
   }
 
@@ -116,7 +116,7 @@ export function initPractice(input: InputController): { run(): Promise<PracticeE
       meter.style.width = `${full * 100}%`;
       meter.classList.toggle('shut', s.pinched);
       if (near.push(s.t, r, true)) {
-        tell('Almost. Touch your thumb all the way to your finger.', 3500);
+        tell('Almost. Touch your thumb all the way to your middle finger.', 3500);
         art.classList.remove('nudge');
         void art.offsetWidth;
         art.classList.add('nudge');

@@ -1,4 +1,5 @@
-// The two hand diagrams, as inline SVG: point to aim, pinch to click. Drawn like the virtual hand
+// The two hand diagrams, as inline SVG: point to aim, pinch (thumb to middle finger, the index
+// still pointing) to click. Drawn like the virtual hand
 // (handview.ts): frost bones, dark joints, the aiming fingertip in amber. The pinch closes and
 // opens on a loop and the pointing hand drifts; under reduced motion both hold still (the pinch
 // shown closed).
@@ -15,14 +16,14 @@ const CURLED: Pose = [
 ];
 const POINT = CURLED;
 const with_ = (base: Pose, moves: Record<number, P>): Pose => base.map((p, i) => moves[i] ?? p);
-const PINCH_OPEN = with_(CURLED, { 2: [29, 93], 3: [21, 83], 4: [14, 74], 6: [36, 47], 7: [32, 36], 8: [29, 26] });
-const PINCH_SHUT = with_(CURLED, { 2: [30, 91], 3: [23, 77], 4: [21, 62], 6: [34, 49], 7: [26, 47], 8: [21, 55] });
-const TOUCH: P = [21, 58]; // where they meet
+const PINCH_OPEN = with_(CURLED, { 2: [29, 93], 3: [21, 83], 4: [14, 74], 10: [56, 48], 11: [57, 38], 12: [57, 29] });
+const PINCH_SHUT = with_(CURLED, { 2: [31, 90], 3: [30, 76], 4: [37, 62], 10: [52, 50], 11: [45, 52], 12: [40, 58] });
+const TOUCH: P = [38, 60]; // where thumb and middle finger meet
 
-const CHAINS = [[9, 10], [13, 14], [17, 18], [0, 1, 2, 3, 4], [5, 6, 7, 8]]; // index last, on top
+const CHAINS = [[13, 14], [17, 18], [9, 10, 11, 12], [0, 1, 2, 3, 4], [5, 6, 7, 8]]; // index last, on top
 const PALM = [0, 1, 5, 9, 13, 17];
-const TIPS = [4, 8, 10, 14, 18];
-const JOINTS = [0, 1, 2, 3, 5, 6, 7, 9, 13, 17];
+const TIPS = [4, 8, 12, 14, 18];
+const JOINTS = [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 17];
 
 const BONE = '#9cc3e0', JOINT = '#1a2045', TIP = '#dbe9f4', AIM = '#ffb02e', FLASH = '#fff1c4';
 
@@ -43,7 +44,7 @@ function hand(from: Pose, to: Pose | null, dur: number, hot: number[]): string {
   };
   return [
     `<polygon points="${pts(from, PALM)}" fill="${BONE}" fill-opacity=".16" stroke="${BONE}" stroke-opacity=".7" stroke-width="4" stroke-linejoin="round">${anim('points', pts(from, PALM), to ? pts(to, PALM) : '')}</polygon>`,
-    ...CHAINS.map((c, k) => poly(c, `fill="none" stroke="${k < 3 ? '#7f9fbc' : BONE}" stroke-width="${k < 3 ? 4.5 : 5.5}" stroke-linecap="round" stroke-linejoin="round"`)),
+    ...CHAINS.map((c, k) => poly(c, `fill="none" stroke="${k < 2 ? '#7f9fbc' : BONE}" stroke-width="${k < 2 ? 4.5 : 5.5}" stroke-linecap="round" stroke-linejoin="round"`)),
     ...JOINTS.map(i => dot(i, 2, JOINT)),
     ...TIPS.map(i => dot(i, hot.includes(i) ? 4.4 : 3, hot.includes(i) ? AIM : TIP)),
   ].join('');
@@ -63,14 +64,15 @@ export function pointArt(animate = !reduced()): string {
   return svg(`<g>${drift}${hand(POINT, null, 0, [8])}${arrows}</g>`, 'Point with your index finger');
 }
 
-// Pinch to click: thumb tip to index finger, a flash where they touch.
+// Pinch to click: thumb tip to middle fingertip while the index keeps pointing, a flash where
+// they touch.
 export function pinchArt(animate = !reduced()): string {
   const [cx, cy] = TOUCH;
   const flash = animate
     ? `<circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="${FLASH}" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;0;0" keyTimes="0;.28;.32;.55;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="r" values="4;4;5;12;12" keyTimes="0;.28;.32;.55;1" dur="2.4s" repeatCount="indefinite"/></circle>`
     : `<circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="${FLASH}" stroke-width="2" opacity=".8"/>`;
   return svg(
-    animate ? hand(PINCH_OPEN, PINCH_SHUT, 2.4, [4, 8]) + flash : hand(PINCH_SHUT, null, 0, [4, 8]) + flash,
-    'Touch your thumb to your index finger',
+    animate ? hand(PINCH_OPEN, PINCH_SHUT, 2.4, [4, 12]) + flash : hand(PINCH_SHUT, null, 0, [4, 12]) + flash,
+    'Touch your thumb to your middle finger',
   );
 }
