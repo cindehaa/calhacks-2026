@@ -59,15 +59,16 @@ const troop = table(
     battleCry: t.string(),
     voiceStyle: t.string(),
     spriteUrl: t.string(), // '' until art arrives
-    // Quirks (shared/troop.ts), as strings so the lists can grow without a migration.
-    attack: t.string(),
-    targets: t.string(),
-    onHit: t.string(),
-    windup: t.bool(),
-    trait: t.string(),
-    motion: t.string(),
-    element: t.string(),
-    flavor: t.string(),
+    // Quirks (shared/troop.ts), as strings so the lists can grow without a migration. Defaults
+    // let a database from before quirks take the new columns without wiping its rows.
+    attack: t.string().default('single'),
+    targets: t.string().default('any'),
+    onHit: t.string().default('none'),
+    windup: t.bool().default(false),
+    trait: t.string().default('none'),
+    motion: t.string().default('other'),
+    element: t.string().default('none'),
+    flavor: t.string().default(''),
   }
 );
 
@@ -90,26 +91,27 @@ const unit = table(
     delay: t.f32(), // seconds until it lands
     attackSeq: t.u32(),
     // Mirrors SimUnit (shared/sim.ts): quirks, then status timers, traits and the last hit.
-    attack: t.string(),
-    targets: t.string(),
-    onHit: t.string(),
-    windup: t.bool(),
-    trait: t.string(),
-    motion: t.string(),
-    element: t.string(),
-    burnT: t.f32(),
-    burnDps: t.f32(),
-    slowT: t.f32(),
-    stunT: t.f32(),
-    windupT: t.f32(),
-    shield: t.f32(),
-    maxShield: t.f32(),
-    spawnT: t.f32(),
-    chargeDist: t.f32(),
-    lastTargetX: t.f32(),
-    lastTargetY: t.f32(),
-    chainXs: t.array(t.f32()),
-    chainYs: t.array(t.f32()),
+    // Defaulted like troop's, so adding them needs no reset.
+    attack: t.string().default('single'),
+    targets: t.string().default('any'),
+    onHit: t.string().default('none'),
+    windup: t.bool().default(false),
+    trait: t.string().default('none'),
+    motion: t.string().default('other'),
+    element: t.string().default('none'),
+    burnT: t.f32().default(0),
+    burnDps: t.f32().default(0),
+    slowT: t.f32().default(0),
+    stunT: t.f32().default(0),
+    windupT: t.f32().default(0),
+    shield: t.f32().default(0),
+    maxShield: t.f32().default(0),
+    spawnT: t.f32().default(0),
+    chargeDist: t.f32().default(0),
+    lastTargetX: t.f32().default(0),
+    lastTargetY: t.f32().default(0),
+    chainXs: t.array(t.f32()).default([]),
+    chainYs: t.array(t.f32()).default([]),
   }
 );
 
