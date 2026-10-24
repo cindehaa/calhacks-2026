@@ -7,7 +7,8 @@ import {
   ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, deployZones, towerRadius, type Side,
 } from '../../shared/arena';
 import { Fx, quirks, roundRect, towerKey, type Shot, type Trail } from './fx';
-import { drawInput } from './input/draw';
+import { drawInput, MISS_MS } from './input/draw';
+import { noticeActive } from './notice';
 import { Juice } from './juice';
 import { BoardReactions, type BoardHit } from './react';
 import { SummonCircles } from './summon';
@@ -1058,7 +1059,8 @@ export class PovBoard {
     this.drawLabels(v, now);
     this.drawFloaters();
     this.juice.drawOverlay(g, v, (x, y, h) => this.project(x, y, h), now, real);
-    this.react.drawOverlay(g, id => this.headOf(v, id), (x, y, h) => this.project(x, y, h), FONT);
+    const quiet = noticeActive() || !!v.input?.flashes.some(f => f.kind === 'miss' && performance.now() - f.t < MISS_MS);
+    this.react.drawOverlay(g, id => this.headOf(v, id), (x, y, h) => this.project(x, y, h), FONT, quiet);
     if (this.hurt > 0) this.drawHurt();
     this.fx.drawBanners(g, this.w / 2, this.h * 0.38, Math.min(this.w, 720));
     if (v.input) drawInput(g, v.input);

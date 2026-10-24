@@ -7,6 +7,7 @@
 // tiny synth sound that goes through sfx's output, so M mutes it, and every motion is dropped
 // under prefers-reduced-motion (the sound and a plain highlight stay).
 import { sfx } from './sfx';
+import { flameGlyph } from './pov';
 import type { Fx } from './fx';
 import type { DrawTower, DrawTroop, DrawUnit } from './render';
 import { pokeReaction, type PokeHit, type Reaction } from './pokes';
@@ -289,7 +290,9 @@ export class BoardReactions {
   }
 
   // Name pops and the hover label. `head` gives the screen point just above a unit, by id.
-  drawOverlay(g: CanvasRenderingContext2D, head: (id: bigint) => [number, number] | null, ground: (x: number, y: number, h: number) => [number, number] | null, font: string): void {
+  drawOverlay(g: CanvasRenderingContext2D, head: (id: bigint) => [number, number] | null, ground: (x: number, y: number, h: number) => [number, number] | null, font: string, quiet = false): void {
+    // quiet: a failure message is up (notice slab or "didn't catch that"), so labels wait: one message at a time.
+    if (quiet) return;
     const now = this.now, still = reduced();
     g.save();
     g.textAlign = 'center';
@@ -328,7 +331,7 @@ export class BoardReactions {
       const name = h.troop.name, cost = String(h.troop.cost);
       g.font = `700 12px ${font}`;
       const nw = g.measureText(name).width;
-      const cw = 18, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 62 - ht / 2;
+      const cw = 22, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 62 - ht / 2;
       g.fillStyle = 'rgba(13,16,32,0.88)';
       g.strokeStyle = h.mine ? '#4aa3ff' : '#ff5d6c';
       g.lineWidth = 1.5;
@@ -339,20 +342,13 @@ export class BoardReactions {
       g.fillStyle = '#e8ebf5';
       g.textAlign = 'left';
       g.fillText(name, x + 9, y + ht / 2 + 1);
-      // The cost in a violet gem, like the elixir count.
-      const gx = x + w - cw / 2 - 5, gy = y + ht / 2;
-      g.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = Math.PI / 6 + (i * Math.PI) / 3;
-        g.lineTo(gx + Math.cos(a) * 8, gy + Math.sin(a) * 8);
-      }
-      g.closePath();
-      g.fillStyle = '#c56cf0';
-      g.fill();
-      g.fillStyle = '#ffffff';
+      // The cost after a small flame, like the cost pills: paid in embers.
+      const gx = x + w - cw / 2 - 6, gy = y + ht / 2;
+      flameGlyph(g, gx - 5, gy, 13, '#ff8a3d');
+      g.fillStyle = '#ffe2c4';
       g.textAlign = 'center';
-      g.font = `800 10px ${font}`;
-      g.fillText(cost, gx, gy + 1);
+      g.font = `800 11px ${font}`;
+      g.fillText(cost, gx + 5, gy + 1);
     }
     g.restore();
   }

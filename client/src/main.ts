@@ -634,7 +634,7 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
       const need = Number(m[2]), have = match()?.elixir ?? 0;
       const secs = elixirWait(need, have);
       status(`${d.name} needs ${need} embers, you have ${Math.floor(have)}`, true);
-      notice(`Need ${need}, have ${Math.floor(have)} · ready in about ${secs} s`, { tone: 'bad', ms: 2600, key: 'elixir' });
+      notice(`Need ${need} embers, have ${Math.floor(have)} · ready in about ${secs} s`, { tone: 'bad', ms: 2600, key: 'elixir' });
       starve(need);
       drops.refused(nonce, `need ${need} · have ${Math.floor(have)}`, performance.now()); // no coin: that's for over 10
     } else {

@@ -90,6 +90,11 @@ export function noticeShowing(key: string): boolean {
   return !!showing && showing.key === key && (showing.hold || showing.until > performance.now());
 }
 
+// Any message up at all: the board's hover label and poke labels stay quiet meanwhile (one at a time).
+export function noticeActive(): boolean {
+  return !!showing && (showing.hold || showing.until > performance.now());
+}
+
 function hide(): void {
   clearTimeout(timer);
   showing = null;
