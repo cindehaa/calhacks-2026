@@ -11,6 +11,7 @@ const MODEL_URL =
 
 export interface HandFrame {
   lm: Landmark[]; // 0..1 of the (unmirrored) frame
+  world: Landmark[]; // metres, hand-centred
   vw: number;
   vh: number;
 }
@@ -78,7 +79,7 @@ export class HandTracker {
     this.lastTs = Math.max(now, this.lastTs + 1); // MediaPipe needs strictly rising timestamps
     const res = this.landmarker.detectForVideo(v, this.lastTs);
     if (!res.landmarks?.length) return null;
-    return { lm: res.landmarks[0], vw: v.videoWidth || 1, vh: v.videoHeight || 1 };
+    return { lm: res.landmarks[0], world: res.worldLandmarks[0], vw: v.videoWidth || 1, vh: v.videoHeight || 1 };
   }
 
   stop(): void {
