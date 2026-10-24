@@ -30,7 +30,7 @@ export interface InputHost {
   prefetch?(words: string): void; // start designing from words heard so far
 }
 
-interface Prefs { preview: boolean; vadDb: number; vadEndMs: number }
+interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; camera: boolean; mic: boolean }
 
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
@@ -50,7 +50,7 @@ export class InputController {
   private pinchCfg: PinchThresholds = load<PinchThresholds>(KEYS.pinch) ?? DEFAULT_PINCH;
   private hyst = new Hysteresis(this.pinchCfg.on, this.pinchCfg.off);
   private pointerCal: PointerCal | null = load<PointerCal>(KEYS.pointer);
-  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, ...load<Partial<Prefs>>(KEYS.prefs) };
+  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, camera: false, mic: false, ...load<Partial<Prefs>>(KEYS.prefs) };
 
   private hand: HandFrame | null = null;
   private handCursor: Pt | null = null;
@@ -64,7 +64,11 @@ export class InputController {
   private calPinchedPrev = false;
   private camStatus = '';
   private heard = '';
+  private heardWords = false; // the recogniser has returned words at least once
+  private calMsg = '';
   private lastPanel = 0;
+  private setupPreview: HTMLCanvasElement | null = null;
+  onSetup?: () => void; // the ⋯ menu's "Run setup again"
 
   // DOM
   private el = document.createElement('div');
@@ -99,6 +103,32 @@ export class InputController {
       this.tick(performance.now());
     };
     requestAnimationFrame(loop);
+    // Turn back on whatever was on last visit; the browser remembers the permission.
+    if (this.prefs.camera) void this.setCamera(true);
+    if (this.prefs.mic) void this.setMic(true);
+  }
+
+  // What the setup screen shows.
+  setupState() {
+    return {
+      camera: !!this.tracker,
+      cameraReady: !!this.tracker?.ready,
+      camStatus: this.camStatus,
+      hand: !!this.hand,
+      mic: this.mic.on,
+      micStatus: this.heard,
+      level: this.vad.level,
+      speaking: this.vad.speaking,
+      heardWords: this.heardWords,
+      calibrated: !!this.pointerCal,
+      calibrating: !!this.calibPointer,
+      calMsg: this.calMsg,
+    };
+  }
+
+  // A second, larger camera preview (the setup screen's). Drawn while it's visible.
+  attachPreview(c: HTMLCanvasElement): void {
+    this.setupPreview = c;
   }
 
   // What render.ts draws over the board. Undefined while camera and mic are both off.
@@ -147,7 +177,7 @@ export class InputController {
       this.handCursor = this.raw = null;
       this.fx.reset();
       this.fy.reset();
-      this.drawPreview();
+      this.drawPreviews();
       return;
     }
     const m2 = pinchMetric2d(f.lm, f.vw, f.vh), m3 = pinchMetric3d(f.world);
@@ -167,7 +197,7 @@ export class InputController {
       this.calibPinch.push(now, m2, m3);
       if (this.calibPinch.done(now)) this.finishPinchCalibration();
     }
-    this.drawPreview();
+    this.drawPreviews();
   }
 
   // ---------- lock → deploy / cancel ----------
@@ -222,6 +252,7 @@ export class InputController {
 
   private words(text: string, final: boolean): void {
     this.heard = text ? `heard: “${text}”` : this.heard;
+    if (text) this.heardWords = true;
     for (const t of this.listeners) final ? t.final(text) : t.interim(text);
     const a = this.active;
     if (!a) return;
@@ -239,7 +270,7 @@ export class InputController {
 
   // ---------- camera and mic ----------
 
-  private async setCamera(on: boolean): Promise<void> {
+  async setCamera(on: boolean): Promise<void> {
     if (on === !!this.tracker) return;
     if (!on) {
       this.machine.cancel('camera off');
@@ -248,6 +279,7 @@ export class InputController {
       this.hand = null;
       this.handCursor = null;
       this.camStatus = '';
+      this.remember('camera', false);
       this.renderPanel();
       return;
     }
@@ -259,24 +291,29 @@ export class InputController {
         this.camStatus = s;
         this.renderPanel();
       });
-      if (this.tracker === t) this.camStatus = this.pointerCal ? '' : 'not calibrated: using the default box';
+      if (this.tracker === t) {
+        this.camStatus = this.pointerCal ? '' : 'not calibrated: using the default box';
+        this.remember('camera', true);
+      }
     } catch (e) {
       if (this.tracker === t) {
         t.stop();
         this.tracker = null;
+        this.remember('camera', false);
         this.camStatus = `camera failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
       }
     }
     this.renderPanel();
   }
 
-  private async setMic(on: boolean): Promise<void> {
+  async setMic(on: boolean): Promise<void> {
     if (on === this.mic.on) return;
     if (!on) {
       this.speech.stop();
       this.mic.stop();
       this.vad.reset();
       this.heard = '';
+      this.remember('mic', false);
       this.renderPanel();
       return;
     }
@@ -284,15 +321,22 @@ export class InputController {
       await this.mic.start();
       this.speech.start();
       this.heard = this.speech.available ? 'listening' : 'no speech recognition in this browser: voice locks, typed text describes';
+      this.remember('mic', true);
     } catch (e) {
       this.heard = `mic failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
+      this.remember('mic', false);
     }
     this.renderPanel();
   }
 
+  private remember(k: 'camera' | 'mic', on: boolean): void {
+    this.prefs[k] = on;
+    save(KEYS.prefs, this.prefs);
+  }
+
   // ---------- calibration ----------
 
-  private startPointerCalibration(): void {
+  calibrate(): void {
     if (!this.tracker) return void this.host.status('turn the camera on first', true);
     this.machine.cancel('calibrating');
     this.calibPinch = null;
@@ -331,6 +375,7 @@ export class InputController {
   private endCalibration(msg: string): void {
     this.calibPointer = this.calibPinch = null;
     this.calCanvas.hidden = true;
+    this.calMsg = msg;
     this.host.status(msg);
   }
 
@@ -363,6 +408,7 @@ export class InputController {
       <div class="inMenu" hidden>
         <button data-act="calPinch">Calibrate pinch (7 s)</button>
         <button data-act="reset" class="ghost">Reset calibration</button>
+        <button data-act="setup" class="ghost">Run setup again</button>
         <label><input type="checkbox" data-act="preview"> Camera preview</label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
@@ -387,8 +433,12 @@ export class InputController {
       if (act === 'cam') this.setCamera(!this.tracker);
       else if (act === 'mic') this.setMic(!this.mic.on);
       else if (act === 'menu') menu.hidden = !menu.hidden;
-      else if (act === 'calPointer') this.startPointerCalibration();
+      else if (act === 'calPointer') this.calibrate();
       else if (act === 'calPinch') this.startPinchCalibration();
+      else if (act === 'setup') {
+        menu.hidden = true;
+        this.onSetup?.();
+      }
       else if (act === 'reset') {
         this.pointerCal = null;
         this.pinchCfg = DEFAULT_PINCH;
@@ -431,10 +481,15 @@ export class InputController {
 
   // Mirrored camera frame with the skeleton, and the screen's edges projected back into it
   // (the touchpad area: amber for the default box, green once calibrated).
-  private drawPreview(): void {
-    const t = this.tracker, c = this.preview;
-    if (!t || !this.prefs.preview) return;
-    const v = t.video, w = 160, h = Math.round((w * (v.videoHeight || 9)) / (v.videoWidth || 16));
+  private drawPreviews(): void {
+    if (!this.tracker) return;
+    if (this.prefs.preview) this.drawPreview(this.preview, 160);
+    const s = this.setupPreview;
+    if (s?.clientWidth) this.drawPreview(s, s.clientWidth);
+  }
+
+  private drawPreview(c: HTMLCanvasElement, w: number): void {
+    const v = this.tracker!.video, h = Math.round((w * (v.videoHeight || 9)) / (v.videoWidth || 16));
     const dpr = devicePixelRatio || 1;
     if (c.width !== w * dpr || c.height !== h * dpr) {
       c.width = w * dpr;

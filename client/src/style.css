@@ -61,3 +61,24 @@ button.round svg { width: 18px; height: 18px; }
 @keyframes tutdrain { to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .tutTimer.run i { animation: none; } }
 #tutorial { z-index: 10; }
+
+#setup { z-index: 8; }
+.setup { width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; gap: 14px; }
+.setup button:disabled { opacity: .45; cursor: default; }
+.setupCam { flex: none; position: relative; aspect-ratio: 16 / 9; max-height: 30vh; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid var(--line); }
+.setupCam canvas { position: absolute; inset: 0; width: 100%; height: 100% !important; object-fit: cover; }
+.setupHint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
+.setupHint:empty { display: none; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 12px; }
+.steps li { counter-increment: s; display: flex; gap: 12px; align-items: center; }
+.steps li > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.steps li .sub { font-size: 13px; overflow-wrap: anywhere; }
+.stepDot { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: #2b3360; }
+.stepDot::after { content: counter(s); }
+.steps li.done .stepDot { background: #1d5a3c; }
+.steps li.done .stepDot::after { content: '✓'; }
+.steps button { flex: none; }
+.steps button[hidden] { display: none; }
+.setupMeter { flex: none; width: 72px; height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+.setupMeter i { display: block; height: 100%; width: 0; background: var(--muted); }
+.setupMeter i.speaking { background: var(--elixir); }

@@ -9,7 +9,8 @@ import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { Board, type DrawUnit } from './render';
 import { sfx } from './sfx';
-import './tutorial';
+import { initSetup, setupDone } from './setup';
+import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new Board($<HTMLCanvasElement>('board'));
@@ -182,6 +183,11 @@ const input = new InputController(board.canvas, {
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
   prefetch: prefetchDesign,
 });
+
+// First visit: camera, mic and calibration, then the how-to card.
+const setup = initSetup(input, showTutorialOnce);
+if (setupDone()) showTutorialOnce();
+else setup.open();
 
 $<HTMLFormElement>('describe').onsubmit = e => {
   e.preventDefault();

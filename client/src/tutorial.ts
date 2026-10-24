@@ -1,5 +1,5 @@
-// First-time how-to-play card. Shows once (remembered in localStorage), closes itself after
-// 10 s or when the match starts, and the "?" button or key reopens it.
+// First-time how-to-play card. Shows once (remembered in localStorage) after the setup screen,
+// closes itself after 10 s or when the match starts, and the "?" button or key reopens it.
 
 const SEEN_KEY = 'arena.tutorialSeen';
 const SHOW_MS = 10_000;
@@ -54,8 +54,10 @@ if (el) {
       attributes: true, attributeFilter: ['hidden'],
     });
   }
-  if (!seen()) {
-    open(true);
-    markSeen(); // first-time only, even if the tab closes before it is dismissed
-  }
+}
+
+export function showTutorialOnce() {
+  if (!el || seen()) return;
+  open(true);
+  markSeen(); // first-time only, even if the tab closes before it is dismissed
 }

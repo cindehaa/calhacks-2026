@@ -68,7 +68,13 @@ export class Mic {
     this.an = this.ctx.createAnalyser();
     this.an.fftSize = this.buf.length;
     this.ctx.createMediaStreamSource(this.stream).connect(this.an);
-    await this.ctx.resume();
+    // Started without a click (turned back on at page load), the context stays suspended until one.
+    if (this.ctx.state !== 'running') {
+      const resume = () => void this.ctx?.resume();
+      addEventListener('pointerdown', resume, { once: true });
+      addEventListener('keydown', resume, { once: true });
+      resume();
+    }
   }
 
   stop(): void {
