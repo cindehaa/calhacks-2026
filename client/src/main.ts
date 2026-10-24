@@ -1,6 +1,7 @@
 import { ANCHORS } from '../../shared/anchors';
 import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
+import { newTowers } from '../../shared/sim';
 import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
@@ -100,7 +101,7 @@ for (const [sel, house, rim, phase] of [['left', 'raven', 'right', 0], ['right',
   tapestry(document.querySelector(`#lobby .tapestry.${sel} .cloth`)!, document.querySelector(`#lobby .tapestry.${sel} .bannerBody`)!, { house, rim, phase });
 }
 resultFx($<HTMLCanvasElement>('resultSky'), () => ($('result').classList.contains('win') ? 'win' : $('result').classList.contains('lose') ? 'lose' : 'draw'));
-// The home scene leans a little toward the cursor: ranges least, the island most.
+// The home menu's mist leans a little toward the cursor (the 3D arena under it leans in pov.ts).
 $('lobby').addEventListener('pointermove', e => {
   $('lobby').style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(3));
   $('lobby').style.setProperty('--py', ((e.clientY / innerHeight) * 2 - 1).toFixed(3));
@@ -872,6 +873,9 @@ board.canvas.addEventListener('click', () => {
 
 // ---------- frame ----------
 
+// The home screen's arena has a match's towers; the red side's princesses show the frost climbing.
+const HOME_TOWERS = newTowers().map(t => ({ ...t, hp: t.side === 1 && t.lane !== KING_LANE ? t.hp * (t.lane === 0 ? 0.5 : 0.1) : t.hp }));
+
 function frame() {
   requestAnimationFrame(frame);
   renderLobby();
@@ -880,12 +884,12 @@ function frame() {
   renderVersus(m);
   renderTools(m);
   if (m) trackRound(m);
-  // The title and home screens are opaque (no need to draw the board under them); the result screen
-  // shows the frozen board through it.
-  const visible = $('title').hidden && $('lobby').hidden;
-  if (!m) {
-    $('roomInfo').textContent = '';
-    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' }, visible);
+  // The title screen is opaque (no need to draw the board under it). The home screen is a window
+  // onto the same arena the match is played on, and the result screen shows the frozen board.
+  const visible = $('title').hidden;
+  if (!m || !$('lobby').hidden) {
+    if (!m) $('roomInfo').textContent = '';
+    board.draw({ mySide: 0, units: [], towers: HOME_TOWERS, troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' }, visible);
     return;
   }
   const side = m.side;
