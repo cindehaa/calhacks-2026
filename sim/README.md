@@ -19,10 +19,10 @@ Knobs (`--K`, `--ranged`, `--rangePerTile`, `--speedSlope`, `--towerHealth`, `--
 
 ## What it runs
 
-- **Duels.** Every troop against every anchor (`--field all`: against every affordable troop). A deploys on side 0 and B on side 1, at the same time, 8 tiles apart in one lane, which is outside every aggro radius, so both walk in and engage on their own terms. Towers stay on the board as walking targets but never shoot, so a duel measures troop against troop. A duel runs until one side is wiped, or 60 s. There are 8 placements per pair: side or middle lane, which side acts first within a tick, and B straight ahead or 1 tile to the side.
+- **Duels.** Every troop against every anchor (`--field all`: against every affordable troop). A deploys on side 0 and B on side 1, at the same time, 8 tiles apart across the river, which is outside every aggro radius, so both walk in and engage on their own terms. Towers stay on the board as walking targets but never shoot, so a duel measures troop against troop. A duel runs until one side is wiped, or 60 s. There are 8 placements per pair: in front of a bridge or mid-board (so both walk to a bridge first), which side acts first within a tick, and B straight ahead or 1 tile to the side.
   - **1v1:** one copy each.
   - **Elixir-matched:** copies chosen so both sides spend about the same, up to 20 elixir each (2 vs 7 elixir → 7 copies vs 2), capped at 60 bodies a side.
-- **Tower pressure.** Each troop alone, from its own bridge, against full-strength towers, in the side lane and in the middle lane, for up to 90 s.
+- **Tower pressure.** Each troop alone, from the river bank, against full-strength towers (two princess towers and a sleeping king), in front of a bridge and mid-board, for up to 90 s.
 
 ## Metrics
 
@@ -33,8 +33,8 @@ Knobs (`--K`, `--ranged`, `--rangePerTile`, `--speedSlope`, `--towerHealth`, `--
 | **Trade** | Elixir-matched: enemy elixir destroyed ÷ own elixir lost, summed over the field. A troop at x% HP counts as having lost (100−x)% of its cost. 1.00 is an even trade. **This is the efficiency metric**: the table is sorted and flagged by it. Losses are floored at 5% of spend, so a troop that is never touched gets a finite ratio (at most 20). |
 | Net/e | (destroyed − lost) ÷ spent: −1 is wiped for nothing, +1 is wiping them for free. |
 | HP/e | Enemy HP destroyed per elixir spent, elixir-matched. |
-| Twr/e | Enemy tower HP removed per elixir in the tower runs, mean of the two lanes. |
-| Took | Towers destroyed alone, side lane / middle lane. |
+| Twr/e | Enemy tower HP removed per elixir in the tower runs, mean of the bridge and mid-board runs. |
+| Took | Towers destroyed alone, bridge / mid-board. |
 | Alive s | Seconds alive in those runs. |
 | ~Fair | cost × √(Trade ÷ anchor median). A fight to the end trades HP × DPS = power², so trading x times the median means roughly √x times underpriced. Groups fighting at once amplify this (Lanchester's square law), so treat it as the largest correction worth making. |
 | Flag | `++` / `--`: Trade above 1.5× or below 0.67× the anchor median. `T+` / `T-`: the same test for Twr/e. Medians come from the anchors only, so extra troops don't shift each other's flags. |

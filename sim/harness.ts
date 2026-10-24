@@ -1,5 +1,5 @@
 // Headless fights on the real step(): duels between two troops, and one troop against towers.
-import { ARENA_W, LANE_X, MATCH_SECONDS, MID_Y, TICK_HZ, TOWER, formation, type Side } from '../shared/arena';
+import { ARENA_W, BRIDGE_X, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, TOWER, formation, type Side } from '../shared/arena';
 import { newTowers, step, type SimState, type TowerStats } from '../shared/sim';
 import { MAX_COST, PRICING, clampStats, power, price, type Pricing, type TroopStats } from '../shared/troop';
 import { fairCost, flag, matchCounts, median, trade, tradeRatio, valuePerElixir, type Flag, type SideResult, type Trade } from './metrics';
@@ -55,15 +55,18 @@ function spawnCopies(s: SimState, side: Side, t: TroopStats, n: number, x: numbe
 }
 
 export interface Placement {
-  lane: number; // 0 = side lane, 1 = middle
+  spot: number; // 0 = in front of a bridge, 1 = mid-board, between the bridges
   bFirst: boolean; // B's units come first in the array, so they act first within a tick
   offset: number; // B's sideways offset in tiles
 }
 
-// 2 lanes × who acts first × sideways offset, to average out geometry and tick order.
-export const PLACEMENTS: Placement[] = [0, 1].flatMap(lane =>
-  [false, true].flatMap(bFirst => [0, 1].map(offset => ({ lane, bFirst, offset })))
+// 2 spots × who acts first × sideways offset, to average out geometry and tick order.
+export const PLACEMENTS: Placement[] = [0, 1].flatMap(spot =>
+  [false, true].flatMap(bFirst => [0, 1].map(offset => ({ spot, bFirst, offset })))
 );
+
+// Where a placement or tower run drops: at a bridge, or mid-board, which walks to one first.
+const SPOT_X = [BRIDGE_X[0], ARENA_W / 2];
 
 export interface DuelResult {
   a: SideResult;
@@ -72,11 +75,11 @@ export interface DuelResult {
   time: number;
 }
 
-// A (side 0) and B (side 1) deployed at once, 8 tiles apart in one lane (outside every aggro
+// A (side 0) and B (side 1) deployed at once, 8 tiles apart across the river (outside every aggro
 // radius, so both walk in and engage on their own terms). Runs until one side is wiped.
 export function duel(A: Troop, nA: number, B: Troop, nB: number, p: Placement, timeout: number): DuelResult {
   const s: SimState = { time: 0, elixir: [0, 0], units: [], towers: newTowers(INERT_TOWER).map((t, i) => ({ ...t, id: i + 1 })) };
-  const x = LANE_X[p.lane];
+  const x = SPOT_X[p.spot];
   const put = [() => spawnCopies(s, 0, A, nA, x, MID_Y - 4), () => spawnCopies(s, 1, B, nB, x + p.offset, MID_Y + 4)];
   if (p.bFirst) put.reverse();
   put.forEach(f => f());
@@ -98,10 +101,10 @@ export interface TowerRun {
   timeAlive: number; // seconds until the last unit died, or the end of the match
 }
 
-// One troop alone, deployed at its own bridge, against full-strength enemy towers.
-export function towerRun(t: Troop, lane: number, tower: TowerStats): TowerRun {
+// One troop alone, deployed at the river bank, against full-strength enemy towers.
+export function towerRun(t: Troop, spot: number, tower: TowerStats): TowerRun {
   const s: SimState = { time: 0, elixir: [0, 0], units: [], towers: newTowers(tower).map((tw, i) => ({ ...tw, id: i + 1 })) };
-  spawn(s, 0, t, LANE_X[lane], MID_Y - 1);
+  spawn(s, 0, t, SPOT_X[spot], MID_Y - RIVER_HALF - 0.5);
   let over = false;
   while (!over && s.units.length && s.time < MATCH_SECONDS) over = step(s, DT, tower).over;
   const enemy = s.towers.filter(tw => tw.side === 1);
@@ -121,9 +124,9 @@ export interface Row {
   vpe: number; // (destroyed − lost) / spent, elixir-matched
   dpe: number; // enemy HP destroyed per elixir spent, elixir-matched
   avgTime: number; // seconds per matched duel
-  side: TowerRun;
+  bridge: TowerRun;
   middle: TowerRun;
-  towerPE: number; // tower damage per elixir, mean of side and middle lane
+  towerPE: number; // tower damage per elixir, mean of the bridge and mid-board runs
   fair: number;
   duelFlag: Flag;
   towerFlag: Flag;
@@ -155,7 +158,7 @@ export function evaluate(troops: Troop[], field: Troop[], knobs: Knobs) {
       winsM += w; gamesM += PLACEMENTS.length;
       vs[O.name] = { nA, nB, win: w / PLACEMENTS.length, ratio: tradeRatio(mine) };
     }
-    const side = towerRun(T, 0, knobs.tower), middle = towerRun(T, 1, knobs.tower);
+    const bridge = towerRun(T, 0, knobs.tower), middle = towerRun(T, 1, knobs.tower);
     const spent = trades.reduce((a, t) => a + t.spent, 0);
     return {
       troop: T,
@@ -165,8 +168,8 @@ export function evaluate(troops: Troop[], field: Troop[], knobs: Knobs) {
       vpe: trades.length ? valuePerElixir(trades) : NaN,
       dpe: spent ? hpDestroyed / spent : NaN,
       avgTime: gamesM ? time / gamesM : NaN,
-      side, middle,
-      towerPE: (side.towerDamage + middle.towerDamage) / 2 / T.cost,
+      bridge, middle,
+      towerPE: (bridge.towerDamage + middle.towerDamage) / 2 / T.cost,
       fair: NaN, duelFlag: null, towerFlag: null, vs,
     };
   });

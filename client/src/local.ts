@@ -2,7 +2,7 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
+import { COUNTDOWN, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, step, type SimState } from '../../shared/sim';
@@ -142,9 +142,9 @@ export class LocalMatch implements MatchSource {
 
   private lock(side: Side, nonce: number, x: number, y: number) {
     this.mustPlay();
-    if (!onOwnHalf(side, y)) throw new Error('deploy on your own half');
+    if (!canDeploy(side, x, y, this.s.towers)) throw new Error('deploy on your own half');
     if (this.findLock(side, nonce)) return;
-    const [cx, cy] = clampToHalf(side, x, y);
+    const [cx, cy] = clampDeploy(side, x, y, this.s.towers);
     this.locks.push({ side, nonce, x: cx, y: cy, at: this.s.time });
   }
 
@@ -166,12 +166,12 @@ export class LocalMatch implements MatchSource {
       x = l.x; y = l.y;
       delay = arrivalDelay(this.s.time - l.at);
       this.unlock(side, nonce);
-    } else if (!onOwnHalf(side, y)) {
+    } else if (!canDeploy(side, x, y, this.s.towers)) {
       throw new Error('deploy on your own half');
     }
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, { name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description });
-    for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
+    for (const [ux, uy] of unitSpots(side, x, y, design.count, this.s.towers)) {
       const id = this.nextId++;
       this.unitTroop.set(id, troopId);
       this.s.units.push({
