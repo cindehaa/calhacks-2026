@@ -94,7 +94,8 @@ const reach = (range: number) => (range <= 1 ? 0.3 : range);
 export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepResult {
   // Pre-match countdown (negative time): only the clock runs.
   if (s.time < 0) {
-    s.time = Math.min(0, s.time + dt);
+    s.time += dt;
+    if (s.time > -1e-6) s.time = 0; // snap float drift, so 60 ticks of 0.05 s end exactly at 0
     return { deadUnitIds: [], over: false, winner: null };
   }
   s.time += dt;
