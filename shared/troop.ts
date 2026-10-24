@@ -50,7 +50,6 @@ export interface TroopLook {
 }
 
 export const PLAIN_QUIRKS: TroopQuirks = { attack: 'single', targets: 'any', on_hit: 'none', windup: false, trait: 'none' };
-export const PLAIN_LOOK: TroopLook = { motion: 'other', element: 'none', flavor: '' };
 
 export type TroopDesign = TroopStats & TroopQuirks & TroopLook & {
   name: string;
@@ -129,6 +128,10 @@ export function price(s: TroopStats & Partial<TroopQuirks>, q?: Partial<TroopQui
   const mult = quirkMultiplier(q ?? s);
   return Math.max(1, Math.round((power(clampStats(s), p) * mult) / p.K));
 }
+
+// A description as lowercase words, so "A Fire-Wizard!" and "a fire wizard" share a design
+// request and a sprite. Sprite cache ids hash this, so changing it redraws all the art.
+export const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function trimWords(s: string, n = 8): string {
   const words = s.trim().split(/\s+/).filter(Boolean);

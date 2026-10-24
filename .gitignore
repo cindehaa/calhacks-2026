@@ -3,7 +3,7 @@
 .env.*
 !.env.example
 spacetime.local.json
-# local stuff
+# local stuff, including generated troop art (api/_lib/sprites.ts)
 .cache/
 node_modules/
 dist/
@@ -13,6 +13,4 @@ dist/
 # balance sim output
 sim/out/
 bench/out/
-# generated troop art (api/sprites.ts)
-.cache/
 .vercel

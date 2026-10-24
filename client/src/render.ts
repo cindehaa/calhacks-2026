@@ -42,7 +42,7 @@ export interface DrawQuirks {
   chainYs?: number[];
 }
 export interface DrawTower { side: number; lane?: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
-export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; battleCry?: string; voiceStyle?: string; flavor?: string }
+export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; flavor?: string }
 export interface DrawPending { side: number; x: number; y: number; age: number }
 
 export interface View {
@@ -74,27 +74,31 @@ export function spriteImage(url: string): CanvasImageSource | null {
     const img = new Image();
     img.crossOrigin = 'anonymous'; // the api sends CORS headers; keeps the canvas readable
     const entry: { img: HTMLImageElement; out: CanvasImageSource | null } = { img, out: null };
-    img.onload = () => (entry.out = /[?&]key\b/.test(url) ? keyed(img) : img);
+    img.onload = () => (entry.out = /[?&]key\b/.test(url) ? toCanvas(img, true) : img);
     img.src = url;
     sprites.set(url, (s = entry));
   }
   return s.out;
 }
 
-function keyed(img: HTMLImageElement): CanvasImageSource {
+// The image copied into a canvas no larger than maxPx on its longer side, with the background
+// keyed out if asked (art whose background removal timed out).
+export function toCanvas(img: HTMLImageElement, key: boolean, maxPx = Infinity): CanvasImageSource {
   const c = document.createElement('canvas');
-  c.width = img.naturalWidth;
-  c.height = img.naturalHeight;
-  const g = c.getContext('2d', { willReadFrequently: true });
+  const k = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight));
+  c.width = Math.round(img.naturalWidth * k);
+  c.height = Math.round(img.naturalHeight * k);
+  const g = c.getContext('2d', { willReadFrequently: key });
   if (!g) return img;
-  g.drawImage(img, 0, 0);
-  try {
-    const px = g.getImageData(0, 0, c.width, c.height);
-    keyBackground(px.data, c.width, c.height);
-    g.putImageData(px, 0, 0);
-  } catch {
-    return img; // tainted after all: better a square than nothing
+  g.drawImage(img, 0, 0, c.width, c.height);
+  if (key) {
+    try {
+      const px = g.getImageData(0, 0, c.width, c.height);
+      keyBackground(px.data, c.width, c.height);
+      g.putImageData(px, 0, 0);
+    } catch {
+      // tainted after all: better a square than nothing
+    }
   }
   return c;
 }
-

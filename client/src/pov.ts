@@ -42,7 +42,7 @@ const BODY = 1.5; // bodies drawn this much bigger than on the flat board: persp
 const MAX_POINTS = 400; // more than Fx ever keeps alive
 const SWIPE_SEGS = 20;
 const UP = new THREE.Vector3(0, 1, 0);
-const OVER = 10; // renderOrder for shots, trails and particles: drawn over the bodies, as Fx.drawAir is in 2D
+const OVER = 10; // renderOrder for shots, trails and particles: drawn over the bodies
 const WHITE = new THREE.Color('#ffffff');
 
 interface TowerMesh { grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number; hp: number }
@@ -247,7 +247,7 @@ export class PovBoard {
 
   // ---------- coordinates ----------
 
-  // Board coords ↔ your view coords: side 1 sees the board turned 180°, like Board does.
+  // Board coords ↔ your view coords: side 1 sees the board turned 180°.
   private toView(x: number, y: number): [number, number] {
     return this.side === 0 ? [x, y] : [ARENA_W - x, ARENA_H - y];
   }

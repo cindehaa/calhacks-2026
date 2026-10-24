@@ -26,7 +26,7 @@ export interface Drop {
   t: DropTimes;
 }
 
-// What render.ts draws at the spot.
+// What the board (pov.ts) draws at the spot.
 export interface DropView {
   x: number;
   y: number;

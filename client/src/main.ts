@@ -590,7 +590,6 @@ function beginAt(spot: [number, number], by: string): number | null {
   return nonce;
 }
 
-// An empty message cancels quietly (a quick click that wasn't a hold-to-talk).
 // An empty message cancels quietly: a quick click that picked a typing spot, not a deploy attempt,
 // so it isn't logged.
 function cancelAt(nonce: number, msg: string, transcript = '') {
@@ -679,7 +678,7 @@ $('hand').onclick = e => {
 
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
-    if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
+    if (e.key === 'Escape') e.target.blur();
     return;
   }
   if (local?.paused) {

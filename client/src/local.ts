@@ -206,7 +206,7 @@ export class LocalMatch implements MatchSource {
     }
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, {
-      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style, flavor: design.flavor,
+      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, flavor: design.flavor,
     });
     this.tallies.set(troopId, {
       troopId, side, bot: side === BOT, nonce, description, name: design.name, design: JSON.stringify(design), cost,

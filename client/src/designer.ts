@@ -1,5 +1,5 @@
 import { designOffline } from '../../shared/offline_designer';
-import { price, type TroopDesign } from '../../shared/troop';
+import { normalise, price, type TroopDesign } from '../../shared/troop';
 
 export interface Designed {
   design: TroopDesign;
@@ -29,7 +29,6 @@ const early = new Map<string, Promise<Designed>>();
 const EARLY_KEEP = 8;
 const PAUSE_MS = 250; // only fire once the words settle, not on every interim result
 let earlyTimer: ReturnType<typeof setTimeout> | undefined;
-const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function prefetchDesign(words: string): void {
   clearTimeout(earlyTimer);

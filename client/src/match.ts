@@ -136,7 +136,7 @@ export class OnlineMatch implements MatchSource {
   troops(): Map<bigint, DrawTroop> {
     const code = this.code;
     return new Map(
-      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, battleCry: t.battleCry, voiceStyle: t.voiceStyle, flavor: t.flavor }])
+      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, flavor: t.flavor }])
     );
   }
 

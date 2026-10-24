@@ -190,10 +190,6 @@ export class InputController {
     if (box) box.checked = on;
   }
 
-  get micOn(): boolean {
-    return this.mic.on;
-  }
-
   // What the setup screen shows.
   setupState() {
     return {
@@ -234,7 +230,7 @@ export class InputController {
     return t;
   }
 
-  // What render.ts draws over the board. Undefined while camera and mic are both off.
+  // What the board (pov.ts) draws over itself. Undefined while camera and mic are both off.
   view(): InputView | undefined {
     if (!this.tracker && !this.mic.on && !this.flashes.length) return undefined;
     const l = this.machine.lock, now = performance.now();

@@ -6,8 +6,6 @@ import type { DrawQuirks, DrawTower, DrawUnit, View } from './render';
 import { sfx, soundKind, type SoundKind } from './sfx';
 import { anticipation, elementColors, hitInterval, inPose } from './tokens';
 
-type ToScreen = (x: number, y: number) => [number, number];
-
 const MAX_PARTICLES = 320;
 const MAX_RINGS = 48;
 const MAX_SHOTS = 96;
@@ -83,8 +81,9 @@ export interface Trail {
 
 export interface FxLive { now: number; particles: Particle[]; rings: Ring[]; shots: Shot[]; trails: Trail[]; floaters: Floater[] }
 
-// Per-unit body animation in screen pixels and radians. glow is 0..1 (cast charge, windup),
-// smear 0..1 with (smx, smy) the screen direction ghosts trail toward.
+// Per-unit body animation: offsets in the units of the radius passed to anim() (pov.ts passes
+// tiles), angles in radians. glow is 0..1 (cast charge, windup), smear 0..1 with (smx, smy) the
+// screen direction ghosts trail toward.
 export interface UnitAnim {
   dx: number; dy: number; sx: number; sy: number; flash: number; rot: number;
   up: number; // the vertical part of dy, as a lift (positive is up): the 3D view separates the two
@@ -637,7 +636,7 @@ export class Fx {
 
   // ---------- queries for the renderer ----------
 
-  // Per-unit body animation in screen pixels; r is the unit's drawn radius. Reuses one object.
+  // Per-unit body animation; r is the unit's drawn radius. Reuses one object.
   anim(id: bigint, r: number): UnitAnim {
     const a = this.out;
     a.dx = 0; a.dy = 0; a.sx = 1; a.sy = 1; a.flash = 0; a.rot = 0; a.up = 0; a.glow = 0; a.smear = 0;
@@ -771,31 +770,20 @@ export class Fx {
     return a;
   }
 
-  // True when this unit just struck (for swapping in an attack-pose frame later).
-  striking(id: bigint, window = 0.2): boolean {
-    const t = this.units.get(id);
-    return !!t && t.hitAt >= 0 && this.now - t.hitAt < window;
-  }
-
   // Show the attack-pose frame now: just before and up to 200 ms after each strike.
   posing(id: bigint): boolean {
     const t = this.units.get(id);
     return !!t && t.delay <= 0 && inPose(this.now, t.hitAt, t.interval);
   }
 
-  // The live effects, for a view that draws them itself (pov.ts draws them in 3D). Read-only;
-  // the arrays are the pools themselves, so don't keep them past the frame.
+  // The live effects, for pov.ts to draw in 3D. Read-only; the arrays are the pools themselves,
+  // so don't keep them past the frame.
   live(): FxLive {
     const l = this.liveOut;
     l.now = this.now; l.particles = this.particles; l.rings = this.rings; l.shots = this.shots; l.trails = this.trails; l.floaters = this.floaters;
     return l;
   }
   private liveOut = {} as FxLive;
-
-  landedAge(id: bigint): number {
-    const t = this.units.get(id);
-    return t && t.landedAt >= 0 ? this.now - t.landedAt : -1;
-  }
 
   towerFlash(key: unknown): number {
     const t = this.towers.get(key);
@@ -815,176 +803,6 @@ export class Fx {
   }
 
   // ---------- drawing ----------
-
-  // Under the units: impact rings.
-  drawGround(g: CanvasRenderingContext2D, toScreen: ToScreen, T: number): void {
-    const now = this.now;
-    // heal_aura: a soft green disc out to its 2-tile reach, pulsing once a second.
-    for (const t of this.units.values()) {
-      if (t.trait !== 'heal_aura' || t.delay > 0) continue;
-      const [sx, sy] = toScreen(t.x, t.y);
-      const p = (now + t.seed * 0.01) % 1;
-      g.fillStyle = '#6fe08a';
-      g.globalAlpha = 0.07 + 0.04 * Math.sin(p * Math.PI);
-      g.beginPath(); g.ellipse(sx, sy, 2 * T, 2 * T * 0.8, 0, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#8af0a2';
-      g.lineWidth = 2;
-      g.globalAlpha = 0.45 * (1 - p);
-      g.beginPath(); g.ellipse(sx, sy, 2 * T * (0.3 + 0.7 * p), 2 * T * 0.8 * (0.3 + 0.7 * p), 0, 0, Math.PI * 2); g.stroke();
-    }
-    g.globalAlpha = 1;
-    for (const r of this.rings) {
-      const p = (now - r.t0) / r.dur;
-      const e = 1 - (1 - p) * (1 - p);
-      const [sx, sy] = toScreen(r.x, r.y);
-      g.globalAlpha = Math.max(0, 1 - p);
-      g.strokeStyle = r.color;
-      g.lineWidth = r.width * (1 - p * 0.6);
-      g.beginPath();
-      g.ellipse(sx, sy, (r.r0 + (r.r1 - r.r0) * e) * T, (r.r0 + (r.r1 - r.r0) * e) * T * 0.8, 0, 0, Math.PI * 2);
-      g.stroke();
-    }
-    g.globalAlpha = 1;
-  }
-
-  // Over the units: shots, particles, damage numbers.
-  drawAir(g: CanvasRenderingContext2D, toScreen: ToScreen, T: number): void {
-    const now = this.now;
-    g.lineCap = 'round';
-    this.drawTrails(g, toScreen, T);
-    for (const s of this.shots) {
-      const p = Math.min(1, (now - s.t0) / s.dur);
-      const hx = s.fx + (s.tx - s.fx) * p, hy = s.fy + (s.ty - s.fy) * p;
-      const q = Math.max(0, p - (s.arc ? 0.15 : 0.3));
-      const tx = s.fx + (s.tx - s.fx) * q, ty = s.fy + (s.ty - s.fy) * q;
-      const [ax, ay] = toScreen(tx, ty), [bx, by] = toScreen(hx, hy);
-      // A little arc so shots read as thrown, not lasers; lobs arc high over a ground shadow.
-      const h = (s.arc || 0.35) * T;
-      const lift = Math.sin(p * Math.PI) * h, liftT = Math.sin(q * Math.PI) * h;
-      if (s.arc) {
-        g.fillStyle = 'rgba(0,0,0,0.3)';
-        g.beginPath();
-        g.ellipse(bx, by, T * 0.18, T * 0.08, 0, 0, Math.PI * 2);
-        g.fill();
-      }
-      if (s.orb) {
-        g.globalAlpha = 0.35;
-        g.fillStyle = s.color;
-        g.beginPath(); g.arc(bx, by - lift, s.width * 3, 0, Math.PI * 2); g.fill();
-      }
-      g.strokeStyle = s.color;
-      g.globalAlpha = 0.55;
-      g.lineWidth = s.width + 2;
-      g.beginPath(); g.moveTo(ax, ay - liftT); g.lineTo(bx, by - lift); g.stroke();
-      g.globalAlpha = 1;
-      g.strokeStyle = '#ffffff';
-      g.lineWidth = Math.max(1, s.width - 1);
-      g.beginPath(); g.moveTo((ax + bx) / 2, (ay - liftT + by - lift) / 2); g.lineTo(bx, by - lift); g.stroke();
-      g.fillStyle = '#ffffff';
-      g.beginPath(); g.arc(bx, by - lift, s.width * (s.orb || s.arc ? 1.4 : 0.9) + 0.5, 0, Math.PI * 2); g.fill();
-    }
-    g.lineCap = 'butt';
-
-    for (const p of this.particles) {
-      const age = (now - p.t0) / p.life;
-      const [sx, sy] = toScreen(p.x, p.y);
-      const y = sy - p.z * T;
-      g.fillStyle = p.color;
-      if (p.kind === 0) {
-        g.globalAlpha = 0.55 * (1 - age);
-        g.beginPath();
-        g.arc(sx, y, p.size * T * (1 + age * 1.6), 0, Math.PI * 2);
-        g.fill();
-      } else if (p.kind === 1) {
-        g.globalAlpha = age > 0.7 ? (1 - age) / 0.3 : 1;
-        const s = p.size * T;
-        g.save();
-        g.translate(sx, y);
-        g.rotate(p.spin + age * 6);
-        g.fillRect(-s / 2, -s / 2, s, s);
-        g.restore();
-      } else {
-        g.globalAlpha = 1 - age;
-        g.beginPath();
-        g.arc(sx, y, Math.max(1, p.size * T), 0, Math.PI * 2);
-        g.fill();
-      }
-    }
-    g.globalAlpha = 1;
-
-    g.textAlign = 'center';
-    g.lineJoin = 'round';
-    for (const f of this.floaters) {
-      const age = (now - f.t0) / 0.8;
-      const rise = (1 - (1 - age) * (1 - age)) * 0.9 * T;
-      const [sx, sy] = toScreen(f.x, f.y);
-      const pop = age < 0.12 ? 1 + (0.12 - age) * 3 : 1;
-      g.globalAlpha = age > 0.6 ? (1 - age) / 0.4 : 1;
-      g.font = `800 ${Math.round(f.size * pop)}px system-ui, sans-serif`;
-      const text = String(Math.round(f.amt));
-      const y = sy - T * 0.55 - rise;
-      g.lineWidth = 3;
-      g.strokeStyle = 'rgba(8,10,20,0.85)';
-      g.strokeText(text, sx, y);
-      g.fillStyle = f.color;
-      g.fillText(text, sx, y);
-    }
-    g.globalAlpha = 1;
-  }
-
-  // Slash arcs, breath cones, thrust and dash streaks, chain bolts.
-  private drawTrails(g: CanvasRenderingContext2D, toScreen: ToScreen, T: number): void {
-    const now = this.now;
-    for (const tr of this.trails) {
-      const p = (now - tr.t0) / tr.dur;
-      if (p < 0 || p > 1) continue;
-      const fade = 1 - p;
-      g.strokeStyle = tr.color;
-      if (tr.kind === 'swipe' || tr.kind === 'cone') {
-        const [cx, cy] = toScreen(tr.x, tr.y);
-        const [ex, ey] = toScreen(tr.x + Math.cos(tr.ang), tr.y + Math.sin(tr.ang));
-        const a = Math.atan2(ey - cy, ex - cx); // facing, in screen space
-        const R = tr.len * T;
-        if (tr.kind === 'cone') {
-          g.globalAlpha = 0.28 * fade;
-          g.fillStyle = tr.color;
-          g.beginPath();
-          g.moveTo(cx, cy);
-          g.arc(cx, cy, R * (0.6 + 0.4 * Math.min(1, p * 3)), a - Math.PI / 6, a + Math.PI / 6);
-          g.closePath();
-          g.fill();
-        } else {
-          // The arc sweeps across in the first 40%, then fades.
-          const span = 1.1, reveal = Math.min(1, p / 0.4);
-          const a0 = a - tr.dir * span, a1 = a0 + tr.dir * 2 * span * reveal;
-          g.globalAlpha = 0.85 * fade;
-          g.lineWidth = tr.width * (1 - 0.6 * p);
-          g.beginPath();
-          g.arc(cx, cy - T * 0.15, R, Math.min(a0, a1), Math.max(a0, a1));
-          g.stroke();
-        }
-      } else if (tr.kind === 'line') {
-        const [ax, ay] = toScreen(tr.x, tr.y), [bx, by] = toScreen(tr.x2, tr.y2);
-        g.globalAlpha = 0.8 * fade;
-        g.lineWidth = tr.width;
-        g.beginPath(); g.moveTo(ax, ay - T * 0.15); g.lineTo(bx, by - T * 0.15); g.stroke();
-      } else if (tr.pts) {
-        const pts = tr.pts;
-        g.globalAlpha = fade * (0.6 + 0.4 * Math.sin(p * 40)); // flicker
-        for (const [w, c] of [[tr.width + 2, tr.color], [1.2, '#ffffff']] as const) {
-          g.lineWidth = w;
-          g.strokeStyle = c;
-          g.beginPath();
-          for (let i = 0; i < pts.length; i += 2) {
-            const [sx, sy] = toScreen(pts[i], pts[i + 1]);
-            if (i === 0) g.moveTo(sx, sy - T * 0.2); else g.lineTo(sx, sy - T * 0.2);
-          }
-          g.stroke();
-        }
-      }
-    }
-    g.globalAlpha = 1;
-  }
 
   // Centre-screen announcements: 3-2-1-FIGHT and DOUBLE ELIXIR.
   drawBanners(g: CanvasRenderingContext2D, cx: number, cy: number, width: number): void {
