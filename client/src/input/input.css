@@ -11,6 +11,8 @@
 #inputPanel .inMenu[hidden] { display: none; }
 #inputPanel label { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--muted); }
 #inputPanel input[type=range] { width: 100%; }
+#inputPanel select { width: 100%; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+#inputPanel select:disabled { opacity: 0.5; }
 #inputPanel .inMeter { position: relative; height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; }
 #inputPanel .inLevel { position: absolute; inset: 0 auto 0 0; background: var(--muted); }
 #inputPanel .inLevel.speaking { background: var(--elixir); }

@@ -22,9 +22,18 @@ export const HAND_CONNECTIONS: [number, number][] = [
   [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
 ];
 
-// Index knuckle: steadier than the fingertip and it doesn't move when you pinch. Mirrored so
-// moving your hand right moves the cursor right.
-export const pointerOf = (lm: Landmark[]): Pt2 => [1 - lm[5].x, lm[5].y];
+// Which part of the hand aims. The knuckle is steadier than the fingertip and barely moves in a
+// pinch; the palm centre (wrist and the four knuckles) moves least of all when fingers do things.
+export type AimPoint = 'knuckle' | 'tip' | 'palm';
+const AIM_LANDMARKS: Record<AimPoint, number[]> = { knuckle: [5], tip: [8], palm: [0, 5, 9, 13, 17] };
+
+// Mirrored so moving your hand right moves the cursor right.
+export function pointerOf(lm: Landmark[], aim: AimPoint = 'knuckle'): Pt2 {
+  const ids = AIM_LANDMARKS[aim];
+  const x = ids.reduce((s, i) => s + lm[i].x, 0) / ids.length;
+  const y = ids.reduce((s, i) => s + lm[i].y, 0) / ids.length;
+  return [1 - x, y];
+}
 
 export class HandTracker {
   readonly video: HTMLVideoElement;

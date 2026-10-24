@@ -221,3 +221,46 @@ test('a pinch release does not end a Space lock', () => {
   r.m.keyUp();
   assert.deepEqual(r.log, ['lock key 100,100', 'deploy 100,100']);
 });
+
+test('a pinch onset aims from when the fingers began closing', () => {
+  const r = rig();
+  r.frames(300, { x: 100, y: 100 }, false);
+  const began = r.now() - 16; // the last frame before it
+  r.frames(200, { x: 150, y: 130 }, false); // a slow close that drifts the pointer
+  r.m.frame(r.now(), { cursor: { x: 150, y: 130 }, hand: true, pinched: true, onset: began });
+  assert.deepEqual(r.log, ['lock pinch 100,100']);
+});
+
+test('a flick locks where the hand was before it, and going quiet deploys', () => {
+  const r = rig();
+  r.frames(300, { x: 100, y: 100 }, false);
+  const began = r.now() - 16; // the last frame before it
+  r.frames(100, { x: 100, y: 160 }, false); // the flick drags the pointer
+  r.m.flick(r.now(), began);
+  assert.deepEqual(r.log, ['lock flick 100,100']);
+  assert.equal(r.m.dragDistance(r.now()), 0, 'no drag-off ring for a flick');
+  r.frames(500, null, false, false);
+  assert.equal(r.log.length, 1, 'hand gone after a flick is fine');
+  r.m.speechStart(r.now());
+  r.frames(1000, null, false, false);
+  r.m.speechEnd();
+  assert.deepEqual(r.log, ['lock flick 100,100', 'deploy 100,100']);
+});
+
+test('a second flick deploys; flicking during a voice lock deploys it', () => {
+  const r = rig();
+  r.frames(300, { x: 100, y: 100 }, false);
+  r.m.flick(r.now(), r.now());
+  r.m.flick(r.now(), r.now());
+  r.m.speechStart(r.now());
+  r.m.flick(r.now(), r.now());
+  assert.deepEqual(r.log, ['lock flick 100,100', 'deploy 100,100', 'lock voice 100,100', 'deploy 100,100']);
+});
+
+test('a flick lock nobody describes gives up', () => {
+  const r = rig();
+  r.frames(300, { x: 100, y: 100 }, false);
+  r.m.flick(r.now(), r.now());
+  r.frames(5100, { x: 100, y: 100 }, false);
+  assert.deepEqual(r.log, ['lock flick 100,100', 'cancel no words']);
+});

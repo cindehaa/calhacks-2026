@@ -3,10 +3,11 @@
 // untouched; this only adds a second way in.
 import { drawCursor, FLASH_MS, type InputView } from './draw';
 import { OneEuro } from './filter';
-import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
+import { FlickDetector } from './flick';
+import { HAND_CONNECTIONS, HandTracker, pointerOf, type AimPoint, type HandFrame } from './hand';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
-import { LockMachine, LOCK_DEFAULTS, type Lock, type Pt } from './lock';
-import { DEFAULT_PINCH, Hysteresis, pinchMetric2d } from './pinch';
+import { CursorHistory, LockMachine, LOCK_DEFAULTS, type Lock, type Pt } from './lock';
+import { DEFAULT_PINCH, Hysteresis, pinchMetric2d, PinchOnset } from './pinch';
 import { chooseDescription, isCancel, isMismatch, Transcript, WebSpeechSource, type SpeechSource } from './speech';
 import { KEYS, load, save } from './store';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
@@ -39,11 +40,21 @@ export interface DeployHow {
   transcript: string;
 }
 
-interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; camera: boolean; mic: boolean; mouseKeys: boolean }
+// The hand scheme, picked in the ⋯ menu so schemes can be tried side by side. Click: thumb against
+// the middle or index finger (hold, like now), or a flick of the wrist (a tap). Steady: aim from
+// lagMs before the pinch, or from when the fingers started closing.
+type Click = 'middle' | 'index' | 'flick';
+type Steady = 'lag' | 'onset';
+
+interface Prefs {
+  preview: boolean; vadDb: number; vadEndMs: number; camera: boolean; mic: boolean; mouseKeys: boolean;
+  aim: AimPoint; click: Click; steady: Steady;
+}
 
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
 const FLUSH_MS = 600; // how long a deploy waits for the recogniser to finalise the last words
+const FLICK_SHOW_MS = 180; // the cursor fills this long after a flick
 
 export class InputController {
   private machine: LockMachine;
@@ -57,7 +68,17 @@ export class InputController {
   private fx = new OneEuro(1.0, 0.007);
   private fy = new OneEuro(1.0, 0.007);
   private hyst = new Hysteresis(DEFAULT_PINCH.on, DEFAULT_PINCH.off);
-  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, camera: false, mic: false, mouseKeys: true, ...load<Partial<Prefs>>(KEYS.prefs) };
+  private pinchOnset = new PinchOnset();
+  private flicker = new FlickDetector();
+  private trail = new CursorHistory(); // the hand cursor, for measuring slip
+  private press: { onset: number } | null = null; // a click this frame, consumed by tick()
+  private flickT = -Infinity;
+  private slips: number[] = []; // px the pointer moved during each recent click
+  private prefs: Prefs = {
+    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, camera: false, mic: false, mouseKeys: true,
+    aim: 'knuckle', click: 'middle', steady: 'lag',
+    ...load<Partial<Prefs>>(KEYS.prefs),
+  };
 
   private hand: HandFrame | null = null;
   private handCursor: Pt | null = null;
@@ -165,13 +186,13 @@ export class InputController {
     if (!this.tracker && !this.mic.on && !this.flashes.length) return undefined;
     const l = this.machine.lock, now = performance.now();
     return {
-      cursor: this.handCursor && this.host.playing() ? { ...this.handCursor, pinched: this.pinched } : null,
+      cursor: this.handCursor && this.host.playing() ? { ...this.handCursor, pinched: this.clicking(now) } : null,
       lock: l && {
         x: l.x,
         y: l.y,
         by: l.by,
         out: this.machine.dragDistance(now) > this.machine.o.dragRadius,
-        radius: this.machine.o.dragRadius,
+        radius: l.by === 'flick' ? 0 : this.machine.o.dragRadius,
         transcript: this.active?.words.text ?? '',
         speaking: this.vad.speaking,
       },
@@ -190,7 +211,15 @@ export class InputController {
       if (ev?.kind === 'start') this.machine.speechStart(ev.t);
       else if (ev?.kind === 'end') this.machine.speechEnd();
     }
-    this.machine.frame(now, { cursor: this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null), hand: !!this.hand, pinched: this.pinched });
+    const press = this.press;
+    this.press = null;
+    const pinchOnset = press && this.prefs.click !== 'flick' && this.prefs.steady === 'onset' ? press.onset : undefined;
+    this.machine.frame(now, { cursor: this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null), hand: !!this.hand, pinched: this.pinched, onset: pinchOnset });
+    if (press && this.prefs.click === 'flick') {
+      this.machine.flick(now, press.onset);
+      // Without the mic nothing will be said: deploy what's typed straight away.
+      if (!this.mic.on && this.machine.lock?.by === 'flick') this.machine.release();
+    }
     this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
@@ -199,17 +228,68 @@ export class InputController {
   private onHandFrame(f: HandFrame | null, now: number): void {
     this.hand = f;
     if (!f) {
-      this.handCursor = null;
-      this.fx.reset();
-      this.fy.reset();
+      this.resetHand();
       this.drawPreviews();
       return;
     }
-    this.ratio = pinchMetric2d(f.lm, f.vw, f.vh);
-    this.pinched = this.hyst.update(this.ratio);
-    const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
+    const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm, this.prefs.aim));
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
+    this.trail.push(now, this.handCursor);
+    let onset: number | null = null;
+    if (this.prefs.click === 'flick') {
+      onset = this.flicker.update(now, f.lm, f.vw, f.vh);
+      if (onset !== null) this.flickT = now;
+    } else {
+      this.ratio = pinchMetric2d(f.lm, f.vw, f.vh, this.prefs.click);
+      this.pinchOnset.push(now, this.ratio);
+      const was = this.pinched;
+      this.pinched = this.hyst.update(this.ratio);
+      if (this.pinched && !was) onset = this.pinchOnset.onset() ?? now;
+    }
+    if (onset !== null) {
+      this.press = { onset };
+      this.noteSlip(onset);
+    }
     this.drawPreviews();
+  }
+
+  private resetHand(): void {
+    this.handCursor = null;
+    this.fx.reset();
+    this.fy.reset();
+    this.trail.clear();
+    this.pinchOnset.clear();
+    this.flicker.reset();
+  }
+
+  // How far the pointer moved between the click starting and registering: what the click gesture
+  // itself does to the aim. Shown in the panel and logged, to compare schemes.
+  private noteSlip(onset: number): void {
+    const from = this.trail.at(onset), to = this.handCursor;
+    if (!from || !to) return;
+    const px = Math.round(Math.hypot(to.x - from.x, to.y - from.y));
+    this.slips = [...this.slips.slice(-9), px];
+    this.host.event?.('gesture:slip', `${this.scheme()} ${px}px`);
+  }
+
+  private scheme(): string {
+    const p = this.prefs;
+    return `${p.aim}/${p.click}${p.click === 'flick' ? '' : '/' + p.steady}`;
+  }
+
+  // The cursor fills while pinched, or for a moment after a flick.
+  private clicking(now: number): boolean {
+    return this.prefs.click === 'flick' ? now - this.flickT < FLICK_SHOW_MS : this.pinched;
+  }
+
+  // A new scheme starts from a clean slate: nothing locked, no half-finished pinch.
+  private setScheme(): void {
+    this.machine.cancel('scheme changed');
+    this.resetHand();
+    this.hyst.reset();
+    this.pinched = false;
+    this.ratio = 0;
+    this.slips = [];
   }
 
   // ---------- lock → deploy / cancel ----------
@@ -226,7 +306,7 @@ export class InputController {
     const words = new Transcript();
     this.listeners.set(words, nonce);
     this.active = { nonce, spot: [x, y], words };
-    const letGo = l.by === 'key' ? 'let go of Space' : 'let go';
+    const letGo = l.by === 'key' ? 'let go of Space' : l.by === 'flick' ? 'go quiet or flick again' : 'let go';
     this.host.status(this.mic.on ? `say what the troop is, ${letGo} to deploy, Esc to cancel` : `locked: ${letGo} to deploy what's in the text box, Esc to cancel`);
     return true;
   }
@@ -383,7 +463,7 @@ export class InputController {
     const g = c.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
-    if (p) drawCursor(g, p.x, p.y, this.pinched);
+    if (p) drawCursor(g, p.x, p.y, this.clicking(performance.now()));
     this.overlayDrawn = !!p;
   }
 
@@ -393,7 +473,7 @@ export class InputController {
     this.el.id = 'inputPanel';
     this.el.innerHTML = `
       <div class="inRow">
-        <button data-act="cam" title="Aim with your index knuckle, pinch thumb + middle finger to lock">Camera</button>
+        <button data-act="cam">Camera</button>
         <button data-act="mic" title="Start talking to lock, describe the troop, go quiet to deploy">Mic</button>
         <button data-act="menu" class="ghost" title="Camera and mic settings">⋯</button>
       </div>
@@ -403,6 +483,20 @@ export class InputController {
         <button data-act="setup" class="ghost">Run setup again</button>
         <label><input type="checkbox" data-act="mouseKeys"> Mouse and keyboard</label>
         <label><input type="checkbox" data-act="preview"> Camera preview</label>
+        <label>Aim with <select data-act="aim">
+          <option value="knuckle">index knuckle</option>
+          <option value="tip">index fingertip</option>
+          <option value="palm">palm centre</option>
+        </select></label>
+        <label>Click with <select data-act="click">
+          <option value="middle">pinch thumb + middle (hold)</option>
+          <option value="index">pinch thumb + index (hold)</option>
+          <option value="flick">flick wrist down (tap)</option>
+        </select></label>
+        <label>Aim from <select data-act="steady">
+          <option value="lag">100 ms before the pinch</option>
+          <option value="onset">when fingers start closing</option>
+        </select></label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
         <label>Done after <input type="range" data-act="vadEnd" min="300" max="1500" step="50"><span class="inVal" data-val="vadEnd"></span></label>
@@ -416,6 +510,9 @@ export class InputController {
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;
     q<HTMLInputElement>('mouseKeys').checked = this.prefs.mouseKeys;
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
+    q<HTMLSelectElement>('aim').value = this.prefs.aim;
+    q<HTMLSelectElement>('click').value = this.prefs.click;
+    q<HTMLSelectElement>('steady').value = this.prefs.steady;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
     q<HTMLInputElement>('vadEnd').value = String(this.prefs.vadEndMs);
     this.el.addEventListener('click', e => {
@@ -434,6 +531,12 @@ export class InputController {
     });
     this.el.addEventListener('input', e => {
       const t = e.target as HTMLInputElement;
+      if (t.dataset.act === 'aim' || t.dataset.act === 'click' || t.dataset.act === 'steady') {
+        (this.prefs as unknown as Record<string, string>)[t.dataset.act] = t.value;
+        this.setScheme();
+        this.host.event?.('gesture:scheme', this.scheme());
+        t.blur(); // keep Space going to the game
+      }
       if (t.dataset.act === 'mouseKeys') this.prefs.mouseKeys = t.checked;
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
       if (t.dataset.act === 'vadDb') this.prefs.vadDb = this.vad.o.thresholdDb = Number(t.value);
@@ -444,14 +547,30 @@ export class InputController {
     this.renderPanel();
   }
 
+  private howTo(): string {
+    const aim = { knuckle: 'your index knuckle', tip: 'your index fingertip', palm: 'the middle of your palm' }[this.prefs.aim];
+    const click = {
+      middle: 'pinch thumb + middle finger to lock, let go to deploy',
+      index: 'pinch thumb + index finger to lock, let go to deploy',
+      flick: 'flick your wrist down to lock, then describe it; go quiet or flick again to deploy',
+    }[this.prefs.click];
+    return `Aim with ${aim}, ${click}`;
+  }
+
   private renderPanel(): void {
     this.lastPanel = performance.now();
     const $ = <T extends HTMLElement>(sel: string) => this.el.querySelector<T>(sel)!;
     $('[data-act="cam"]').classList.toggle('on', !!this.tracker);
+    $('[data-act="cam"]').title = this.howTo();
+    $<HTMLSelectElement>('[data-act="steady"]').disabled = this.prefs.click === 'flick';
     $('[data-act="mic"]').classList.toggle('on', this.mic.on);
     $('.inPreview').hidden = !this.tracker || !this.prefs.preview;
+    const now = performance.now();
+    const grip = this.prefs.click === 'flick' ? `flick${this.clicking(now) ? ' ✓' : ''}` : `pinch ${this.ratio.toFixed(2)}${this.pinched ? ' ✓' : ''}`;
+    const s = this.slips;
+    const slip = s.length ? ` · slip ${s[s.length - 1]}px (avg ${Math.round(s.reduce((a, b) => a + b, 0) / s.length)} of ${s.length})` : '';
     const cam = this.tracker
-      ? this.camStatus || (this.hand ? `hand · pinch ${this.ratio.toFixed(2)}${this.pinched ? ' ✓' : ''}` : 'no hand in view')
+      ? this.camStatus || (this.hand ? `hand · ${grip}${slip}` : 'no hand in view')
       : '';
     const mic = this.mic.on ? `${this.vad.level.toFixed(0)} dB${this.vad.speaking ? ' · speaking' : ''} · ${this.heard}` : this.heard;
     $('.inStatus').textContent = [cam, mic].filter(Boolean).join('\n');
@@ -510,9 +629,10 @@ export class InputController {
       g.lineTo(...P(b));
     }
     g.stroke();
-    g.fillStyle = this.pinched ? '#4aa3ff' : '#ff5d6c';
+    g.fillStyle = this.clicking(performance.now()) ? '#4aa3ff' : '#ff5d6c';
     g.beginPath();
-    g.arc(...P(5), 4, 0, Math.PI * 2);
+    const [ax, ay] = pointerOf(lm, this.prefs.aim);
+    g.arc(ax * w, ay * h, 4, 0, Math.PI * 2);
     g.fill();
   }
 }

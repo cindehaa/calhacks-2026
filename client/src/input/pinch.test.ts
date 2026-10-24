@@ -1,7 +1,7 @@
 // Pinch metric and hysteresis.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Hysteresis, pinchMetric2d, segDist, type Landmark } from './pinch';
+import { Hysteresis, pinchMetric2d, PinchOnset, segDist, type Landmark } from './pinch';
 
 // A flat right hand in a 640×480 frame, in pixels, then normalised. Wrist at the bottom.
 function hand(thumbTip: [number, number]): Landmark[] {
@@ -43,4 +43,21 @@ test('hysteresis: on below 0.45, off above 0.65, steady in between', () => {
   const h = new Hysteresis(0.45, 0.65);
   const seq = [0.9, 0.5, 0.44, 0.5, 0.6, 0.64, 0.66, 0.5, 0.46];
   assert.deepEqual(seq.map(v => h.update(v)), [false, false, true, true, true, true, false, false, false]);
+});
+
+test('2d pinch: the index finger option reads thumb against the index pad', () => {
+  const lm = hand([230, 330]);
+  lm[7] = { x: 280 / 640, y: 230 / 480, z: 0 }; // index DIP
+  lm[8] = { x: 280 / 640, y: 210 / 480, z: 0 }; // index tip
+  lm[4] = { x: 282 / 640, y: 222 / 480, z: 0 };
+  assert.ok(pinchMetric2d(lm, 640, 480, 'index') < 0.05);
+  assert.ok(pinchMetric2d(lm, 640, 480, 'middle') > 0.2, 'not a middle-finger pinch');
+});
+
+test('pinch onset: the most open moment in the window', () => {
+  const o = new PinchOnset(400);
+  [[0, 0.7], [100, 0.9], [200, 0.6], [300, 0.3]].forEach(([t, v]) => o.push(t, v));
+  assert.equal(o.onset(), 100);
+  o.push(600, 0.2);
+  assert.equal(o.onset(), 200, 'samples older than the window drop out');
 });
