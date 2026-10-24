@@ -3,7 +3,7 @@
     "file": "music/battle.mp3",
     "kind": "music",
     "model": "fal-ai/elevenlabs/music",
-    "prompt": "energetic orchestral battle theme, driving drums, brass stabs, 120 BPM, instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable",
+    "prompt": "energetic orchestral battle theme on a frozen night, driving war drums, warm brass stabs over icy shimmering strings and glockenspiel, 120 BPM, crackling fireplace texture underneath, instrumental, mobile strategy game soundtrack, sits under dialogue, no vocals, loopable",
     "duration": 60,
     "loop": true
   },
@@ -11,7 +11,7 @@
     "file": "music/menu.mp3",
     "kind": "music",
     "model": "fal-ai/elevenlabs/music",
-    "prompt": "playful medieval fantasy lobby theme, plucked strings and light percussion, relaxed, 100 BPM, instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable",
+    "prompt": "cosy winter fireside lobby theme, warm plucked strings, celesta and soft music-box bells, gentle frosty chimes, relaxed, 100 BPM, crackling fireplace texture underneath, instrumental, mobile strategy game soundtrack, sits under dialogue, no vocals, loopable",
     "duration": 60,
     "loop": true
   },
@@ -19,7 +19,7 @@
     "file": "music/overtime.mp3",
     "kind": "music",
     "model": "fal-ai/elevenlabs/music",
-    "prompt": "intense climax version of an orchestral battle theme, faster drums, urgent strings, 140 BPM, instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable",
+    "prompt": "intense climax version of a frost-and-fire orchestral battle theme, faster war drums, urgent icy strings, roaring fire, 140 BPM, crackling fireplace texture underneath, instrumental, mobile strategy game soundtrack, sits under dialogue, no vocals, loopable",
     "duration": 30,
     "loop": true
   },

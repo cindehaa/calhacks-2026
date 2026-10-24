@@ -110,20 +110,22 @@ export const GAME_SFX = {
 
 // Music loops. The battle and overtime tracks match the 60 s + 30 s split of a
 // 90 s match, but the client should still loop them in case timings change.
+// Every track sits on a crackling fireplace so the soundtrack fits the
+// warmth-and-frost theme (meta/aesthetics.md).
 const MUSIC_STYLE =
-  'instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable';
+  'crackling fireplace texture underneath, instrumental, mobile strategy game soundtrack, sits under dialogue, no vocals, loopable';
 
 export const MUSIC = {
   menu: {
-    prompt: `playful medieval fantasy lobby theme, plucked strings and light percussion, relaxed, 100 BPM, ${MUSIC_STYLE}`,
+    prompt: `cosy winter fireside lobby theme, warm plucked strings, celesta and soft music-box bells, gentle frosty chimes, relaxed, 100 BPM, ${MUSIC_STYLE}`,
     duration: 60,
   },
   battle: {
-    prompt: `energetic orchestral battle theme, driving drums, brass stabs, 120 BPM, ${MUSIC_STYLE}`,
+    prompt: `energetic orchestral battle theme on a frozen night, driving war drums, warm brass stabs over icy shimmering strings and glockenspiel, 120 BPM, ${MUSIC_STYLE}`,
     duration: 60,
   },
   overtime: {
-    prompt: `intense climax version of an orchestral battle theme, faster drums, urgent strings, 140 BPM, ${MUSIC_STYLE}`,
+    prompt: `intense climax version of a frost-and-fire orchestral battle theme, faster war drums, urgent icy strings, roaring fire, 140 BPM, ${MUSIC_STYLE}`,
     duration: 30,
   },
 };

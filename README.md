@@ -8,6 +8,7 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 
 - [meta/SPEC.md](meta/SPEC.md): the game spec (v2)
 - [meta/PROGRESS.md](meta/PROGRESS.md): what's done, what's next, and the decisions log
+- [meta/aesthetics.md](meta/aesthetics.md): the aesthetic vision (warmth and frost): palette, music, sound, art
 
 ## Layout
 
@@ -17,7 +18,7 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 | `server/` | SpacetimeDB module: rooms, deploys, and the 20 Hz tick that runs `step()`. |
 | `client/` | Vite + TypeScript browser game: lobby, canvas arena, keyboard / mouse / text input. |
 | `api/` | Small Node proxy that holds the API keys. `POST /api/troop` turns a description into a priced troop with Claude. |
-| `meta/` | Spec and progress log. |
+| `meta/` | Spec, progress log and aesthetic vision. |
 
 ## Run it locally
 
