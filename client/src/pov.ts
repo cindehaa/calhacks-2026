@@ -9,6 +9,7 @@ import {
 import { Fx, quirks, roundRect, towerKey, type Shot, type Trail } from './fx';
 import { drawInput } from './input/draw';
 import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View } from './render';
+import { Scenery } from './scenery';
 import { poseFrame } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 
@@ -153,6 +154,7 @@ export class PovBoard {
   private stickGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).translate(0, 0.5, 0);
   private glowTex = radialTexture();
   private silhouetteTex = silhouetteTexture();
+  private scenery: Scenery;
 
   constructor(gl: HTMLCanvasElement, readonly canvas: HTMLCanvasElement) {
     this.g = canvas.getContext('2d')!;
@@ -163,7 +165,7 @@ export class PovBoard {
 
     const s = this.scene;
     s.background = new THREE.Color(C.bg);
-    s.fog = new THREE.Fog(C.bg, 26, 75);
+    s.fog = new THREE.Fog(C.bg, 30, 125); // far enough out that the mountains show through it
     this.cam.rotation.order = 'YXZ';
     s.add(new THREE.HemisphereLight('#aab8ff', '#120d1e', 1.6));
     const sun = new THREE.DirectionalLight('#ffe6c4', 2.4);
@@ -177,6 +179,7 @@ export class PovBoard {
     s.add(rim);
     s.add(this.layout, this.pockets);
     this.addSurroundings();
+    this.scenery = new Scenery(s);
     this.parts = this.makePoints();
 
     const ring = (inner: number, outer: number, opacity: number) => {
@@ -244,6 +247,7 @@ export class PovBoard {
     this.syncPendings(v, now / 1000);
     this.syncEffects(v);
     this.syncCursor(v, now / 1000);
+    this.scenery.update(dt, now / 1000);
     this.renderer.render(this.scene, this.cam);
     this.drawOverlay(v);
   }
@@ -271,12 +275,8 @@ export class PovBoard {
 
   // ---------- scene ----------
 
+  // The banks and river channel under the board; everything around it is in scenery.ts.
   private addSurroundings(): void {
-    const outer = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), new THREE.MeshStandardMaterial({ color: '#0e1022', roughness: 1 }));
-    outer.rotation.x = -Math.PI / 2;
-    outer.position.y = -1.2;
-    outer.receiveShadow = true;
-    this.scene.add(outer);
     // Two banks with a channel between them for the river.
     const stone = new THREE.MeshStandardMaterial({ color: '#191d36', roughness: 0.9 });
     const bankLen = MID_Y - RIVER_HALF + 0.6;
@@ -289,15 +289,6 @@ export class PovBoard {
     const bed = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 1.2, 0.6, 2 * RIVER_HALF), stone);
     bed.position.y = -0.91;
     this.scene.add(bed);
-    // Distant spires so the horizon has something on it.
-    const spire = new THREE.MeshStandardMaterial({ color: '#171a33', roughness: 1, flatShading: true });
-    for (let i = 0; i < 26; i++) {
-      const a = (i / 26) * Math.PI * 2 + Math.random() * 0.1;
-      const r = 34 + Math.random() * 14, h = 6 + Math.random() * 16;
-      const m = new THREE.Mesh(new THREE.ConeGeometry(2 + Math.random() * 3, h, 5), spire);
-      m.position.set(Math.cos(a) * r, h / 2 - 1.2, Math.sin(a) * r * 1.3);
-      this.scene.add(m);
-    }
   }
 
   // Halves, grid, the river and its two bridges, laid out as in shared/arena.ts. Built once per side.

@@ -66,7 +66,18 @@ Troop sprites are generated per description by fal (FLUX.1 schnell, background c
 
 Troop quirks show on the unit: a blue tint when slowed, a white flash on a hit, a charge glow during windups, dash smears, and element-coloured particles.
 
-## Menus and screens (G · faceted heraldry)
+## The arena's surroundings
+
+The board sits in a snowy valley at night (`client/src/scenery.ts`), all low-poly and flat-shaded like the menus:
+
+- **Snow:** faceted ground, flat round the board and rolling into gentle drifts further out, in a dark cool blue (`#1f2a48`) so the board stays the brightest thing on screen. Snow falls across the whole scene.
+- **Crags:** snow-capped rock up both sides of the valley and a row of peaks far behind the enemy. The camera looks down too steeply to see a horizon, so the mountains stand at the sides where the view reaches.
+- **Woods:** snow-laden pines (each tier's top band white) with rocks between them, kept 5 tiles clear of the board so play reads cleanly.
+- **Warmth:** four stone braziers along the banks, by the river and at the far corners, with flickering flames, a glow, rising embers and orange light pooling on the snow.
+- **Red standards:** swallowtail flags beside the enemy's half, rippling. There are none on your side: near the camera the poles foreshorten into sticks.
+- Text drawn on the board uses Cinzel.
+
+
 
 Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones-style heraldry inspires the look.
 
@@ -88,7 +99,6 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 ## Open questions
 
 - Should frost and warmth map to the two teams (blue vs red), or stay a mood both sides share?
-- Snow, breath fog or ember particles in the 3D arena?
 
 ## Decisions
 
@@ -100,3 +110,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** Home polish pass: one amber accent (stone side buttons, deep dyed banners, muted tower caps), lit and snowy island with flickering braziers, snow, embers, mist and grain, a moon on the title, the wordmark gliding from title to home, a rank bar and a real difficulty selector. UI font is now Alegreya Sans.
 - **2026-10-24:** Game text is plain language; fantasy stays in the visuals. Houses became blue and red sides, embers became points, ranks are Bronze to Diamond.
 - **2026-10-24:** In-match HUD restyled to match the menus: stone clock plaque, faceted segmented elixir bar, chamfered describe field, stone troop chips, Cinzel for text on the board.
+- **2026-10-24:** The arena got a world: snowy valley, crags, snow-laden pines, braziers with firelight and embers, red standards and falling snow. The old random dark spires are gone.
