@@ -412,3 +412,9 @@ body.inHub #inputPanel { display: none; }
 .bLastFoe { font: 700 7.4cqw/1.2 var(--chakra); color: #fff; }
 .bLastScore { font: 800 6.6cqw var(--chakra); color: #ffd9b0; }
 .bLastScore.win { color: var(--gold); } .bLastScore.lose { color: var(--ice2); }
+/* parallax: --px / --py run -1..1 with the cursor (main.ts) */
+.home { --px: 0; --py: 0; }
+.home .gBg { transform: translate(calc(var(--px) * -8px), calc(var(--py) * -5px)) scale(1.02); transition: transform .6s ease-out; }
+.home .mist.back { translate: calc(var(--px) * -14px) 0; transition: translate .6s ease-out; }
+.home .islandWrap { translate: calc(var(--px) * 12px) calc(var(--py) * 7px); transition: translate .5s ease-out; }
+@media (prefers-reduced-motion: reduce) { .home .gBg, .home .mist.back, .home .islandWrap { translate: none; transform: none; } }

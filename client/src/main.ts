@@ -55,6 +55,11 @@ function netMsg(s: string) {
   $('hubNet').title = s;
 }
 hubFx(document.querySelector('#title .hubSky')!);
+// The home scene leans a little toward the cursor: ranges least, the island most.
+$('lobby').addEventListener('pointermove', e => {
+  $('lobby').style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(3));
+  $('lobby').style.setProperty('--py', ((e.clientY / innerHeight) * 2 - 1).toFixed(3));
+});
 hubFx(document.querySelector('#lobby .hubSky')!, { embers: document.querySelector<HTMLElement>('#lobby .islandWrap')! });
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
