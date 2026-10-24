@@ -24,6 +24,7 @@ export function impactSize(totalHp: number): number {
 
 // The cost reel: a run of numbers rolling up to the cost, the gaps between ticks growing.
 export const ROLL_TICKS = 9;
+const TAG_HOLD = 2.4, TAG_FADE = 0.5; // seconds after landing the name tag stays, then fades out
 export function rollDuration(cost: number): number { return 0.55 + 0.03 * Math.min(10, cost) }
 // Which tick the reel is on, t seconds after landing: 0..ROLL_TICKS-1, the last one showing the cost.
 export function rollIndex(t: number, cost: number): number {
@@ -360,6 +361,17 @@ export class Juice {
     return out;
   }
   private stampOut: Stamp = { scale: 1, alpha: 1 };
+
+  // How much of the name tag (name and cost pill) shows: all of it while the troop drops and just
+  // after it lands, then it fades out so a busy board isn't covered in names. Zero for a troop
+  // that was already down when first seen.
+  tagAlpha(troopId: bigint, t: number): number {
+    const tr = this.troops.get(troopId);
+    if (!tr) return 0;
+    if (tr.landedAt < 0) return 1;
+    const since = t - tr.landedAt;
+    return since < TAG_HOLD ? 1 : Math.max(0, 1 - (since - TAG_HOLD) / TAG_FADE);
+  }
 
   // Squash and stretch for a unit of this troop: stretched as it drops, a size-scaled squash and
   // wobble on landing. Multiplies Fx's own body animation.

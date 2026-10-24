@@ -1280,9 +1280,10 @@ export class PovBoard {
     g.fillRect(0, 0, w, h);
   }
 
-  // One name per troop above its lead unit, with the cost (or the drop countdown) over it. A
-  // small tower before the name marks a troop that only chases buildings. Nearest troops place
-  // first; a farther label that would land on one already placed steps up once, else drops its name.
+  // One name per troop above its lead unit, with the cost (or the drop countdown) over it, shown
+  // while it drops and fading a few seconds after it lands (juice.tagAlpha). A small tower before
+  // the name marks a troop that only chases buildings. Nearest troops place first; a farther label
+  // that would land on one already placed steps up once, else drops its name.
   private drawLabels(v: View, now: number): void {
     const lead = this.lead, g = this.g;
     lead.clear();
@@ -1307,6 +1308,8 @@ export class PovBoard {
       return true;
     };
     for (const { u, troop, x, y: y0, T } of list) {
+      const fade = this.juice.tagAlpha(u.troopId, now);
+      if (fade <= 0) continue; // a hidden tag doesn't push other tags around
       const mine = u.side === v.mySide;
       const s = Math.min(1.5, Math.max(0.8, T / 40));
       let name = troop.name;
@@ -1327,12 +1330,13 @@ export class PovBoard {
       if (placed) {
         boxes.push(x - w / 2 - 2, y - size - ph - 4, x + w / 2 + 2, y + 3);
         const st = this.juice.stamp(u.troopId, now); // the name slams in when the design arrives
-        g.globalAlpha = st.alpha;
+        g.globalAlpha = st.alpha * fade;
         this.outlined(name, x + icon / 2, y, Math.round(size * st.scale), ink);
-        g.globalAlpha = 1;
-        if (mine && improvised(troop.description)) this.improvisedStamp(x + w / 2 + 4 * s, y - size * 0.15, s, st.alpha);
+        if (mine && improvised(troop.description)) this.improvisedStamp(x + w / 2 + 4 * s, y - size * 0.15, s, st.alpha * fade);
+        g.globalAlpha = fade;
         if (buildings) this.towerIcon(x - w / 2 + 5 * s, y - size * 0.35, s, ink);
       } else if (!free(x - 10, py - ph / 2, x + 10, py + ph / 2)) continue;
+      g.globalAlpha = fade;
       // The cost stays hidden until the troop lands, then rolls like a slot reel (juice.ts).
       const cost = u.delay > 0 ? null : this.juice.costLabel(u.troopId, now);
       if (u.delay > 0) this.pill(u.delay.toFixed(1), x, py, 11 * s, 'rgba(13,16,32,0.9)', mine ? C.mine : C.theirs, C.text);
@@ -1341,6 +1345,7 @@ export class PovBoard {
         this.pill(cost.text, x, py, 11 * s * cost.scale, cost.fill, cost.stroke, cost.ink, EMBER);
         g.shadowColor = 'transparent'; g.shadowBlur = 0;
       } else this.pill(String(troop.cost), x, py, 11 * s, 'rgba(58,24,8,0.94)', C.elixir, '#ffe2c4', EMBER);
+      g.globalAlpha = 1;
       if (!placed) boxes.push(x - 10, py - ph / 2, x + 10, py + ph / 2);
     }
   }
