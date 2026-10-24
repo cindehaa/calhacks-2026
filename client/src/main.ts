@@ -23,6 +23,7 @@ import { tapestry } from './banner';
 import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
+import { boardReactions, homeReactions, menuReactions } from './react';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
@@ -106,6 +107,10 @@ $('lobby').addEventListener('pointermove', e => {
   $('lobby').style.setProperty('--py', ((e.clientY / innerHeight) * 2 - 1).toFixed(3));
 });
 hubFx(document.querySelector('#lobby .hubSky')!, { embers: document.querySelector<HTMLElement>('#lobby .islandWrap')! });
+// Things react to pokes (react.ts): buttons, the home banners and wordmark, and the board.
+menuReactions();
+homeReactions();
+boardReactions(board, { playing: () => match()?.status === 'playing', mySide: () => mySide(), canDeploy: (x, y) => canDeployAt(x, y) });
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
 // The first designer call is 2–3 s cold. Warm it now, not at match start, so the lobby absorbs it.
