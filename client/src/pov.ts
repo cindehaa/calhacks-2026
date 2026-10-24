@@ -17,7 +17,7 @@ import { Scenery } from './scenery';
 import { poseFrame, spriteFailed } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 import { improvised } from './designer';
-import { frostLevel, frostStone, Rubble, TowerIce } from './frost';
+import { frostLevel, Rubble, TowerIce } from './frost';
 
 // Where you stand, in your own view coords (your back line is y = 0): height, resting pitch and
 // vertical field of view.
@@ -54,7 +54,7 @@ const WHITE = new THREE.Color('#ffffff');
 
 interface TowerMesh {
   grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number; hp: number;
-  frost: { value: number }; seed: number; // the frost line, 0..1 of the body (frost.ts)
+  frost: { value: number }; seed: number; // the frost line, 0..1 of the body, and shard layout (frost.ts)
 }
 interface UnitMesh {
   sprite: THREE.Sprite; mat: THREE.SpriteMaterial; glow: THREE.Sprite; glowMat: THREE.SpriteMaterial; ghosts: THREE.Sprite[] | null;
@@ -425,9 +425,7 @@ export class PovBoard {
       if (!t) {
         const grp = new THREE.Group();
         const frost = { value: 0 }, seed = this.towers.size + 1 + tw.side * 3;
-        const stone = this.stone.clone();
-        frostStone(stone, frost, seed);
-        const base = new THREE.Mesh(this.body, stone);
+        const base = new THREE.Mesh(this.body, this.stone.clone());
         base.position.y = 1.1;
         base.castShadow = base.receiveShadow = true;
         const mat = new THREE.MeshStandardMaterial({ roughness: 0.4 });
@@ -479,7 +477,14 @@ export class PovBoard {
       // already down when we first saw it, or under reduced motion).
       const bodyH = 2.2 * t.grp.scale.y;
       if (!alive) this.rubble.crumble(key, t.grp.position.x, t.grp.position.z, r, bodyH, col, still() || fresh || v.status !== 'playing', t.seed);
-      if (!ghost && !lookout) this.ice.add(t.grp.position, r, bodyH, t.frost.value, t.seed, !alive);
+      if (!ghost && !lookout) {
+        this.ice.add(t.grp.position, r, bodyH, t.frost.value, t.seed, !alive);
+        // Now and then a glint catches on the frost, as in the menu's corners.
+        if (alive && !still() && Math.random() < dt * t.frost.value * 4) {
+          const a = Math.random() * Math.PI * 2;
+          this.fx.particle(tw.x + Math.sin(a) * r * 1.2, tw.y + Math.cos(a) * r * 1.2, Math.random() * t.frost.value * bodyH, 0, 0, 0.6, 0.45, 0.14, '#ffffff', 2);
+        }
+      }
     });
     this.ice.end();
     // Towers that stood back up (a rematch) or left the board take their rubble with them.
