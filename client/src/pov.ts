@@ -17,7 +17,7 @@ import { Scenery } from './scenery';
 import { poseFrame, spriteFailed } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 import { improvised } from './designer';
-import { frostLevel, Rubble, TowerIce } from './frost';
+import { frostBodyGeometry, frostLevel, frostStone, Rubble, TowerIce } from './frost';
 
 // Where you stand, in your own view coords (your back line is y = 0): height, resting pitch and
 // vertical field of view.
@@ -152,7 +152,7 @@ export class PovBoard {
   private ice!: TowerIce;
   private rubble!: Rubble;
   // Unit-radius tower parts, scaled per tower (the king is wider and taller).
-  private body = new THREE.CylinderGeometry(1, 1.15, 2.2, 8);
+  private body = frostBodyGeometry(); // the 8-sided body, cut into facets for the frost to take
   private crownGeo = new THREE.CylinderGeometry(1.15, 1, 0.5, 8);
   private gemGeo = new THREE.OctahedronGeometry(0.35);
   private shadowGeo = new THREE.CircleGeometry(1, 20);
@@ -425,7 +425,9 @@ export class PovBoard {
       if (!t) {
         const grp = new THREE.Group();
         const frost = { value: 0 }, seed = this.towers.size + 1 + tw.side * 3;
-        const base = new THREE.Mesh(this.body, this.stone.clone());
+        const stone = this.stone.clone();
+        frostStone(stone, frost, seed);
+        const base = new THREE.Mesh(this.body, stone);
         base.position.y = 1.1;
         base.castShadow = base.receiveShadow = true;
         const mat = new THREE.MeshStandardMaterial({ roughness: 0.4 });

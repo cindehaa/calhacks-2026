@@ -1,14 +1,21 @@
 // Towers and the cold (meta/aesthetics.md, "Tower frost"). Frost climbs a tower from its base as it
-// loses health, and during overtime it creeps up every tower whatever its health. It looks like
-// the frost in the menu's corners: long, thin, see-through ice shards, each with a lit and a
-// shadow half and a ridge down its middle, fanning up the walls from the foot (the tallest reach
-// the frost line), with icicles off the crown near the end. Every shard on the board is one instanced mesh. A destroyed tower crumbles: low-poly chunks
-// of stone and crown fall, bounce and settle as rubble round a frosted stump (one more).
+// loses health, and during overtime it creeps up every tower whatever its health. The walls are
+// cut into small irregular facets, and the ice takes them one by one from the foot: each iced
+// facet gets its own colour from a low-poly iceberg's range (white and mint where the art light
+// falls, through aqua and steel blue, to cobalt and violet in shadow), the newest along the front
+// paler, with tiny shards forming there and icicles off the crown near the end. The ice lives in
+// the tower's own stone shader (no extra draw calls); the shards are one instanced mesh. A
+// destroyed tower crumbles: low-poly chunks of stone and crown fall, bounce and settle as rubble
+// round a frosted stump (one more instanced mesh).
 import * as THREE from 'three';
 import { DOUBLE_ELIXIR_AT, MATCH_SECONDS } from '../../shared/arena';
 
 export const ICE = '#dbe9f4';
 export const ICE_DEEP = '#9cc3e0';
+
+// Lit to shadow, after a low-poly iceberg: white, mint, aqua, sky, steel, cobalt, violet.
+export const ICE_RAMP = ['#eefbfa', '#c6f2ee', '#9de6e3', '#78d2d6', '#8cc0e0', '#6f9fcf', '#557fc0', '#3f62ad', '#33489a', '#3f3a86', '#523d7a'];
+const FRESH = '#f4fbff'; // the newest facets along the front
 
 const RIME = 0.06; // a thin rime at the base even at full health: the night is cold
 const HURT_REACH = 0.86; // a tower one hit from falling is frosted this far up
@@ -25,30 +32,108 @@ export function frostLevel(hp: number, maxHp: number, time = 0, playing = true):
   return Math.max(hurt, OVERTIME_FROM + (OVERTIME_TO - OVERTIME_FROM) * k);
 }
 
-// One shard, as in the menu frost: a long blade from a blunt root (y = 0, half as wide as its
-// widest) out to its widest (x = ±1) three quarters along, then a short point at y = 1, with a
-// ridge down the middle raised toward +z. Flat shading splits it into a lit and a shadow half
-// either side of the ridge, and the point catches the light apart from the blade.
-function bladeGeometry(): THREE.BufferGeometry {
-  const rootL = [-0.5, 0, 0], rootC = [0, 0, 0.2], rootR = [0.5, 0, 0];
-  const midL = [-1, 0.75, 0], midC = [0, 0.75, 0.3], midR = [1, 0.75, 0], tip = [0, 1, 0];
-  const tris = [
-    rootL, rootC, midC, rootL, midC, midL, midL, midC, tip,
-    rootC, rootR, midR, rootC, midR, midC, midC, midR, tip,
-  ];
+// Where the ice's art light comes from, in the scene (the camera always looks toward −z): the
+// upper left of the view, so the faces you see run white and mint on the left to violet on the right.
+const ART_LIGHT = new THREE.Vector2(-0.8, 0.6).normalize();
+
+// The tower body, as the 8-sided cylinder it replaces (radius 1.15 at the foot, 1 at the top,
+// 2.2 tall, centred), with each face cut into small irregular triangles. Faces stay flat, so the
+// stone looks the same; each triangle carries `aIce`: its height up the wall (where the frost
+// takes it), how much it faces the art light, and an id for its colour.
+export function frostBodyGeometry(cols = 3, rows = 7): THREE.BufferGeometry {
+  const H = 2.2, rBot = 1.15, rTop = 1;
+  // Grid points on face f at column i (0…cols), row j (0…rows). Points inside a face are jittered
+  // within it; points on a shared edge only along the edge, the same for both faces.
+  const point = (f: number, i: number, j: number): [number, number, number] => {
+    let u = i / cols, v = j / rows;
+    const inner = j > 0 && j < rows;
+    if (i === 0 || i === cols) {
+      const edge = i === 0 ? f : (f + 1) % 8;
+      if (inner) v += (hash(edge + 400, j) - 0.5) * (0.7 / rows);
+    } else {
+      u += (hash(f * 97 + i * 13 + 500, j) - 0.5) * (0.7 / cols);
+      if (inner) v += (hash(f * 97 + i * 13 + 700, j) - 0.5) * (0.7 / rows);
+    }
+    const r = rBot + (rTop - rBot) * v;
+    const a0 = (f / 8) * Math.PI * 2, a1 = ((f + 1) / 8) * Math.PI * 2;
+    const x = r * (Math.sin(a0) * (1 - u) + Math.sin(a1) * u), z = r * (Math.cos(a0) * (1 - u) + Math.cos(a1) * u);
+    return [x, v * H - H / 2, z];
+  };
+  const pos: number[] = [], ice: number[] = [];
+  let id = 0;
+  const tri = (a: number[], b: number[], c: number[], lit: number) => {
+    const h = (a[1] + b[1] + c[1]) / 3 + H / 2;
+    pos.push(...a, ...b, ...c);
+    for (let k = 0; k < 3; k++) ice.push(h, lit, id);
+    id++;
+  };
+  for (let f = 0; f < 8; f++) {
+    const mid = ((f + 0.5) / 8) * Math.PI * 2;
+    const lit = 0.5 + 0.5 * (Math.sin(mid) * ART_LIGHT.x + Math.cos(mid) * ART_LIGHT.y);
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        const p00 = point(f, i, j), p10 = point(f, i + 1, j), p01 = point(f, i, j + 1), p11 = point(f, i + 1, j + 1);
+        // Outward-facing winding; the diagonal flips cell to cell so the facets don't line up.
+        if (hash(f * 11 + i, j + 600) < 0.5) { tri(p00, p10, p11, lit); tri(p00, p11, p01, lit); }
+        else { tri(p00, p10, p01, lit); tri(p10, p11, p01, lit); }
+      }
+    }
+  }
+  // The top: a flat octagon the frost never reaches.
+  for (let f = 0; f < 8; f++) {
+    const a0 = (f / 8) * Math.PI * 2, a1 = ((f + 1) / 8) * Math.PI * 2;
+    tri([0, H / 2, 0], [Math.sin(a0) * rTop, H / 2, Math.cos(a0) * rTop], [Math.sin(a1) * rTop, H / 2, Math.cos(a1) * rTop], 0);
+    ice[ice.length - 3] = ice[ice.length - 6] = ice[ice.length - 9] = 99;
+  }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3));
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('aIce', new THREE.Float32BufferAttribute(ice, 3));
   geo.computeVertexNormals();
   return geo;
 }
 
-// The shards glow a little more where you see them edge-on, like light passing through ice.
-function glowIce(shader: THREE.WebGLProgramParametersWithUniforms): void {
-  shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-  totalEmissiveRadiance += vec3(0.86, 0.91, 0.96) * pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.0) * 0.5;`);
+// Let the frost take a tower body's facets (frostBodyGeometry) in its stone material. `level` is
+// its frost uniform, 0..1 of the body's height; `seed` gives each tower its own colours and front.
+export function frostStone(mat: THREE.MeshStandardMaterial, level: { value: number }, seed: number): void {
+  const s = { value: seed };
+  mat.onBeforeCompile = shader => paintFrost(shader, level, s);
 }
 
-// Every tower's frost shards and icicles, in one draw call. Call begin(), add() each tower, then end().
+const ramp = ICE_RAMP.map(c => new THREE.Color(c)), fresh = new THREE.Color(FRESH);
+function paintFrost(shader: THREE.WebGLProgramParametersWithUniforms, level: { value: number }, seed: { value: number }): void {
+  Object.assign(shader.uniforms, { uFrost: level, uSeed: seed, uRamp: { value: ramp }, uFresh: { value: fresh } });
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute vec3 aIce;\nvarying vec3 vIce;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvIce = aIce;');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>
+varying vec3 vIce;
+uniform float uFrost, uSeed;
+uniform vec3 uRamp[${ramp.length}];
+uniform vec3 uFresh;
+float frostHash(float n) { return fract(sin(n * 12.9898 + uSeed * 78.233) * 43758.5453); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+  // A facet is iced once the frost line passes it (each facet a little early or late, so the
+  // front is ragged). Its colour comes off the iceberg ramp by how much it faces the art light,
+  // give or take; the newest facets along the front are paler, fresh rime.
+  float id = floor(vIce.z + 0.5);
+  float reach = uFrost * 2.2;
+  float at = vIce.x + (frostHash(id) - 0.5) * 0.3;
+  float iced = step(0.001, uFrost) * step(at, reach);
+  float fresh = iced * step(reach - 0.12, at) * step(0.4, frostHash(id + 19.0));
+  // Neighbouring facets shade alike (a slow drift over the wall), each nudged a step or so.
+  float drift = sin(vIce.x * 2.3 + uSeed * 1.7 + vIce.y * 5.0) * 1.6;
+  int k = int(clamp((1.0 - vIce.y) * 11.0 + 0.6 + drift + (frostHash(id + 7.0) - 0.5) * 2.5 + 0.5, 0.0, ${ramp.length - 1}.0));
+  vec3 ice = uRamp[k];
+  ice = mix(ice, uFresh, fresh * (0.35 + 0.35 * frostHash(id + 13.0)));
+  diffuseColor.rgb = mix(diffuseColor.rgb, ice, iced);`)
+    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.3, iced);')
+    // The ice holds its colours in the night: part of each facet's colour glows.
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += iced * diffuseColor.rgb * 0.38;');
+}
+
+// Tiny ice shards forming along each tower's frost front, and icicles off the crown near the end,
+// every tower's in one draw call. Call begin(), add() each tower, then end().
 export class TowerIce {
   readonly mesh: THREE.InstancedMesh;
   private n = 0;
@@ -58,16 +143,14 @@ export class TowerIce {
   private p = new THREE.Vector3();
   private s = new THREE.Vector3();
 
-  constructor(scene: THREE.Scene, max = 520) {
-    const mat = new THREE.MeshStandardMaterial({
-      color: '#ffffff', emissive: ICE_DEEP, emissiveIntensity: 1, roughness: 0.2, flatShading: true,
-      transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,
-    });
-    mat.onBeforeCompile = glowIce;
-    this.mesh = new THREE.InstancedMesh(bladeGeometry(), mat, max);
-    // Shards in the menu frost's two ices, a few nearly white.
-    const tint = new THREE.Color(), tints = [ICE, ICE, ICE_DEEP, '#c4dbee', '#f4f9fd'];
-    for (let i = 0; i < max; i++) this.mesh.setColorAt(i, tint.set(tints[Math.floor(hash(i, 3) * tints.length)]));
+  constructor(scene: THREE.Scene, max = 260) {
+    // A small six-sided crystal: a prism with a pointed tip, standing on its base, tip at y = 1.
+    const geo = new THREE.LatheGeometry([new THREE.Vector2(0, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 0.6), new THREE.Vector2(0, 1)], 6);
+    const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#bfe6ee', emissiveIntensity: 0.45, roughness: 0.25, flatShading: true });
+    this.mesh = new THREE.InstancedMesh(geo, mat, max);
+    // Each shard its own colour from the light end of the iceberg ramp.
+    const tint = new THREE.Color();
+    for (let i = 0; i < max; i++) this.mesh.setColorAt(i, tint.set(ICE_RAMP[Math.floor(hash(i, 3) * 6)]));
     this.mesh.frustumCulled = false; // instances spread over the whole board
     this.mesh.count = 0;
     scene.add(this.mesh);
@@ -79,34 +162,31 @@ export class TowerIce {
   // `seed` keeps each tower's shards in the same places frame to frame.
   add(at: THREE.Vector3, r: number, h: number, frost: number, seed: number, stump = false): void {
     if (frost <= 0) return;
-    const reach = Math.max(0.12, frost * h);
-    // Up the walls: bursts of shards radiating from the foot, as from the menu's corners. A big
-    // burst on every other face, its upright shard reaching the frost line and the rest splayed
-    // shorter, and a smaller one on the faces between, all overlapping.
-    for (let f = 0; f < 8; f++) {
-      const a = ((f + 0.5) / 8) * Math.PI * 2, big = f % 2 === 0;
-      const count = stump ? 4 : big ? 9 : 6, spread = big ? 1.05 : 0.8;
-      const out = r * 1.15 * Math.cos(Math.PI / 8) + 0.03; // just off the face at its foot
-      for (let k = 0; k < count; k++) {
-        const i = f * 10 + k, u = count > 1 ? (k / (count - 1)) * 2 - 1 : 0; // -1 … 1 across the burst
-        const tilt = u * spread + (hash(seed, i) - 0.5) * 0.18;
-        const len = reach * (big ? 1.15 : 0.8) * (1 - 0.5 * Math.abs(u)) * (0.8 + hash(seed, i + 7) * 0.35);
-        const slide = (hash(seed, i + 13) - 0.5) * r * 0.12; // roots bunched near the face's middle
-        this.p.set(at.x + Math.sin(a) * out + Math.cos(a) * slide, at.y, at.z + Math.cos(a) * out - Math.sin(a) * slide);
-        // Lie flat on the face (its +z out of the wall), lean in with the wall's taper, fan in-plane.
-        this.e.set(-0.06, a, tilt, 'YXZ');
-        this.put(len * 0.075 + r * 0.02, len);
+    const reach = frost * h;
+    // Shards forming on the wall just under the front: small (a tenth of a tile or so), in tight
+    // little clusters, pointing up and out.
+    const clusters = stump ? 4 : 8;
+    for (let c = 0; c < clusters; c++) {
+      const a = ((c + hash(seed, c + 300) * 0.8) / clusters) * Math.PI * 2;
+      const y = Math.max(0.02, reach - (0.04 + hash(seed, c + 310) * 0.14) * h / 2.2);
+      const wall = r * (1.15 - 0.15 * Math.min(1, y / h)) * Math.cos(Math.PI / 8);
+      for (let k = 0; k < 3; k++) {
+        const aa = a + (k - 1) * 0.07 / r;
+        const tall = (0.07 + hash(seed, c * 3 + k + 320) * 0.1) * (k === 1 ? 1.4 : 1);
+        this.p.set(at.x + Math.sin(aa) * wall, at.y + y, at.z + Math.cos(aa) * wall);
+        this.e.set(0.35 + Math.abs(k - 1) * 0.4, aa + (k - 1) * 0.5, 0, 'YXZ');
+        this.put(tall * 0.28, tall);
       }
     }
     if (stump || frost < ICICLES_AT) return;
-    // Icicles: shards hanging from the crown's flared rim, longer as the frost climbs.
-    const n = 8, rim = h * (2.7 / 2.2); // the crown's top edge
+    // Icicles hang from the crown's flared rim, longer as the frost climbs.
+    const n = 10, rim = h * (2.7 / 2.2); // the crown's top edge
     for (let i = 0; i < n; i++) {
-      const a = ((i + 0.5) / n) * Math.PI * 2;
-      const len = (0.28 + (frost - ICICLES_AT) * 2) * (0.6 + hash(seed, i + 70) * 0.6) * Math.max(1, r * 0.8);
-      this.p.set(at.x + Math.sin(a) * r * 1.14, at.y + rim, at.z + Math.cos(a) * r * 1.14);
-      this.e.set(0, a, Math.PI, 'YXZ');
-      this.put(r * 0.05, len);
+      const a = ((i + hash(seed, i + 340) * 0.6) / n) * Math.PI * 2;
+      const len = (0.14 + (frost - ICICLES_AT) * 1.3) * (0.5 + hash(seed, i + 70) * 0.7) * Math.max(1, r * 0.8);
+      this.p.set(at.x + Math.sin(a) * r * 1.1, at.y + rim, at.z + Math.cos(a) * r * 1.1);
+      this.e.set(Math.PI, a, 0, 'YXZ');
+      this.put(len * 0.22, len);
     }
   }
 
