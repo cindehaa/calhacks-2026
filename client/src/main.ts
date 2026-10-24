@@ -716,20 +716,6 @@ async function deployWithArt(nonce: number, spot: [number, number], description:
   if (url && m) call(m.attachSprite(description, url), () => {});
 }
 
-// Anchors skip Claude: lock and deploy in one go.
-function deployAnchor(i: number) {
-  const a = ANCHORS[i];
-  if (!a || match()?.status !== 'playing') return;
-  const spot = spotOrDefault();
-  const nonce = ++nonceSeq;
-  call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
-  const at = attempt(nonce, 'key');
-  at.released(a.description, 'anchor');
-  at.gotDesign({ design: a, cost: price(a), ms: 0, source: 'anchor' });
-  void deployWithArt(nonce, spot, a.description, a, requestSprite(a.description));
-  status(`${a.name}`);
-}
-
 // Dev only: drop any anchor by name at a spot, and reach the local match (headless view checks).
 if (import.meta.env.DEV) {
   Object.assign(window, {
@@ -838,14 +824,6 @@ $<HTMLFormElement>('describe').onsubmit = e => {
   deployDescription(text);
 };
 
-$('hand').innerHTML = ANCHORS.map(
-  (a, i) => `<button data-i="${i}">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}${escapeHtml(a.name)}</button>`
-).join('');
-$('hand').onclick = e => {
-  const b = (e.target as HTMLElement).closest('button');
-  if (b) deployAnchor(Number(b.dataset.i));
-};
-
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
     if (e.key === 'Escape') e.target.blur();
@@ -860,10 +838,7 @@ addEventListener('keydown', e => {
     return;
   }
   if ((e.key === 'p' || e.key === 'P') && local) return setPaused(true);
-  if (/^[0-9]$/.test(e.key)) {
-    if (input.mouseKeys) deployAnchor((Number(e.key) + 9) % 10);
-  }
-  else if (e.key === 'x' || e.key === 'X') flagMismatch();
+  if (e.key === 'x' || e.key === 'X') flagMismatch();
   else if (e.key === 't' || e.key === 'T') $('timings').hidden = !$('timings').hidden;
   else if (e.key === 'Escape') lock = null;
   else if (e.key === 'Enter' || e.key === '/') {

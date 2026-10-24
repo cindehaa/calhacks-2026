@@ -23,9 +23,6 @@ canvas#board3d { pointer-events: none; }
 #descInput { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: rgba(23, 27, 46, 0.2); color: var(--text); font-size: 16px; }
 #status { min-height: 1.4em; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #status.bad { color: var(--theirs); }
-#hand { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-#hand button { padding: 4px 8px; font-size: 12px; }
-#hand kbd { color: var(--muted); margin-right: 4px; }
 button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #2b3360; color: var(--text); font: inherit; cursor: pointer; }
 button:hover { background: #36407a; }
 button.ghost { background: transparent; }
@@ -324,7 +321,7 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
   clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); background: linear-gradient(160deg, #2a3266 0 56%, #212853 56% 100%); }
 #tools button.round:hover { background: linear-gradient(160deg, #343d78 0 56%, #29306a 56% 100%); }
 #tools button[hidden] { display: none; }
-body:not(.inHub) #camBtn { display: none; }
+body.devMode:not(.inHub) #camBtn { display: none; }
 
 /* camera / mic panel: the same small stone slabs as the tools */
 #inputPanel { top: 12px; left: 12px; z-index: 6; }
@@ -357,6 +354,8 @@ body:not(.inHub) #camBtn { display: none; }
 @media (max-aspect-ratio: 1/1) and (min-width: 641px) { .islandWrap { top: 19vh; } }
 /* the home screen has one camera control (top right, opens setup); the full panel comes back in a match */
 body.inHub #inputPanel { display: none; }
+/* outside /dev (devmode.ts) the panel is gone and the camera button stays in the tools during a match */
+body:not(.devMode) #inputPanel { display: none; }
 /* a lit top edge on every slab, so the faces read as cut stone rather than flat fills */
 .slab .face, .slabStatic > .face, .gPanel > .gFace { box-shadow: inset 0 1px 0 #ffffff26, inset 0 -1px 0 #0000004d; }
 .slab.amber .face { box-shadow: inset 0 2px 0 #ffffff70, inset 0 -1px 0 #0000004d; }
@@ -411,7 +410,6 @@ body.inHub #inputPanel { display: none; }
 #netStatus[hidden] { display: none; }
 
 #dock { width: min(660px, calc(100vw - 32px)); bottom: 14px; gap: 8px; align-items: stretch; }
-#dock #hand { width: min(860px, calc(100vw - 32px)); align-self: center; }
 /* elixir: a count gem and a ten-segment bar */
 #elixirRow { position: relative; display: flex; align-items: center; height: 34px; padding-left: 22px; }
 #elixirGem { position: absolute; left: 0; top: 50%; z-index: 1; width: 44px; height: 44px; transform: translateY(-50%); display: grid; place-items: center;
@@ -436,14 +434,6 @@ body.inHub #inputPanel { display: none; }
 #status { font: 600 14px var(--chakra); color: #c9cfe4; text-shadow: 0 1px 3px #000; }
 #status:empty { display: none; }
 #status.bad { color: #ff9aa4; }
-
-/* starter troops: small stone chips */
-#hand { gap: 5px; }
-#hand button { height: 30px; padding: 0 10px 0 8px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 0; border-bottom: 3px solid #0b0e22; color: #e8ebf5; font: 600 13px var(--chakra);
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); background: linear-gradient(160deg, #252b4ae6 0 56%, #1c2140e6 56% 100%); }
-#hand button:hover { color: #fff; background: linear-gradient(160deg, #343d6a 0 56%, #29305a 56% 100%); }
-#hand button:active { transform: translateY(2px); border-bottom-width: 1px; }
-#hand kbd { margin: 0; min-width: 18px; padding: 1px 4px; text-align: center; background: #0b0e22; color: var(--amber); font: 800 12px var(--chakra); }
 
 /* ---------- result screens: one entrance, then the weather keeps moving ---------- */
 .result .hubSky { z-index: 0; }

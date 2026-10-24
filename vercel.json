@@ -5,6 +5,7 @@
   "outputDirectory": "client/dist",
   "rewrites": [
     { "source": "/api/sprite/:name", "destination": "/api/sprite?name=:name" },
-    { "source": "/api/pose/:name", "destination": "/api/pose?name=:name" }
+    { "source": "/api/pose/:name", "destination": "/api/pose?name=:name" },
+    { "source": "/dev", "destination": "/index.html" }
   ]
 }
