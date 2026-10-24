@@ -63,7 +63,7 @@ export interface Airborne { side: number; x: number; y: number; frac: number; tr
 
 const DEAL_COLORS: Record<Deal, { fill: string; stroke: string; ink: string; glow: string | null }> = {
   bargain: { fill: 'rgba(78,52,8,0.96)', stroke: '#ffd27a', ink: '#fff1c9', glow: 'rgba(255,190,70,0.9)' },
-  fair: { fill: 'rgba(48,16,76,0.94)', stroke: '#c56cf0', ink: '#f3dcff', glow: null },
+  fair: { fill: 'rgba(58,24,8,0.94)', stroke: '#ff8a3d', ink: '#ffe2c4', glow: null }, // embers amber
   pricey: { fill: 'rgba(88,14,24,0.96)', stroke: '#ff5d6c', ink: '#ffd0d5', glow: 'rgba(255,70,90,0.7)' },
 };
 const ROLLING = { fill: 'rgba(30,22,52,0.94)', stroke: '#8e96b3', ink: '#e8ebf5', glow: null };

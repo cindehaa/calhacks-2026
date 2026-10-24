@@ -553,7 +553,7 @@ body.inHub #inputPanel { display: none; }
 #elixirRow { --ember: #ff8a3d; --heat: .5; }
 #elixirGem { clip-path: path('M22 1 C25 10 36 15 37 27 C38 37 31 43 22 43 C13 43 6 37 7 27 C8 20 13 17 15 10 C17 15 19 17 21 17 C20 11 20 6 22 1 Z');
   background: radial-gradient(circle at 50% 72%, #ffe9a8 0 18%, var(--ember) 48%, #c2410c 100%); filter: drop-shadow(0 3px 0 #5a1e04) drop-shadow(0 0 calc(4px + 10px * var(--heat)) #ff8a3d99); }
-#elixirText { color: #fff; text-shadow: 0 2px 0 #5a1e04; padding-top: 10px; font-size: 18px; }
+#elixirText { color: #3a1300; text-shadow: 0 1px 0 #ffe9a8; padding-top: 13px; font-size: 15px; letter-spacing: -.04em; }
 #elixir.kindling { background: #120a08d9; overflow: visible; }
 #elixir.kindling::after { display: none; }
 #elixir.kindling #elixirFill { background: linear-gradient(0deg, #ff8a3d 0, #c2410c55 60%, transparent 100%);
@@ -569,7 +569,7 @@ body.inHub #inputPanel { display: none; }
   box-shadow: 0 0 calc(6px * var(--lit)) #ff8a3dcc, inset 0 -1px 0 #1a0f0a; }
 #dock.double #elixir.kindling #elixirFill { background: linear-gradient(0deg, #ffb36b 0, #ff8a3d88 60%, transparent 100%); box-shadow: 0 0 22px #ff8a3dcc; }
 #dock.double #elixirGem { background: radial-gradient(circle at 50% 72%, #fff3c8 0 22%, #ffa860 52%, #d4500f 100%); filter: drop-shadow(0 3px 0 #5a1e04) drop-shadow(0 0 16px #ff8a3d); }
-#dock.double #elixirText { color: #fff; text-shadow: 0 2px 0 #5a1e04; }
+#dock.double #elixirText { color: #3a1300; text-shadow: 0 1px 0 #fff3c8; }
 #emberFlight { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
 .emberMote { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%;
   background: radial-gradient(circle, #fff3c8 0 25%, #ff8a3d 55%, #ff8a3d00 72%); box-shadow: 0 0 10px 3px #ff8a3d99; }
