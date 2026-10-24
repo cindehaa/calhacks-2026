@@ -708,6 +708,7 @@ async function deployDescription(description: string) {
 // Camera and mic: pinch or start talking to lock (beginDeploy), let go or go quiet to deploy.
 const input = new InputController(board.canvas, {
   playing: () => match()?.status === 'playing',
+  started: () => (match()?.time ?? -1) > 0.5,
   canDeploy: ([x, y]) => canDeployAt(x, y),
   toWorld: (px, py) => board.toWorld(px, py),
   begin: beginAt,

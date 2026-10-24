@@ -27,6 +27,7 @@ type Spot = [number, number]; // world coords
 // (null refuses); deploy() and cancel() finish it.
 export interface InputHost {
   playing(): boolean;
+  started?(): boolean; // past the versus card and countdown
   canDeploy(spot: Spot): boolean; // your half, or a pocket you've opened
   toWorld(px: number, py: number): Spot;
   begin(spot: Spot, by: string): number | null;
@@ -91,7 +92,6 @@ export class InputController {
   private heardWords = false; // the recogniser has returned words at least once
   private lostAt = 0; // when the hand went out of view, 0 while it's in view
   private lostCursor: Pt | null = null; // where it was, for the fade
-  private playingSince = 0;
   private fellBack = false; // Cartesia gave up; say so once, in a match
   private hinted = false; // the how-to after a fire with no words shows once
   private flaggedAt = 0; // last mismatch flag: interim words flag it, then the final repeats them
@@ -224,11 +224,8 @@ export class InputController {
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
     this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
-    const playing = this.host.playing();
-    if (!playing) this.playingSince = 0;
-    else if (!this.playingSince) this.playingSince = now;
-    // After the versus card and countdown, so it isn't missed under them.
-    if (this.fellBack && this.mic.on && playing && now - this.playingSince > 4500) {
+    // Once the countdown is over, so it isn't missed under the versus card.
+    if (this.fellBack && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) {
       this.fellBack = false;
       notice(this.speech.available ? 'Using your browser’s speech instead · same game, a touch slower' : 'No speech here · type the troop instead', { tone: 'warn', ms: 3400, key: 'speech', rank: 1 });
     }
