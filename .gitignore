@@ -1,0 +1,11 @@
+# secrets
+.env
+.env.*
+!.env.example
+spacetime.local.json
+# local stuff
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+.DS_Store

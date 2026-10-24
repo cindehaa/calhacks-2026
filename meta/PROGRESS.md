@@ -6,49 +6,41 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 
 ## Where we are
 
-Prep is done: latency is measured, the troop designer prompt is tested, pricing is calibrated, and hand tracking, the voice-to-troop loop and SpacetimeDB rooms have all been prototyped as throwaway experiments. **No game code exists in this repo yet.** Next is phase 1 of the build plan.
+**Phase 1 is scaffolded and running locally.** Two browsers can join a room, start a 90 s match and fight with the 10 anchor troops. Combat runs on the SpacetimeDB server at 20 Hz from the start. Typed descriptions go through Claude and deploy, so part of phase 2 is in too. The Claude call has not been run with a real key yet. See [README.md](../README.md) for how to run it.
 
 ## Build plan status
 
 | Phase | Person A: game + multiplayer | Person B: AI + input | Status |
 |---|---|---|---|
-| 1 | SpacetimeDB rooms; arena, lanes, towers, elixir, hardcoded troops fighting in a shared `step()` | Troop designer: text in, JSON stats out; cost formula; anchors | **Next** |
-| 2 | Hook designer up via a text box | Cartesia STT with push-to-talk | Not started (cut line) |
+| 1 | SpacetimeDB rooms; arena, lanes, towers, elixir, hardcoded troops fighting in a shared `step()` | Troop designer: text in, JSON stats out; cost formula; anchors | **Done locally**; needs a real-key test and a two-laptop test |
+| 2 | Hook designer up via a text box | Cartesia STT with push-to-talk | Text box done; STT **next** (cut line) |
 | 3 | Code animations, silhouette placeholder, headless sim | Hand tracking, lock, drag-off cancel, voice click | Not started |
-| 4 | `step()` in the 20 Hz server tick; interpolation, rematch, demo room | Sprite gen, background removal, cache, anchor art, TTS cries | Not started |
+| 4 | Interpolation, rematch, demo room (server tick moved to phase 1) | Sprite gen, background removal, cache, anchor art, TTS cries | Interpolation, rematch, demo room done early |
 | 5 | Polish, tutorial overlay, sound | Polish, Devpost writeup, backup video | Not started |
+
+## Done so far
+
+- [x] Repo scaffold: `shared/`, `server/`, `client/`, `api/` (layout in [README.md](../README.md)).
+- [x] SpacetimeDB module imports `shared/` directly; `spacetime build` bundles it, no copy step needed.
+- [x] Tables `player`, `room`, `troop`, `unit`, `tower`, `pending`, `match_timer`. Reducers `create_room`, `join_room` (`DEMO` creates itself), `leave_room`, `start_match` (also rematch), `begin_deploy`, `deploy_troop`, `cancel_deploy`, `set_troop_sprite`, and the 20 Hz `tick`.
+- [x] `shared/sim.ts` `step()`: deploy delay, nearest-enemy targeting, attacks on a cooldown, towers shooting back, separation, elixir regen (doubled in the last 30 s), win by towers then tower health. 8 tests in `shared/sim.test.ts`.
+- [x] Deploys lock first (`begin_deploy`), so the 2.5 s delay overlaps troop generation. The opponent sees the locked spot and a countdown.
+- [x] Server re-clamps and re-prices every deploy, rejects cost over 10 or over current elixir, and the client shows what it would have cost.
+- [x] Canvas client: lobby, room codes, board rotated so your side is at the bottom, towers, units, pending drops, elixir bar, clock, result screen, rematch, 20 Hz interpolation.
+- [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
+- [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
 
 ## Next up
 
-Phase 1, in order. Each item ends in something you can see working.
+**To finish phase 1**
+- [ ] Put a real `ANTHROPIC_API_KEY` in `.env` and run the 30 test descriptions through `/api/troop`. Check the prompt fixes: "god" gets ordinary stats, "1000 ants" isn't max count, Pikachu's cry doesn't say "Pika", blob names vary.
+- [ ] Two laptops on one network, or Maincloud: one match end to end.
 
-**Person A — game + multiplayer**
-- [ ] Scaffold the repo (layout below). First check that the SpacetimeDB module can import `shared/`: if `spacetime build` won't bundle a sibling folder, copy `shared/` into the module with a script instead.
-- [ ] Tables `player`, `room`, `unit`, `tower`, `match_timer`. Reducers: `create_room` (4-letter code, no I/O), `join_room` (joining `DEMO` creates it), `leave_room`, `start_match`, `deploy_troop`.
-- [ ] Canvas arena: vertical, dark, 3 lanes, towers on each side, elixir bar, 90 s clock.
-- [ ] `shared/step(state, dt)`: walk the lane, target the nearest enemy in range, attack on a cooldown, towers shoot back, units die, towers fall.
-- [ ] Hardcoded anchor troops deployable with keys 1–7 or a click. Done when two browsers in one room watch the same fight.
+**Phase 2 (the cut line)**
+- [ ] Cartesia STT push-to-talk: stream mic audio through `api/` while a key or mouse button is held, show the transcript live, deploy on release.
+- [ ] Tune elixir rate, tower damage and K from the first real matches.
 
-**Person B — AI + input**
-- [ ] `api/` key proxy (Node + TypeScript), so keys never reach the browser: `POST /troop` calls Claude and returns stats + cost; `POST /warm` warms everything at match start.
-- [ ] Troop designer in `shared/troop/`: system prompt, JSON schema, clamps, `price()`, battle-cry trim to 8 words. Use the tested prompt as the starting point.
-- [ ] Fix the anchors before they go in the prompt: swarm health 40 is below the 50 clamp and sits on the 3/4 cost edge. Add the 3 missing anchors to reach 10.
-- [ ] A text box that shows the resulting troop card (name, stats, cost, cry). Done when any description gives a priced troop in under 2.5 s.
-
-### Recommendation: run combat on the server from phase 1
-
-The spec puts `step()` in the server tick in phase 4. The rooms spike already ran a 20 Hz scheduled tick reliably, so running `step()` there from day one costs little. It also avoids two browsers each simulating their own copy and drifting apart, then a rewrite in phase 4. Clients only render unit rows. The same `step()` still runs locally for bot mode and the headless sim.
-
-### Proposed repo layout
-
-```
-server/   SpacetimeDB TypeScript module: tables, reducers, the 20 Hz tick that calls step()
-client/   Vite + TypeScript: canvas arena, input (hand, voice, mouse, text), audio
-shared/   step(), unit/tower types, troop schema, clamps, price(), anchors
-api/      Node key proxy: Claude troop designer, Cartesia STT/TTS, image gen
-sim/      headless balancing harness (phase 3), runs shared/step()
-meta/     SPEC.md and this file
-```
+**Phase 3 and later** — hand tracking (port the finger-lab settings below into `client/src/hand.ts`), headless balance sim on `shared/sim.ts`, bot mode, code animations (units already carry `attackSeq`), sprites and TTS cries.
 
 ## What prep settled
 
@@ -76,19 +68,22 @@ Release → stats ready is **2.21 s at p90 with Haiku**, inside the 2.5 s deploy
 
 ### Pricing and anchors
 
-Formula and K = 95 are in [SPEC.md](SPEC.md#pricing). Anchors used as few-shot references, and the cost each prices at:
+Formula and K = 95 are in [SPEC.md](SPEC.md#pricing). The 10 anchors now live in `shared/anchors.ts` (the original 7, with the swarm fixed, plus a cheap skirmisher, a ranged pair and a fast tank). `npm test` fails if a stat change moves an anchor's cost.
 
-| Role | health | damage | atk/s | move | range | count | Cost |
+| Anchor | health | damage | atk/s | move | range | count | Cost |
 |---|---|---|---|---|---|---|---|
-| Swarm (bees) | 40* | 20 | 1.2 | 1.6 | 1 | 8 | 3 |
-| Melee mini-tank (knight) | 900 | 110 | 0.8 | 0.8 | 1 | 1 | 3 |
-| Ranged caster (wizard) | 380 | 260 | 0.8 | 0.9 | 5 | 1 | 4 |
-| Fast assassin (ninja) | 360 | 230 | 1.3 | 1.9 | 1 | 1 | 4 |
-| Splash (bomber) | 650 | 300 | 0.7 | 0.8 | 4 | 1 | 5 |
-| Glass cannon (sniper) | 220 | 600 | 1.6 | 1.0 | 5 | 1 | 6 |
-| Big tank (golem) | 3000 | 300 | 0.6 | 0.5 | 1 | 1 | 7 |
+| Goblin Scrapper | 300 | 90 | 1.1 | 1.5 | 1 | 1 | 2 |
+| Bee Swarm | 50 | 18 | 1.2 | 1.6 | 1 | 8 | 3 |
+| Shield Knight | 900 | 110 | 0.8 | 0.8 | 1 | 1 | 3 |
+| Twin Archers | 200 | 70 | 1.0 | 1.0 | 5 | 2 | 3 |
+| Fire Wizard | 380 | 260 | 0.8 | 0.9 | 5 | 1 | 4 |
+| Shadow Ninja | 360 | 230 | 1.3 | 1.9 | 1 | 1 | 4 |
+| Bomb Lobber | 650 | 300 | 0.7 | 0.8 | 4 | 1 | 5 |
+| Iron Charger | 1100 | 180 | 0.8 | 1.6 | 1 | 1 | 5 |
+| Rooftop Sniper | 220 | 600 | 1.6 | 1.0 | 5 | 1 | 6 |
+| Stone Golem | 3000 | 300 | 0.6 | 0.5 | 1 | 1 | 7 |
 
-\* Below the 50 clamp; after clamping it prices at about 3.4. Fix before use.
+Towers (first pass): 2400 health, 60 damage per second, range 6, so no troop outranges them. A lone golem can take a side tower but not the middle one, which all three towers cover. Lone small troops die without much tower damage.
 
 Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 0, hence the floor of 1.
 
@@ -153,12 +148,10 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 
 ## Known issues to fix while building
 
-- Swarm anchor: health below the clamp, and its cost sits on the 3/4 edge.
-- Haiku gave "a god that kills everything" near-tank stats at cost 8, against the "ordinary stats" rule.
-- "1000 ants" pushed count to the max of 12 on Sonnet.
-- Battle cries can run over 8 words, and the schema can't enforce that: trim in code.
-- The Pikachu battle cry echoed "Pika". "Confused Blob" is the same every time; let the name vary.
-- There's no splash stat in the schema, but the bomber anchor is meant to be a splash unit.
+- Prompt changes for "god" (capped at mini-tank or caster strength), "1000 ants" (same count as the bee swarm), Pikachu (no character name or catchphrase in the cry) and varied blob names are written but not yet tested against the API.
+- Battle cries are trimmed to 8 words in code (`sanitizeDesign`).
+- There's no splash stat yet, so the bomber is now "Bomb Lobber", a plain heavy ranged unit. Add a `splash` field if we want area damage.
+- Swarms deployed next to your own tower overlap it visually; harmless.
 - Voice "cancel" can lose the race with the 500 ms quiet timer; try 700 ms.
 
 ## Decisions log
@@ -173,13 +166,16 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-23 | Controls: knuckle aim, thumb + middle pinch or speech to lock, drag-off cancel. Fist gesture dropped. |
 | 2026-10-23 | Pricing draft K = 95 kept; tune from playtests at the event. |
 | 2026-10-24 | Build repo set up, with `meta/` for the spec and this log. |
+| 2026-10-24 | Combat runs in the server tick from phase 1, not phase 4. |
+| 2026-10-24 | Deploys are two calls: `begin_deploy` locks the spot and starts the 2.5 s clock, `deploy_troop` sends the stats. |
+| 2026-10-24 | Three towers a side, one per lane; units walk straight at the nearest enemy tower unless an enemy unit is within 5.5 tiles. |
+| 2026-10-24 | Anchors expanded to 10; tower damage 60/s, range 6 (first pass). |
 
 ## Open questions
 
 The full list is in [SPEC.md](SPEC.md#open-questions). Still open now:
 
 - Over-10 troops: reject and show the cost (the spec), or scale health and damage down by 10/cost so it fits, which adds no latency.
-- Where `step()` runs in phases 1–3 (see the recommendation above).
 - What the opponent sees of a pending deploy.
 - Anthropic, SpacetimeDB and Supercell track criteria.
 - Game name, and who presents.
