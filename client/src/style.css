@@ -580,3 +580,8 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .vsMe::before { background-image: var(--damask-raven); } .vsThem::before { background-image: var(--damask-sun); }
 .vsSide::after { left: 50%; top: 50%; width: min(70vh, 44vw); aspect-ratio: 1; transform: translate(-50%, -50%); background: center / contain no-repeat; opacity: .5; mix-blend-mode: overlay; } /* etched into the cloth, not pasted on */
 .vsMe::after { background-image: var(--emblem-raven); left: 46%; } .vsThem::after { background-image: var(--emblem-sun); left: 54%; }
+
+/* faceted 3D icons (icons.ts): lit and shadowed facets on an extruded side, like the slabs */
+.ico { display: inline-flex; line-height: 0; flex: none; }
+.ico svg, svg.ico3d { display: block; }
+.slab:disabled .ico { filter: grayscale(1) brightness(1.6); opacity: .45; }

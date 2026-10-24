@@ -3,6 +3,8 @@
 // or if it fails. The AudioContext starts on the first user gesture, as browsers require. M or
 // the speaker button mutes everything, music included; the choice is remembered.
 
+import { icon } from './icons';
+
 export type SfxName =
   | 'deploy' | 'incoming' | 'land' | 'hit' | 'attack' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
   | 'count' | 'fight' | 'double' | 'overtime' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw'
@@ -446,8 +448,8 @@ class Sfx {
 export const sfx = new Sfx();
 
 // The speaker button and the M key.
-const SPEAKER_ON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-const SPEAKER_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const SPEAKER_ON = icon('speaker', 'light', 20);
+const SPEAKER_OFF = icon('muted', 'light', 20);
 
 function syncButton() {
   const b = document.getElementById('muteBtn');
