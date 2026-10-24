@@ -21,7 +21,7 @@ import { hubFx, resultFx } from './hubfx';
 import { tapestry } from './banner';
 import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
-import { notice } from './notice';
+import { clearNotice, notice } from './notice';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
@@ -39,18 +39,55 @@ const mvp = new MvpTracker(); // your best troop this round, for the result scre
 
 // ---------- connection ----------
 
-connect(
-  n => {
-    net = n;
-    online = new OnlineMatch(n);
-    attachLogs(n);
-    netMsg('');
-    const name = savedName();
-    if (name) call(n.conn.reducers.setName({ name }));
-  },
-  netMsg
-);
+function dial() {
+  connect(
+    n => {
+      net = n;
+      online = new OnlineMatch(n);
+      attachLogs(n);
+      netMsg('');
+      const name = savedName();
+      if (name) call(n.conn.reducers.setName({ name }));
+    },
+    netMsg
+  );
+}
+dial();
+
+// The connection dropped: "reconnecting…" while it redials every few seconds, and if that's
+// taking a while mid-match, an offer to switch to Play vs Bot. Clears once it's back.
+let droppedAt = 0;
+let redial: ReturnType<typeof setTimeout> | undefined;
+function dropped() {
+  const midMatch = !local && myRoom()?.status === 'playing';
+  if (!droppedAt) droppedAt = performance.now();
+  const offer = (local: boolean) => {
+    if (local) return;
+    if (performance.now() - droppedAt > 4000) notice('Still reconnecting…', { tone: 'bad', hold: true, rank: 2, key: 'net', action: { label: 'Play vs Bot', run: switchToBot } });
+    else notice('Reconnecting…', { tone: 'bad', hold: true, rank: 2, key: 'net' });
+  };
+  if (midMatch) offer(false);
+  clearTimeout(redial);
+  redial = setTimeout(() => {
+    if (!droppedAt) return;
+    if (myRoom()?.status === 'playing') offer(!!local);
+    dial();
+  }, 2500);
+}
+function switchToBot() {
+  clearNotice('net');
+  droppedAt = 0;
+  clearTimeout(redial);
+  startBot(botLevel);
+}
 function netMsg(s: string) {
+  if (s === 'disconnected' || (droppedAt && s.startsWith("can't reach"))) dropped();
+  else if (!s && droppedAt) {
+    droppedAt = 0;
+    clearTimeout(redial);
+    clearNotice('net');
+    notice('Back online', { tone: 'good', ms: 1600, key: 'netBack' });
+  }
   $('netStatus').textContent = s;
   // The hub says it plainly; the HUD keeps the raw status for debugging.
   const state = !s ? 'online' : s === 'connected' || s === 'connecting…' ? 'joining' : 'off';
@@ -823,7 +860,7 @@ function frame() {
   $('roomInfo').classList.toggle('double', double);
   $('dock').classList.toggle('double', double);
   // The raw connection state only matters online, and only when something is wrong.
-  $('netStatus').hidden = !!local || !$('netStatus').textContent;
+  $('netStatus').hidden = !!local || !$('netStatus').textContent || droppedAt > 0; // the reconnect banner says it plainly
   const elixir = m.elixir;
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
