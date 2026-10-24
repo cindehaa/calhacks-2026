@@ -40,3 +40,24 @@ input { font: inherit; }
 .error { color: var(--theirs); min-height: 1.4em; margin: 0; }
 #players { margin: 0; padding-left: 18px; }
 #codeInput { width: 90px; text-transform: uppercase; }
+
+#tools { z-index: 3; position: fixed; top: 10px; right: 12px; display: flex; gap: 8px; }
+button.round { width: 34px; height: 34px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--panel); color: var(--muted); }
+button.round:hover { background: #232948; color: var(--text); }
+button.round.off { color: var(--theirs); }
+button.round svg { width: 18px; height: 18px; }
+.tut { width: min(460px, calc(100vw - 32px)); position: relative; overflow: hidden; gap: 14px; }
+.tutHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tut ol { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 9px; }
+.tut li { counter-increment: s; display: flex; gap: 10px; align-items: baseline; color: var(--muted); }
+.tut li::before { content: counter(s); flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--text); background: #2b3360; transform: translateY(-1px); }
+.tut li:nth-child(6)::before { background: #4d2a6e; }
+.tut li b { color: var(--text); }
+.tut kbd { padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 12px; }
+.tutFoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tutTimer { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--line); }
+.tutTimer i { display: block; height: 100%; width: 100%; background: var(--mine); transform-origin: left; }
+.tutTimer.run i { animation: tutdrain 10s linear forwards; }
+@keyframes tutdrain { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .tutTimer.run i { animation: none; } }
+#tutorial { z-index: 10; }

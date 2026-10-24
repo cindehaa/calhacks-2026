@@ -4,6 +4,8 @@ import type { TroopDesign } from '../../shared/troop';
 import { designTroop, warmDesigner } from './designer';
 import { connect, type Net } from './net';
 import { Board, type DrawUnit } from './render';
+import { sfx } from './sfx';
+import './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new Board($<HTMLCanvasElement>('board'));
@@ -135,6 +137,7 @@ function sendDeploy(nonce: number, [x, y]: [number, number], description: string
     }),
     msg => {
       call(net?.conn.reducers.cancelDeploy({ nonce }), () => {});
+      sfx.play('buzz');
       const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
       status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
     }
@@ -223,7 +226,7 @@ function frame() {
   const r = myRoom();
   if (!net || !r) {
     $('roomInfo').textContent = '';
-    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null });
+    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' });
     return;
   }
   const side = mySide();
@@ -242,10 +245,10 @@ function frame() {
   for (const u of net.conn.db.unit.iter()) {
     if (u.roomCode !== r.code) continue;
     const [x, y] = drawnPos(u.id, u.x, u.y);
-    units.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay });
+    units.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range });
   }
   const troops = new Map(
-    [...net.conn.db.troop.iter()].filter(t => t.roomCode === r.code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl }])
+    [...net.conn.db.troop.iter()].filter(t => t.roomCode === r.code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description }])
   );
   const nowMicros = BigInt(Date.now()) * 1000n;
   const pendings = [...net.conn.db.pending.iter()]
@@ -260,6 +263,9 @@ function frame() {
     pendings,
     aim: r.status === 'playing' ? aim : null,
     lock: r.status === 'playing' ? lock : null,
+    time: r.time,
+    status: r.status,
+    winner: r.winner,
   });
 }
 

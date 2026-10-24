@@ -29,6 +29,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Canvas client: lobby, room codes, board rotated so your side is at the bottom, towers, units, pending drops, elixir bar, clock, result screen, rematch, 20 Hz interpolation.
 - [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
 - [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
+- [x] Game feel: emoji-on-disc placeholder tokens (size by sqrt of health), walk bob, melee lunge, ranged and tower projectiles, hit flash and damage numbers, death poofs, landing rings, tower crumble with shake, 3-2-1 / FIGHT and DOUBLE ELIXIR banners, cost pills and non-overlapping name labels, INCOMING marker for the opponent's drop, synthesized sound effects (M or the speaker button mutes), and a first-time how-to-play card (reopen with `?`). Code in `client/src/{fx,tokens,sfx,tutorial}.ts` and `render.ts`.
 
 ## Next up
 
