@@ -2,7 +2,7 @@
 // Combat itself lives in shared/sim.ts; this file only moves rows in and out of it.
 import { ScheduleAt } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import { COUNTDOWN, ELIXIR_START, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, newUnit, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, VoiceStyle } from '../../shared/troop';
@@ -253,11 +253,12 @@ export const beginDeploy = spacetimedb.reducer(
   { nonce: t.u32(), x: t.f32(), y: t.f32() },
   (ctx, { nonce, x, y }) => {
     const { r, side } = myMatch(ctx);
-    if (!onOwnHalf(side, y)) throw new SenderError('deploy on your own half');
+    const towers = [...ctx.db.tower.roomCode.filter(r.code)];
+    if (!canDeploy(side, x, y, towers)) throw new SenderError('deploy on your own half');
     for (const p of ctx.db.pending.roomCode.filter(r.code)) {
       if (p.owner.equals(ctx.sender) && p.nonce === nonce) return;
     }
-    const [cx, cy] = clampToHalf(side, x, y);
+    const [cx, cy] = clampDeploy(side, x, y, towers);
     ctx.db.pending.insert({ id: 0n, roomCode: r.code, owner: ctx.sender, nonce, side, x: cx, y: cy, createdAt: ctx.timestamp });
   }
 );
@@ -320,12 +321,13 @@ export const deployTroop = spacetimedb.reducer(
 
     // Land where the spot was locked, DEPLOY_DELAY after the lock.
     const p = findPending(ctx, a.nonce);
+    const towers = [...ctx.db.tower.roomCode.filter(r.code)];
     let x = a.x, y = a.y, delay = arrivalDelay(0);
     if (p) {
       x = p.x; y = p.y;
       delay = arrivalDelay(Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6);
       ctx.db.pending.id.delete(p.id);
-    } else if (!onOwnHalf(side, y)) {
+    } else if (!canDeploy(side, x, y, towers)) {
       throw new SenderError('deploy on your own half');
     }
 
@@ -355,7 +357,7 @@ export const deployTroop = spacetimedb.reducer(
       element: design.element,
       flavor: design.flavor,
     });
-    for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
+    for (const [ux, uy] of unitSpots(side, x, y, design.count, towers)) {
       const { id: _id, side: _side, ...u } = newUnit(0, side, ux, uy, design, delay);
       ctx.db.unit.insert({ ...u, id: 0n, roomCode: r.code, troopId: tr.id, side });
     }

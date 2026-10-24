@@ -76,7 +76,13 @@ export class Mic {
     const sink = this.ctx.createGain();
     sink.gain.value = 0;
     this.ctx.createMediaStreamSource(this.stream).connect(this.an).connect(sink).connect(this.ctx.destination);
-    await this.ctx.resume();
+    // Started without a click (turned back on at page load), the context stays suspended until one.
+    if (this.ctx.state !== 'running') {
+      const resume = () => void this.ctx?.resume();
+      addEventListener('pointerdown', resume, { once: true });
+      addEventListener('keydown', resume, { once: true });
+      resume();
+    }
   }
 
   stop(): void {

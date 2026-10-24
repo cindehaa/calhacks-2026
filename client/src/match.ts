@@ -29,6 +29,7 @@ export function quirkView(u: Omit<UnitQuirkView, 'attack' | 'targets' | 'onHit' 
   };
 }
 export interface MatchTower extends DrawTower {
+  lane: number;
   attackSeq: number;
 }
 

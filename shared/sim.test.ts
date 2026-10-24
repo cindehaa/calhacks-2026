@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors';
-import { DEPLOY_DELAY, LANE_X, MATCH_SECONDS, TICK_HZ, formation, type Side } from './arena';
+import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, formation, type Side } from './arena';
 import { newMatch, newUnit, step, type SimState } from './sim';
 import { MAX_COST, clampStats, price, sanitizeDesign, type TroopStats } from './troop';
 
@@ -45,17 +45,17 @@ test('sanitizeDesign trims the cry and fixes a bad voice', () => {
 
 test('units wait out the deploy delay, then walk at the enemy tower', () => {
   const s = newMatch();
-  spawn(s, 0, ANCHORS[0], LANE_X[0], 10);
+  spawn(s, 0, ANCHORS[0], BRIDGE_X[0], 10);
   run(s, DEPLOY_DELAY - 0.2);
   assert.equal(s.units[0].y, 10);
   run(s, 1);
   assert.ok(s.units[0].y > 10);
 });
 
-test('an unopposed golem takes a side tower and wins', () => {
+test('an unopposed golem takes a princess tower and wins', () => {
   const s = newMatch();
   const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
-  spawn(s, 0, golem, LANE_X[0], 12);
+  spawn(s, 0, golem, BRIDGE_X[0], 12);
   const r = run(s, MATCH_SECONDS + 1);
   assert.ok(r.over);
   assert.equal(r.winner, 0);
@@ -72,8 +72,8 @@ test('an empty match is a draw at 90 s', () => {
 
 test('opposing troops fight each other before the towers', () => {
   const s = newMatch();
-  spawn(s, 0, ANCHORS.find(a => a.name === 'Shield Knight')!, LANE_X[0], 13);
-  spawn(s, 1, ANCHORS.find(a => a.name === 'Goblin Scrapper')!, LANE_X[0], 17);
+  spawn(s, 0, ANCHORS.find(a => a.name === 'Shield Knight')!, BRIDGE_X[0], 13);
+  spawn(s, 1, ANCHORS.find(a => a.name === 'Goblin Scrapper')!, BRIDGE_X[0], 17);
   run(s, 15);
   assert.equal(s.units.filter(u => u.side === 1).length, 0, 'goblin should lose to the knight');
   assert.equal(s.towers.filter(t => t.hp < t.maxHp && t.side === 0).length, 0);
@@ -82,7 +82,7 @@ test('opposing troops fight each other before the towers', () => {
 test('the pre-match countdown freezes elixir and units', () => {
   const s = newMatch();
   s.time = -3;
-  spawn(s, 0, ANCHORS[0], LANE_X[0], 10);
+  spawn(s, 0, ANCHORS[0], BRIDGE_X[0], 10);
   run(s, 2.9);
   assert.ok(s.time < 0 && s.time > -0.2);
   assert.equal(s.elixir[0], 5);
@@ -91,12 +91,15 @@ test('the pre-match countdown freezes elixir and units', () => {
   assert.ok(s.time > 0.8 && s.elixir[0] > 5);
 });
 
-// Tier 1 quirks. One attacker on side 0, dummies on side 1 that barely hit back.
+// Tier 1 quirks. One attacker on side 0, dummies on side 1 that barely hit back. The towers are
+// held quiet: the princess towers now stand close enough to reach some of the dummies.
+const quiet = (s: SimState) => { for (const t of s.towers) t.cooldown = Infinity; };
 const dummy = { health: 1000, damage: 10, attack_speed: 1, move_speed: 0.3, range: 1 };
 function quirkFight(attacker: Parameters<typeof newUnit>[4], dummies: [number, number][], ax = 9, ay = 10) {
   const s = newMatch();
   s.units.push(newUnit(1, 0, ax, ay, attacker, 0));
   dummies.forEach(([x, y], i) => s.units.push(newUnit(10 + i, 1, x, y, dummy, 0)));
+  quiet(s);
   step(s, 1 / TICK_HZ);
   return { s, a: s.units[0], hp: dummies.map((_, i) => s.units.find(u => u.id === 10 + i)!.hp) };
 }
@@ -184,6 +187,7 @@ test('flying: melee units cannot hit it, ranged units can', () => {
   const s = newMatch();
   s.units.push(newUnit(1, 0, 9, 10, { ...shooter, range: 1 }, 0), newUnit(2, 0, 3, 10, shooter, 0));
   s.units.push(newUnit(10, 1, 9, 10.5, flyer, 0), newUnit(11, 1, 3, 13, flyer, 0));
+  quiet(s);
   ticks(s, 1);
   assert.equal(unit(s, 10).hp, 1000);
   assert.equal(unit(s, 11).hp, 900);
@@ -238,4 +242,57 @@ test('charge: after 2 tiles of walking the next hit doubles', () => {
   while (a.attackSeq === 0) step(s, 1 / TICK_HZ);
   assert.equal(unit(s, 10).hp, 800);
   assert.equal(a.chargeDist, 0);
+});
+
+test('troops cross the river only on a bridge', () => {
+  const s = newMatch();
+  spawn(s, 0, ANCHORS.find(a => a.name === 'Stone Golem')!, 9, 10); // mid-board, between the bridges
+  const u = s.units[0];
+  let crossedAt: number | null = null;
+  for (let i = 0; i < 30 * TICK_HZ && u.hp > 0; i++) {
+    step(s, 1 / TICK_HZ);
+    if (Math.abs(u.y - MID_Y) < RIVER_HALF) {
+      assert.ok(BRIDGE_X.some(bx => Math.abs(u.x - bx) <= BRIDGE_HALF), `in the water at x ${u.x.toFixed(2)}`);
+      crossedAt ??= u.x;
+    }
+  }
+  assert.notEqual(crossedAt, null, 'should have crossed');
+  assert.ok(u.y > MID_Y + RIVER_HALF);
+});
+
+test('flying units go straight over the river, not round by a bridge', () => {
+  const s = newMatch();
+  s.units.push(newUnit(1, 0, 9, 10, { ...dummy, move_speed: 1, trait: 'flying' }, 0));
+  quiet(s);
+  const u = s.units[0];
+  let overWater = false;
+  for (let i = 0; i < 10 * TICK_HZ; i++) {
+    step(s, 1 / TICK_HZ);
+    if (Math.abs(u.y - MID_Y) < RIVER_HALF && BRIDGE_X.every(bx => Math.abs(u.x - bx) > BRIDGE_HALF)) overWater = true;
+  }
+  assert.ok(overWater, 'crossed between the bridges');
+  assert.ok(u.y > MID_Y + RIVER_HALF);
+});
+
+test('the king sleeps until a princess tower falls, and losing it ends the match', () => {
+  const s = newMatch();
+  const king = s.towers.find(t => t.side === 1 && t.lane === KING_LANE)!;
+  assert.ok(king.maxHp > s.towers.find(t => t.lane !== KING_LANE)!.maxHp);
+  // A unit standing in the king's range, out of the princess towers' range.
+  spawn(s, 0, ANCHORS.find(a => a.name === 'Stone Golem')!, king.x, king.y + 2); // behind the king
+  s.units[0].delay = 0;
+  s.units[0].damage = 0;
+  s.units[0].moveSpeed = 0;
+  run(s, 3);
+  assert.equal(s.units[0].hp, s.units[0].maxHp, 'a sleeping king does not shoot');
+  s.towers.find(t => t.side === 1 && t.lane === 0)!.hp = 0;
+  run(s, 2);
+  assert.ok(s.units[0].hp < s.units[0].maxHp, 'the king wakes when a princess tower falls');
+
+  king.hp = 1;
+  s.units[0].damage = 100;
+  const r = run(s, 5);
+  assert.ok(r.over);
+  assert.equal(r.winner, 0);
+  assert.ok(s.towers.filter(t => t.side === 1).every(t => t.hp === 0), 'the king takes its side down with it');
 });

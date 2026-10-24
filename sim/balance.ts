@@ -93,8 +93,8 @@ function advice(r: Row): string {
 
 const f = (x: number, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '-');
 const pct = (x: number) => (Number.isFinite(x) ? `${Math.round(x * 100)}%` : '-');
-const took = (r: Row) => `${r.side.towersTaken}/${r.middle.towersTaken}`;
-const alive = (r: Row) => `${Math.round(r.side.timeAlive)}/${Math.round(r.middle.timeAlive)}`;
+const took = (r: Row) => `${r.bridge.towersTaken}/${r.middle.towersTaken}`;
+const alive = (r: Row) => `${Math.round(r.bridge.timeAlive)}/${Math.round(r.middle.timeAlive)}`;
 
 const HEAD = ['Troop', 'Cost', 'Power', 'Win1v1', 'WinEM', 'Trade', 'Net/e', 'HP/e', 'Twr/e', 'Took', 'Alive s', '~Fair', 'Flag'];
 function cells(r: Row): string[] {
@@ -118,16 +118,16 @@ const header = [
   `Balance sim · K ${knobs.pricing.K}, f_range ${knobs.pricing.ranged} + ${knobs.pricing.rangePerTile}/tile, speed slope ${knobs.pricing.speedSlope} · ` +
     `towers ${tw.health} hp, ${tw.damage} × ${tw.attack_speed}/s, range ${tw.range}`,
   `${troops.length} troops vs ${fieldAll ? 'every affordable troop' : `the ${anchors.length} anchors`}, ` +
-    `${PLACEMENTS.length} placements per pair (2 lanes × who acts first × sideways offset), ${seconds.toFixed(1)} s`,
+    `${PLACEMENTS.length} placements per pair (bridge or mid-board × who acts first × sideways offset), ${seconds.toFixed(1)} s`,
   '',
-  'Win1v1  one copy each, deployed at once 8 tiles apart in one lane (towers inert); draws count half',
+  'Win1v1  one copy each, deployed at once 8 tiles apart across the river (towers inert); draws count half',
   `WinEM   same, elixir-matched: copies chosen so both sides spend about the same (up to ${knobs.budget} elixir each)`,
   'Trade   elixir-matched: enemy elixir destroyed / own elixir lost, where a troop at x% HP has lost (100−x)% of',
   '        its cost. 1.00 is an even trade. This is the efficiency the table is sorted and flagged by.',
   'Net/e   (destroyed − lost) / spent, elixir-matched: −1 = wiped for nothing, +1 = wiped them for free',
   'HP/e    enemy HP destroyed per elixir spent, elixir-matched',
-  'Twr/e   enemy tower HP removed per elixir, alone from its own bridge; mean of side and middle lane',
-  'Took    towers destroyed alone, side/middle lane     Alive s  seconds alive in those runs (90 = whole match)',
+  'Twr/e   enemy tower HP removed per elixir, alone from the river bank; mean of bridge and mid-board',
+  'Took    towers destroyed alone, bridge/mid-board     Alive s  seconds alive in those runs (90 = whole match)',
   `~Fair   rough cost that would make its trade ratio match the anchor median: cost × sqrt(Trade / ${f(medRatio)})`,
   `Flag    ++ / -- Trade above ${FLAG_HIGH}× or below ${FLAG_LOW}× the anchor median (${f(medRatio)}); ` +
     `T+ / T- same for Twr/e (median ${f(medTower, 0)})`,

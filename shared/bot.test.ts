@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors';
-import { LANE_X, MID_Y, onOwnHalf, type Side } from './arena';
-import { BOT_LEVELS, botDecide, newBotMemory, weakestLane, type BotMemory } from './bot';
+import { BRIDGE_X, MID_Y, onOwnHalf, type Side } from './arena';
+import { BOT_LEVELS, botDecide, newBotMemory, weakestBridge, type BotMemory } from './bot';
 import { newMatch, newUnit, type SimState } from './sim';
 
 const normal = BOT_LEVELS.normal;
@@ -19,7 +19,7 @@ function seeded(seed = 1) {
 }
 
 let nextId = 1000;
-function addUnit(s: SimState, side: Side, a = golem, x = LANE_X[0], y = MID_Y + 3) {
+function addUnit(s: SimState, side: Side, a = golem, x = BRIDGE_X[0], y = MID_Y + 3) {
   s.units.push(newUnit(nextId++, side, x, y, a, 0));
 }
 const ready = (): BotMemory => ({ ...newBotMemory(), nextThink: 0 });
@@ -47,7 +47,7 @@ test('defends a golem on its half after the reaction delay, with high dps near t
   const a = ANCHORS[move.anchor];
   assert.ok(a.damage * a.attack_speed * a.count >= 200, `${a.name} should be a tank killer`);
   assert.ok(onOwnHalf(1, move.y));
-  assert.ok(Math.abs(move.x - LANE_X[0]) < 3, `x ${move.x} should be in the threatened lane`);
+  assert.ok(Math.abs(move.x - BRIDGE_X[0]) < 3, `x ${move.x} should be on the threatened bridge's side`);
 });
 
 test("doesn't throw more at a threat it already outclasses", () => {
@@ -55,20 +55,20 @@ test("doesn't throw more at a threat it already outclasses", () => {
   s.time = 10;
   s.elixir = [5, 10];
   addUnit(s, 0, ANCHORS[0]); // goblin
-  addUnit(s, 1, golem, LANE_X[0], MID_Y + 4);
+  addUnit(s, 1, golem, BRIDGE_X[0], MID_Y + 4);
   const mem = { ...ready(), threatSince: 0 };
   const move = botDecide(s, 1, mem, { ...normal, saveChance: 0 }, seeded());
   assert.equal(move?.why, 'push');
 });
 
-test('pushes the lane of the weakest enemy tower', () => {
+test('pushes over the bridge of the weakest enemy tower', () => {
   const s = newMatch();
   s.elixir = [5, 10];
   s.towers.find(t => t.side === 0 && t.lane === 2)!.hp = 1000;
-  assert.equal(weakestLane(s, 1), 2);
+  assert.equal(weakestBridge(s, 1), 1);
   const move = botDecide(s, 1, ready(), { ...normal, saveChance: 0 }, seeded())!;
   assert.equal(move.why, 'push');
-  assert.ok(Math.abs(move.x - LANE_X[2]) < 2, `x ${move.x}`);
+  assert.ok(Math.abs(move.x - BRIDGE_X[1]) < 2, `x ${move.x}`);
   assert.ok(onOwnHalf(1, move.y));
 });
 

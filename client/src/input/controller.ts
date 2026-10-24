@@ -4,19 +4,18 @@
 // With the camera on, the pinch is push to talk: speech goes to Cartesia only while you hold it
 // (plus 300 ms from just before), and letting go finalises it straight away, with no quiet timer.
 // Voice click (talking alone locks at the cursor) is what the mic does without a camera, and an
-// option with one. With the mic on, holding the mouse button works like a pinch. Keys, clicks
-// and the text box work as before.
-import { ARENA_W, onOwnHalf, type Side } from '../../../shared/arena';
-import { KEYS, load, PinchCalibration, PointerCalibration, save, type PointerCal } from './calibrate';
-import { drawPinchCalibration, drawPointerCalibration, FLASH_MS, type InputView } from './draw';
+// option with one. With the mic on, holding the mouse button or Space works like a pinch. Keys,
+// clicks and the text box work as before.
+import { drawCursor, FLASH_MS, type InputView } from './draw';
 import { OneEuro } from './filter';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { LockMachine, LOCK_DEFAULTS, type Lock, type Pt } from './lock';
-import { DEFAULT_PINCH, Hysteresis, pinchMetric2d, pinchMetric3d, type PinchThresholds } from './pinch';
+import { DEFAULT_PINCH, Hysteresis, pinchMetric2d } from './pinch';
 import { AutoSpeech } from './cartesia_stt';
 import { chooseDescription, isCancel, Transcript } from './speech';
 import { gated, voiceLocks, wasClick } from './ptt';
+import { KEYS, load, save } from './store';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import './input.css';
 
@@ -26,7 +25,7 @@ type Spot = [number, number]; // world coords
 // its handle (null refuses the lock); deploy() and cancel() finish it.
 export interface InputHost {
   playing(): boolean;
-  side(): Side;
+  canDeploy(spot: Spot): boolean; // your half, or a pocket you've opened
   toWorld(px: number, py: number): Spot;
   begin(spot: Spot): number | null;
   deploy(nonce: number, spot: Spot, description: string): void;
@@ -38,7 +37,7 @@ export interface InputHost {
   released?(nonce: number, words: string): void; // let go; the last words are still being finalised
 }
 
-interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; voiceClick: boolean }
+interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; voiceClick: boolean; camera: boolean; mic: boolean; mouseKeys: boolean }
 
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
@@ -55,30 +54,28 @@ export class InputController {
 
   private fx = new OneEuro(1.0, 0.007);
   private fy = new OneEuro(1.0, 0.007);
-  private pinchCfg: PinchThresholds = load<PinchThresholds>(KEYS.pinch) ?? DEFAULT_PINCH;
-  private hyst = new Hysteresis(this.pinchCfg.on, this.pinchCfg.off);
-  private pointerCal: PointerCal | null = load<PointerCal>(KEYS.pointer);
-  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, voiceClick: false, ...load<Partial<Prefs>>(KEYS.prefs) };
+  private hyst = new Hysteresis(DEFAULT_PINCH.on, DEFAULT_PINCH.off);
+  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, voiceClick: false, camera: false, mic: false, mouseKeys: true, ...load<Partial<Prefs>>(KEYS.prefs) };
 
   private hand: HandFrame | null = null;
   private handCursor: Pt | null = null;
-  private raw: Pt2 | null = null;
   private pinched = false;
   private ratio = 0;
   private mouse: Pt | null = null;
   private flashes: InputView['flashes'] = [];
-  private calibPointer: PointerCalibration | null = null;
-  private calibPinch: PinchCalibration | null = null;
-  private calPinchedPrev = false;
+  private overlayDrawn = false;
   private camStatus = '';
   private heard = '';
+  private heardWords = false; // the recogniser has returned words at least once
   private lastPanel = 0;
   private pressT = 0; // when the current mouse press began
   private clickTaken = false; // the last mouse press became a voice deploy, not a click
+  private setupPreview: HTMLCanvasElement | null = null;
+  onSetup?: () => void; // the ⋯ menu's "Run setup again"
 
   // DOM
   private el = document.createElement('div');
-  private calCanvas = document.createElement('canvas');
+  private overlay = document.createElement('canvas'); // the hand cursor outside a match
   private preview!: HTMLCanvasElement;
 
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
@@ -101,7 +98,7 @@ export class InputController {
     // off the canvas still counts.
     canvas.addEventListener('mousedown', e => {
       this.clickTaken = false;
-      if (e.button !== 0 || !this.mic.on || this.calibPointer || this.calibPinch) return;
+      if (e.button !== 0 || !this.mic.on || !this.prefs.mouseKeys) return;
       this.pressT = performance.now();
       this.machine.press(this.pressT, { x: e.clientX, y: e.clientY });
     });
@@ -110,10 +107,24 @@ export class InputController {
       if (e.button === 0) this.machine.pressEnd({ x: e.clientX, y: e.clientY });
     });
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
+    // Space and Escape stand in for the hand at any time: hold Space to lock at the cursor (hand or
+    // mouse), let go to deploy; Escape cancels whatever is locked, like dragging off or saying "cancel".
+    const typing = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
     addEventListener('keydown', e => {
-      if (e.key !== 'Escape') return;
-      if (this.calibPointer || this.calibPinch) this.endCalibration('calibration cancelled');
-      else this.machine.cancel('key');
+      if (e.key === 'Escape') this.machine.cancel('key');
+      else if (e.code === 'Space' && !typing(e.target)) {
+        e.preventDefault(); // no page scroll, no clicking a focused button
+        if (!e.repeat) this.machine.keyDown(performance.now());
+      }
+    });
+    addEventListener('keyup', e => {
+      if (e.code !== 'Space' || typing(e.target)) return;
+      e.preventDefault();
+      this.machine.keyUp();
+    });
+    // A Space held while the window loses focus never sends its keyup.
+    addEventListener('blur', () => {
+      if (this.machine.lock?.by === 'key') this.machine.cancel('focus lost');
     });
     this.mountUi();
     const loop = () => {
@@ -121,6 +132,42 @@ export class InputController {
       this.tick(performance.now());
     };
     requestAnimationFrame(loop);
+    // Turn back on whatever was on last visit; the browser remembers the permission.
+    if (this.prefs.camera) void this.setCamera(true);
+    if (this.prefs.mic) void this.setMic(true);
+  }
+
+  // Mouse and keyboard mode: the mouse aims and clicks, number keys drop troops. On by default
+  // alongside the hand, and the fallback if vision fails; Space and Esc work either way.
+  get mouseKeys(): boolean {
+    return this.prefs.mouseKeys;
+  }
+
+  setMouseKeys(on: boolean): void {
+    this.prefs.mouseKeys = on;
+    save(KEYS.prefs, this.prefs);
+    const box = this.el.querySelector<HTMLInputElement>('[data-act="mouseKeys"]');
+    if (box) box.checked = on;
+  }
+
+  // What the setup screen shows.
+  setupState() {
+    return {
+      camera: !!this.tracker,
+      cameraReady: !!this.tracker?.ready,
+      camStatus: this.camStatus,
+      hand: !!this.hand,
+      mic: this.mic.on,
+      micStatus: this.heard,
+      level: this.vad.level,
+      speaking: this.vad.speaking,
+      heardWords: this.heardWords,
+    };
+  }
+
+  // A second, larger camera preview (the setup screen's). Drawn while it's visible.
+  attachPreview(c: HTMLCanvasElement): void {
+    this.setupPreview = c;
   }
 
   // Open the STT sockets ahead of the first deploy (match start). Nothing to do with the mic off.
@@ -161,54 +208,38 @@ export class InputController {
   private tick(now: number): void {
     const f = this.tracker?.detect(now);
     if (f !== undefined) this.onHandFrame(f, now);
-    const calibrating = !!(this.calibPointer || this.calibPinch);
-
     if (this.mic.on) {
       const ev = this.vad.push(now, this.mic.levelDb());
       const voice = this.voiceLocks();
-      if (!calibrating && voice && ev?.kind === 'start') this.machine.speechStart(ev.t);
+      if (voice && ev?.kind === 'start') this.machine.speechStart(ev.t);
       else if (ev?.kind === 'end' && voice) {
         this.machine.speechEnd();
         // Close the utterance so the next one starts clean (a no-op if a deploy already flushed).
         // Push to talk doesn't need this: only held audio is sent, and letting go flushes it.
-        if (this.machine.lock?.by !== 'pinch' && this.machine.lock?.by !== 'mouse') this.speech.flush(FLUSH_MS);
+        const by = this.machine.lock?.by;
+        if (by !== 'pinch' && by !== 'mouse' && by !== 'key') this.speech.flush(FLUSH_MS);
       }
     }
-    if (!calibrating) {
-      this.machine.frame(now, { cursor: this.handCursor ?? this.mouse, hand: !!this.hand, pinched: this.pinched });
-    }
+    this.machine.frame(now, { cursor: this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null), hand: !!this.hand, pinched: this.pinched });
     this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
-    this.drawCalibration(now);
+    this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
   }
 
   private onHandFrame(f: HandFrame | null, now: number): void {
     this.hand = f;
     if (!f) {
-      this.handCursor = this.raw = null;
+      this.handCursor = null;
       this.fx.reset();
       this.fy.reset();
-      this.drawPreview();
+      this.drawPreviews();
       return;
     }
-    const m2 = pinchMetric2d(f.lm, f.vw, f.vh), m3 = pinchMetric3d(f.world);
-    this.ratio = this.pinchCfg.metric === '3d' ? m3 : m2;
+    this.ratio = pinchMetric2d(f.lm, f.vw, f.vh);
     this.pinched = this.hyst.update(this.ratio);
-    this.raw = pointerOf(f.lm);
-    const [u, v] = applyH(this.pointerCal?.H ?? DEFAULT_H, this.raw);
+    const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
-
-    if (this.calibPointer) {
-      const c = this.calibPointer;
-      c.pushRaw(now, this.raw);
-      if (this.pinched && !this.calPinchedPrev && c.click(now) && c.done) this.finishPointerCalibration();
-    }
-    this.calPinchedPrev = this.pinched;
-    if (this.calibPinch) {
-      this.calibPinch.push(now, m2, m3);
-      if (this.calibPinch.done(now)) this.finishPinchCalibration();
-    }
-    this.drawPreview();
+    this.drawPreviews();
   }
 
   // ---------- lock → deploy / cancel ----------
@@ -216,8 +247,8 @@ export class InputController {
   private onLock(l: Lock): boolean {
     if (!this.host.playing()) return false;
     const [x, y] = this.host.toWorld(l.x, l.y);
-    if (!onOwnHalf(this.host.side(), y) || x <= 0 || x >= ARENA_W) {
-      if (l.by === 'pinch') this.flash(l, 'cancel', 'your half only');
+    if (!this.host.canDeploy([x, y])) {
+      if (l.by !== 'voice') this.flash(l, 'cancel', 'your half only');
       return false;
     }
     const nonce = this.host.begin([x, y]);
@@ -226,7 +257,8 @@ export class InputController {
     this.listeners.add(words);
     this.active = { nonce, spot: [x, y], words };
     if (l.by !== 'voice' && this.mic.on) void this.speech.hold(true);
-    this.host.status(this.mic.on ? 'say what the troop is… let go to deploy' : 'locked: type a troop, or let go to use the text box');
+    const letGo = l.by === 'key' ? 'let go of Space' : 'let go';
+    this.host.status(this.mic.on ? `say what the troop is, ${letGo} to deploy, Esc to cancel` : `locked: ${letGo} to deploy what's in the text box, Esc to cancel`);
     return true;
   }
 
@@ -279,6 +311,7 @@ export class InputController {
 
   private words(text: string, final: boolean): void {
     this.heard = text ? `heard: “${text}”` : this.heard;
+    if (text) this.heardWords = true;
     for (const t of this.listeners) final ? t.final(text) : t.interim(text);
     const a = this.active;
     if (!a) return;
@@ -306,7 +339,7 @@ export class InputController {
 
   // ---------- camera and mic ----------
 
-  private async setCamera(on: boolean): Promise<void> {
+  async setCamera(on: boolean): Promise<void> {
     if (on === !!this.tracker) return;
     if (!on) {
       this.machine.cancel('camera off');
@@ -315,6 +348,7 @@ export class InputController {
       this.hand = null;
       this.handCursor = null;
       this.camStatus = '';
+      this.remember('camera', false);
       this.syncGate();
       this.renderPanel();
       return;
@@ -328,11 +362,15 @@ export class InputController {
         this.camStatus = s;
         this.renderPanel();
       });
-      if (this.tracker === t) this.camStatus = this.pointerCal ? '' : 'not calibrated: using the default box';
+      if (this.tracker === t) {
+        this.camStatus = '';
+        this.remember('camera', true);
+      }
     } catch (e) {
       if (this.tracker === t) {
         t.stop();
         this.tracker = null;
+        this.remember('camera', false);
         this.syncGate();
         this.camStatus = `camera failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
       }
@@ -340,13 +378,14 @@ export class InputController {
     this.renderPanel();
   }
 
-  private async setMic(on: boolean): Promise<void> {
+  async setMic(on: boolean): Promise<void> {
     if (on === this.mic.on) return;
     if (!on) {
       this.speech.stop();
       this.mic.stop();
       this.vad.reset();
       this.heard = '';
+      this.remember('mic', false);
       this.renderPanel();
       return;
     }
@@ -355,67 +394,34 @@ export class InputController {
       this.syncGate();
       this.speech.start();
       this.heard = this.speech.available ? `listening (${this.speech.engine})` : 'no speech recognition in this browser: voice locks, typed text describes';
+      this.remember('mic', true);
     } catch (e) {
       this.heard = `mic failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
+      this.remember('mic', false);
     }
     this.renderPanel();
   }
 
-  // ---------- calibration ----------
-
-  private startPointerCalibration(): void {
-    if (!this.tracker) return void this.host.status('turn the camera on first', true);
-    this.machine.cancel('calibrating');
-    this.calibPinch = null;
-    this.calibPointer = new PointerCalibration(LOCK_DEFAULTS.lagMs);
-    this.calCanvas.hidden = false;
+  private remember(k: 'camera' | 'mic', on: boolean): void {
+    this.prefs[k] = on;
+    save(KEYS.prefs, this.prefs);
   }
 
-  private finishPointerCalibration(): void {
-    const r = this.calibPointer?.result(innerWidth, innerHeight);
-    if (!r) return this.endCalibration('calibration failed: point at the dots with bigger hand movements');
-    this.pointerCal = r;
-    save(KEYS.pointer, r);
-    this.fx.reset();
-    this.fy.reset();
-    this.camStatus = '';
-    this.endCalibration(`calibrated, fit ±${r.residual.toFixed(0)} px`);
-  }
-
-  private startPinchCalibration(): void {
-    if (!this.tracker) return void this.host.status('turn the camera on first', true);
-    this.machine.cancel('calibrating');
-    this.calibPointer = null;
-    this.calibPinch = new PinchCalibration(performance.now());
-    this.calCanvas.hidden = false;
-  }
-
-  private finishPinchCalibration(): void {
-    const r = this.calibPinch?.result();
-    if (!r) return this.endCalibration('pinch calibration failed: keep your hand in view');
-    this.pinchCfg = { metric: r.metric, on: r.on, off: r.off };
-    this.hyst = new Hysteresis(r.on, r.off);
-    save(KEYS.pinch, this.pinchCfg);
-    this.endCalibration(`pinch: ${r.metric.toUpperCase()}, on < ${r.on}, off > ${r.off}${r.score > 0 ? '' : ' (overlap, best guess)'}`);
-  }
-
-  private endCalibration(msg: string): void {
-    this.calibPointer = this.calibPinch = null;
-    this.calCanvas.hidden = true;
-    this.host.status(msg);
-  }
-
-  private drawCalibration(now: number): void {
-    if (this.calCanvas.hidden) return;
-    const c = this.calCanvas, dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
+  private drawOverlay(): void {
+    // The board draws the cursor during a match; in the lobby and the setup screen it's drawn
+    // here, above everything.
+    const p = this.handCursor && !this.host.playing() ? this.handCursor : null;
+    if (!p && !this.overlayDrawn) return;
+    const c = this.overlay, dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
     if (c.width !== w * dpr || c.height !== h * dpr) {
       c.width = w * dpr;
       c.height = h * dpr;
     }
     const g = c.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (this.calibPointer) drawPointerCalibration(g, w, h, this.calibPointer.index, !!this.hand, now);
-    else if (this.calibPinch) drawPinchCalibration(g, w, h, this.calibPinch, !!this.hand, now);
+    g.clearRect(0, 0, w, h);
+    if (p) drawCursor(g, p.x, p.y, this.pinched);
+    this.overlayDrawn = !!p;
   }
 
   // ---------- UI ----------
@@ -425,15 +431,14 @@ export class InputController {
     this.el.innerHTML = `
       <div class="inRow">
         <button data-act="cam" title="Aim with your index knuckle, pinch thumb + middle finger to lock">Camera</button>
-        <button data-act="mic" title="Pinch (or hold the mouse) and talk, let go to deploy. Without the camera, starting to talk also locks.">Mic</button>
-        <button data-act="calPointer" title="Point at 4 dots and pinch at each">Calibrate</button>
-        <button data-act="menu" class="ghost" title="Pinch calibration and mic settings">⋯</button>
+        <button data-act="mic" title="Pinch (or hold the mouse or Space) and talk, let go to deploy. Without the camera, starting to talk also locks.">Mic</button>
+        <button data-act="menu" class="ghost" title="Camera and mic settings">⋯</button>
       </div>
       <div class="inPreview"><canvas></canvas></div>
       <div class="inStatus"></div>
       <div class="inMenu" hidden>
-        <button data-act="calPinch">Calibrate pinch (7 s)</button>
-        <button data-act="reset" class="ghost">Reset calibration</button>
+        <button data-act="setup" class="ghost">Run setup again</button>
+        <label><input type="checkbox" data-act="mouseKeys"> Mouse and keyboard</label>
         <label><input type="checkbox" data-act="preview"> Camera preview</label>
         <label title="With the camera on, the pinch is push to talk. Tick this to also lock by just talking (open mic)."><input type="checkbox" data-act="voiceClick"> Voice click with camera</label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
@@ -442,12 +447,12 @@ export class InputController {
       </div>`;
     document.body.appendChild(this.el);
     this.preview = this.el.querySelector('.inPreview canvas')!;
-    this.calCanvas.id = 'inputCalibration';
-    this.calCanvas.hidden = true;
-    document.body.appendChild(this.calCanvas);
+    this.overlay.id = 'inputOverlay';
+    document.body.appendChild(this.overlay);
 
     const q = <T extends HTMLElement>(act: string) => this.el.querySelector<T>(`[data-act="${act}"]`)!;
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;
+    q<HTMLInputElement>('mouseKeys').checked = this.prefs.mouseKeys;
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
     q<HTMLInputElement>('voiceClick').checked = this.prefs.voiceClick;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
@@ -460,20 +465,15 @@ export class InputController {
       if (act === 'cam') this.setCamera(!this.tracker);
       else if (act === 'mic') this.setMic(!this.mic.on);
       else if (act === 'menu') menu.hidden = !menu.hidden;
-      else if (act === 'calPointer') this.startPointerCalibration();
-      else if (act === 'calPinch') this.startPinchCalibration();
-      else if (act === 'reset') {
-        this.pointerCal = null;
-        this.pinchCfg = DEFAULT_PINCH;
-        this.hyst = new Hysteresis(DEFAULT_PINCH.on, DEFAULT_PINCH.off);
-        save(KEYS.pointer, null);
-        save(KEYS.pinch, null);
-        this.host.status('calibration reset to defaults');
+      else if (act === 'setup') {
+        menu.hidden = true;
+        this.onSetup?.();
       }
       this.renderPanel();
     });
     this.el.addEventListener('input', e => {
       const t = e.target as HTMLInputElement;
+      if (t.dataset.act === 'mouseKeys') this.prefs.mouseKeys = t.checked;
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
       if (t.dataset.act === 'voiceClick') {
         this.prefs.voiceClick = t.checked;
@@ -508,11 +508,16 @@ export class InputController {
   }
 
   // Mirrored camera frame with the skeleton, and the screen's edges projected back into it
-  // (the touchpad area: amber for the default box, green once calibrated).
-  private drawPreview(): void {
-    const t = this.tracker, c = this.preview;
-    if (!t || !this.prefs.preview) return;
-    const v = t.video, w = 160, h = Math.round((w * (v.videoHeight || 9)) / (v.videoWidth || 16));
+  // (the touchpad area).
+  private drawPreviews(): void {
+    if (!this.tracker) return;
+    if (this.prefs.preview) this.drawPreview(this.preview, 160);
+    const s = this.setupPreview;
+    if (s?.clientWidth) this.drawPreview(s, s.clientWidth);
+  }
+
+  private drawPreview(c: HTMLCanvasElement, w: number): void {
+    const v = this.tracker!.video, h = Math.round((w * (v.videoHeight || 9)) / (v.videoWidth || 16));
     const dpr = devicePixelRatio || 1;
     if (c.width !== w * dpr || c.height !== h * dpr) {
       c.width = w * dpr;
@@ -523,9 +528,9 @@ export class InputController {
     g.setTransform(-dpr, 0, 0, dpr, w * dpr, 0); // mirror the video
     g.drawImage(v, 0, 0, w, h);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const inv = invertH(this.pointerCal?.H ?? DEFAULT_H);
+    const inv = invertH(DEFAULT_H);
     if (inv) {
-      g.strokeStyle = this.pointerCal ? '#4ade80' : '#fbbf24';
+      g.strokeStyle = '#4ade80';
       g.lineWidth = 1.5;
       g.setLineDash([5, 4]);
       g.beginPath();

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OneEuro } from './filter';
-import { applyH, DEFAULT_H, fitHomography, invertH, residualPx, type Pt2 } from './homography';
+import { applyH, DEFAULT_H, invertH } from './homography';
 
 const close = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
 
@@ -48,40 +48,6 @@ test('one euro: reset forgets the old position', () => {
 });
 
 const H0 = [1.2, 0.1, -0.1, -0.05, 1.4, -0.2, 0.15, -0.1, 1];
-
-test('homography: fits 4 exact pairs and maps them back', () => {
-  const src: Pt2[] = [[0.2, 0.2], [0.8, 0.25], [0.75, 0.8], [0.25, 0.7]];
-  const dst = src.map(p => applyH(H0, p));
-  const H = fitHomography(src, dst)!;
-  assert.ok(H);
-  src.forEach((p, i) => {
-    const [u, v] = applyH(H, p);
-    close(u, dst[i][0], 1e-9);
-    close(v, dst[i][1], 1e-9);
-  });
-  // and points in between, which a plain affine fit would get wrong
-  const [u, v] = applyH(H, [0.5, 0.5]), [eu, ev] = applyH(H0, [0.5, 0.5]);
-  close(u, eu, 1e-9);
-  close(v, ev, 1e-9);
-  close(residualPx(H, src, dst, 1920, 1080), 0, 1e-6);
-});
-
-test('homography: least squares over 9 noisy points stays close', () => {
-  const src: Pt2[] = [];
-  for (const y of [0.2, 0.5, 0.8]) for (const x of [0.2, 0.5, 0.8]) src.push([x, y]);
-  const dst = src.map((p, i) => {
-    const [u, v] = applyH(H0, p);
-    return [u + (i % 2 ? 0.002 : -0.002), v] as Pt2;
-  });
-  const H = fitHomography(src, dst)!;
-  assert.ok(residualPx(H, src, dst, 1000, 1000) < 3);
-});
-
-test('homography: collinear points are degenerate', () => {
-  const src: Pt2[] = [[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4]];
-  assert.equal(fitHomography(src, [[0, 0], [1, 0], [1, 1], [0, 1]]), null);
-  assert.equal(fitHomography(src.slice(0, 3), [[0, 0], [1, 0], [1, 1]]), null);
-});
 
 test('homography: inverse round-trips', () => {
   const inv = invertH(H0)!;

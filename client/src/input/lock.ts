@@ -1,12 +1,13 @@
 // The lock → deploy / cancel state machine shared by pinch and voice. Pure: time comes in as
 // arguments and positions are screen px, so it runs the same in tests as in the browser.
 //
-// Pinch start, a mouse press or speech start locks the spot. Releasing the pinch or the button
-// (or going quiet) deploys it, unless the pointer has been pulled outside the drag-off ring, which
-// cancels like dragging a card back. Losing the hand cancels a lock that was made with the hand.
+// Pinch start, a mouse press, Space down or speech start locks the spot. Releasing the pinch, the
+// button or Space (or going quiet) deploys it, unless the pointer has been pulled outside the
+// drag-off ring, which cancels like dragging a card back. Losing the hand cancels a lock that was
+// made with the hand.
 
 export interface Pt { x: number; y: number }
-export type LockBy = 'pinch' | 'mouse' | 'voice';
+export type LockBy = 'pinch' | 'mouse' | 'key' | 'voice';
 export interface Lock { x: number; y: number; t: number; by: LockBy; hand: boolean }
 
 export interface LockOptions {
@@ -113,6 +114,20 @@ export class LockMachine {
     if (this.lock?.by !== 'mouse') return;
     this.mouse = p;
     this.resolve(p, 'drag');
+  }
+
+  // Space works like a pinch: down locks at the cursor, up deploys. It takes over a voice lock the
+  // same way a pinch does.
+  keyDown(t: number): void {
+    if (this.lock) {
+      if (this.lock.by === 'voice') this.lock.by = 'key';
+      return;
+    }
+    this.tryLock(t, this.cursor, 'key', this.hadHand);
+  }
+
+  keyUp(): void {
+    if (this.lock?.by === 'key') this.resolve(this.cursor, 'drag');
   }
 
   speechEnd(): void {

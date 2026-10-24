@@ -2,7 +2,7 @@
 // Only the browser's local "vs Bot" mode runs it (never the server); the headless balance sim
 // can reuse it. Randomness comes in through `rand`, so tests can seed it and step() stays pure.
 import { ANCHORS, type Anchor } from './anchors';
-import { LANE_X, MID_Y, clampToHalf, type Side } from './arena';
+import { BRIDGE_X, KING_LANE, MID_Y, clampToHalf, type Side } from './arena';
 import type { SimState, SimUnit } from './sim';
 import { K } from './troop';
 
@@ -71,9 +71,9 @@ export function botDecide(s: SimState, side: Side, mem: BotMemory, cfg: BotConfi
 }
 
 function defend(s: SimState, side: Side, all: SimUnit[], elixir: number, cfg: BotConfig, rand: () => number) {
-  // Deal with the most dangerous lane first.
-  const byLane = LANE_X.map((_, lane) => all.filter(u => nearestLane(u.x) === lane));
-  const threats = byLane.reduce((b, l) => (groupValue(l) > groupValue(b) ? l : b));
+  // Deal with the most dangerous bridge side first.
+  const bySide = BRIDGE_X.map((_, b) => all.filter(u => nearestBridge(u.x) === b));
+  const threats = bySide.reduce((b, l) => (groupValue(l) > groupValue(b) ? l : b));
   const cx = threats.reduce((n, u) => n + u.x, 0) / threats.length;
   const cy = threats.reduce((n, u) => n + u.y, 0) / threats.length;
   // Already handled: its own units near the threat outclass it.
@@ -128,19 +128,19 @@ function push(s: SimState, side: Side, mem: BotMemory, elixir: number, cfg: BotC
   const a = ANCHORS[pick];
   // Tanks lead from the bridge; everything else follows a few tiles back.
   const d = a.health * a.count >= 900 ? 1.5 : 4;
-  const lane = cfg.counters ? pushingLane(s, side) ?? weakestLane(s, side, rand) : weakestLane(s, side, rand);
-  return place(side, pick, LANE_X[lane], atDepth(side, d), 'push', cfg, rand);
+  const bridge = cfg.counters ? pushingBridge(s, side) ?? weakestBridge(s, side, rand) : weakestBridge(s, side, rand);
+  return place(side, pick, BRIDGE_X[bridge], atDepth(side, d), 'push', cfg, rand);
 }
 
-// The lane its own troops are already pushing, so the next drop backs them up.
-function pushingLane(s: SimState, side: Side): number | null {
+// The bridge its own troops are already pushing over, so the next drop backs them up.
+function pushingBridge(s: SimState, side: Side): number | null {
   const mine = s.units.filter(u => u.side === side && depth(side, u.y) > -6);
   if (!mine.length) return null;
-  const value = LANE_X.map((_, lane) => groupValue(mine.filter(u => nearestLane(u.x) === lane)));
+  const value = BRIDGE_X.map((_, b) => groupValue(mine.filter(u => nearestBridge(u.x) === b)));
   return value.indexOf(Math.max(...value));
 }
 
-const nearestLane = (x: number) => LANE_X.reduce((b, lx, i) => (Math.abs(lx - x) < Math.abs(LANE_X[b] - x) ? i : b), 0);
+const nearestBridge = (x: number) => BRIDGE_X.reduce((b, bx, i) => (Math.abs(bx - x) < Math.abs(BRIDGE_X[b] - x) ? i : b), 0);
 
 function weighted<T>(items: T[], weight: (t: T) => number, rand: () => number): T {
   let r = rand() * items.reduce((n, t) => n + weight(t), 0);
@@ -148,13 +148,14 @@ function weighted<T>(items: T[], weight: (t: T) => number, rand: () => number): 
   return items[items.length - 1];
 }
 
-// The lane of the enemy's weakest standing tower; ties go to a random lane.
-export function weakestLane(s: SimState, side: Side, rand = Math.random): number {
-  const standing = s.towers.filter(t => t.side !== side && t.hp > 0);
-  if (!standing.length) return 1;
+// The bridge in front of the enemy's weakest standing princess tower; ties, and a king with
+// both princess towers gone, go to a random bridge.
+export function weakestBridge(s: SimState, side: Side, rand = Math.random): number {
+  const standing = s.towers.filter(t => t.side !== side && t.hp > 0 && t.lane !== KING_LANE);
+  if (!standing.length) return Math.floor(rand() * BRIDGE_X.length);
   const low = Math.min(...standing.map(t => t.hp));
   const weakest = standing.filter(t => t.hp - low < 1);
-  return weakest[Math.floor(rand() * weakest.length)].lane;
+  return nearestBridge(weakest[Math.floor(rand() * weakest.length)].x);
 }
 
 function place(side: Side, anchor: number, x: number, y: number, why: BotMove['why'], cfg: BotConfig, rand: () => number): BotMove {

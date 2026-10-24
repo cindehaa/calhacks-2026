@@ -1,6 +1,6 @@
 # Untitled Arena Game
 
-A real-time, two-player lane battler where your deck is whatever you can describe. Point at the arena, say what the troop is, and AI turns your words into a fighting unit with stats, a price, artwork and its own voice.
+A real-time, two-player arena battler where your deck is whatever you can describe. Point at the arena, say what the troop is, and AI turns your words into a fighting unit with stats, a price, artwork and its own voice.
 
 Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeDB.
 
@@ -23,6 +23,8 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 
 Needs Node 22+ and the [SpacetimeDB CLI](https://spacetimedb.com/install).
 
+`npm start` (or `./run.sh`) does all of the below in one terminal: installs dependencies if missing, creates `.env` if missing, starts and publishes SpacetimeDB (skipped if the CLI isn't installed, leaving only Play vs Bot), then runs the API and the game. Ctrl-C stops everything. To run the pieces separately:
+
 ```sh
 npm install && (cd server && npm install)
 cp .env.example .env          # add ANTHROPIC_API_KEY, CARTESIA_API_KEY, FAL_KEY (all optional, see below)
@@ -44,9 +46,12 @@ To use Maincloud instead of a local server: `spacetime login`, `spacetime publis
 ## Controls
 
 - **Mouse and keys:** aim over your half, click to lock a spot. `1`–`0` (or the buttons) drop the 10 starter troops. Type a description and press Enter to drop it at the locked spot. With the mic on, hold the mouse button, say the troop and let go to deploy it there; drag off the ring before letting go to cancel.
-- **Camera** (top-left panel, opt-in): aim with your index knuckle, pinch thumb + middle finger to lock, say or type the troop while you hold, release to deploy, drag outside the ring before releasing to cancel. With the mic on, the pinch is push to talk: speech goes to Cartesia only while you hold it, and letting go deploys at once. **Calibrate** maps the camera to the screen.
+- **First visit** opens a setup screen: turn on camera and mic, say hello. After that the camera and mic come back on by themselves each visit (the ⋯ menu has **Run setup again**).
+- **Camera** (top-left panel, opt-in): aim with your index knuckle, pinch thumb + middle finger to lock, say or type the troop while you hold, release to deploy, drag outside the ring before releasing to cancel. With the mic on, the pinch is push to talk: speech goes to Cartesia only while you hold it, and letting go deploys at once. The middle of the camera frame maps to the whole screen, like a touchpad; there's no calibration step. Space and Esc always stand in for the hand: hold Space to lock at the cursor (hand or mouse) and talk, let go to deploy, Esc to cancel.
+- **Mouse and keyboard** (⋯ menu, on by default): the mouse aims, clicks or holds to lock, `1`–`0` drop starter troops. Works alongside the hand; turn it off to play with the camera and mic only.
 - **Mic** (opt-in): without the camera, start talking to lock at the cursor, describe the troop, go quiet to deploy, say "cancel" to cancel (voice click). With the camera on, voice click is off unless you tick it under `⋯`. Speech goes to Cartesia `ink-2` (the panel says "listening (Cartesia)"); without a Cartesia key, or if it can't connect, the browser's speech recognition takes over.
 - After you let go, your words, "designing…" and a silhouette show at the spot until the troop appears. `T` (or `?timings` in the URL) shows how long each step took; release → stats is the one that must beat the 2.5 s delay.
+- `V` (or the 3D button) cycles the top-down board and the POV views.
 - The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your elixir, is refused with what it would have cost.
 - Art is drawn while you talk and lands on the troop a second or two after it does; until then it fights as its placeholder token. Each troop shouts its battle cry as it lands, in its own voice. Online you hear only your own troops' cries (the other laptop plays theirs); vs Bot you hear both. A cry that would overlap another is skipped.
 - **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes sound effects and battle cries.

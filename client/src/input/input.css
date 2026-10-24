@@ -15,5 +15,4 @@
 #inputPanel .inLevel { position: absolute; inset: 0 auto 0 0; background: var(--muted); }
 #inputPanel .inLevel.speaking { background: var(--elixir); }
 #inputPanel .inThresh { position: absolute; top: 0; bottom: 0; width: 2px; background: #4ade80; }
-#inputCalibration { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; }
-#inputCalibration[hidden] { display: none; }
+#inputOverlay { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; pointer-events: none; }
