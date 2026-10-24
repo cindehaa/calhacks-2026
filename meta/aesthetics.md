@@ -24,7 +24,7 @@ What the client uses today (`client/src/style.css`, `client/src/pov.ts`). Deep n
 | Your side | `#4aa3ff` | Ice blue |
 | Their side | `#ff5d6c` | Warm red |
 | Elixir | `#c56cf0` | Violet, the magic in between |
-| Gold accents | `#ffd27a`, `#ff9f5a` | Firelight and embers; titles, highlights |
+| Gold accents | `#ffd27a`, `#ffb02e` | Firelight; the wordmark and the one main action |
 
 ## Sound
 
@@ -68,16 +68,20 @@ Troop quirks show on the unit: a blue tint when slowed, a white flash on a hit, 
 
 ## Menus and screens (G · faceted heraldry)
 
-Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones sets the words.
+Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones-style heraldry inspires the look.
 
-- **Lore:** rival lords fight for the last warmth before the long winter. Wins earn **embers**; losing gives embers to the frost. Your total sets your rank: Cinder, Kindling, Hearth, Bonfire, Beacon (`client/src/embers.ts`, kept in the browser).
-- **Houses:** you are always **House Raven** (blue), the opponent **House Sun** (red). Faceted shields stand in for avatars.
-- **Shapes:** chamfered slabs split into a lit and a shadow facet, each sitting on a solid darker side face so it pops. No gradients beyond the facet split; no gilding, parchment or ornament.
-- **Type:** Cinzel Decorative for the *Arena* wordmark, Cinzel for titles and names, Chakra Petch for everything else.
-- **Colour:** amber `#ffb02e` is the everyday accent (To Battle, labels). Gold `#f3d58a` appears only on victory, ice `#dbe9f4` / `#9cc3e0` only on defeat. Ember orange `#ff8a2e` marks warmth.
-- **Home:** huge amber *Arena* wordmark, the arena island centre-stage over low-poly snowy ranges, the two house banners on the flanks, ice crystals creeping in from the corners. One big **To Battle** with **Training Yard** (bot) and **Send a Raven** (friend's room) beside it.
-- **Victory:** gold-lit ranges, rays and faceted gold confetti; your banner stands, theirs frosts over (*Banished to the frost*). **Defeat:** icy ranges, snow and heavy frost; your banner is the frozen one.
-- Art lives in `client/public/ui` as SVG, exported from the Paper generators.
+- **Words are plain.** Heraldry and fantasy are visual inspiration only. Game text says what things are: Practice, Play online, Join a room, Blue side and Red side, points, ranks Bronze to Diamond, Forfeit this match?, Rematch. No "houses", "embers", "ravens" or "foes" in the text.
+- **Sides:** you are always the blue side, the opponent the red side. The banners and shields keep a raven and a sun sigil as pictures.
+- **Shapes:** chamfered slabs split into a lit and a shadow facet, each sitting on a solid darker side face so it pops, with a 1 px lit top edge. No gradients beyond the facet split; no gilding, parchment or ornament.
+- **Type:** Cinzel Decorative for the *Arena* wordmark (faceted fill: light gold top half, amber bottom half, with a warm glow), Cinzel for titles and names, Alegreya Sans for everything else, always with lining figures. Alegreya Sans replaced Chakra Petch, whose squared techno shapes fought the heraldry.
+- **Colour:** one accent. Amber `#ffb02e` marks the main action (Play online, Start match, Rematch) and the selected option; everything else is stone (`#252b4a` / `#1c2140`) with amber icons. Banner cloth is dyed deep: cobalt `#2c5ea8` / `#21498a` with ice trim, crimson `#a3303e` / `#80222f` with gold trim. Tower caps on the island are the same muted cobalt and crimson. Gold `#f3d58a` appears only on victory, ice `#dbe9f4` / `#9cc3e0` only on defeat.
+- **Texture:** fine film grain over the menus, a woven-thread overlay and embroidered trim and chevrons on the banners, snow on the island's rim and trees.
+- **Home:** amber *Arena* wordmark, the arena island centre-stage over low-poly snowy ranges, lit by its six braziers. Blue banner: your name (click to rename), rank, points and a bar to the next rank. Red banner: Opponent, waiting for a match. One big **Play online**, with **Practice** (plus Easy / Normal / Hard) and **Join a room** beside it. Footer: connection status with a dot, and the credit line.
+- **Title:** the wordmark under a low-poly moon, "Say a troop. Watch it fight.", Press any key.
+- **Motion:** one entrance, then only the weather moves. Pressing a key on the title glides the wordmark up into the home screen (view transition); the banners unfurl and the buttons rise. After that: snow falls, embers rise from the braziers, the brazier light flickers, mist drifts, the island bobs and the banners sway. Play online catches a sheen of light on entry and on hover. All of it stops under reduced motion.
+- **Victory:** gold-lit ranges, rays and faceted gold confetti; your banner stands, theirs frosts over. **Defeat:** icy ranges, snow and heavy frost; your banner is the frozen one.
+- **Password gate:** the same wordmark, a chamfered password field and an amber Enter slab.
+- Art lives in `client/public/ui` as SVG (ranges, frost, island, banners, moon); menu weather is `client/src/hubfx.ts`.
 
 ## Open questions
 
@@ -91,3 +95,5 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** Match sounds and arena ambience redone for warmth and frost (snow, ice, wind, embers, braziers). Troop sound sets left as they are, since they follow what the player describes.
 - **2026-10-24:** Menus rebuilt in design G (faceted heraldry): home with house banners, Send a Raven room pop-up, gold Victory and frost Defeat screens, embers and ranks. To Battle opens the room pop-up until matchmaking exists.
 - **2026-10-24:** The deployed site opens on a password gate (`middleware.ts`): the ARENA title in gold over the frozen-night gradient, one password field and an amber Enter button.
+- **2026-10-24:** Home polish pass: one amber accent (stone side buttons, deep dyed banners, muted tower caps), lit and snowy island with flickering braziers, snow, embers, mist and grain, a moon on the title, the wordmark gliding from title to home, a rank bar and a real difficulty selector. UI font is now Alegreya Sans.
+- **2026-10-24:** Game text is plain language; fantasy stays in the visuals. Houses became blue and red sides, embers became points, ranks are Bronze to Diamond.
