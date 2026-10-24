@@ -1,0 +1,19 @@
+/* Camera / mic panel, top left, above the lobby so players can set up before a match. */
+#inputPanel { position: fixed; top: 10px; left: 10px; z-index: 5; width: 176px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+#inputPanel button { padding: 4px 8px; font-size: 12px; }
+#inputPanel button.on { background: #1d5a3c; border-color: #2f8a5c; }
+#inputPanel .inRow { display: flex; gap: 4px; flex-wrap: wrap; }
+#inputPanel .inPreview { width: 160px; border-radius: 6px; overflow: hidden; background: #000; border: 1px solid var(--line); }
+#inputPanel .inPreview[hidden] { display: none; }
+#inputPanel .inPreview canvas { display: block; width: 160px; }
+#inputPanel .inStatus { color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+#inputPanel .inMenu { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); }
+#inputPanel .inMenu[hidden] { display: none; }
+#inputPanel label { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--muted); }
+#inputPanel input[type=range] { width: 100%; }
+#inputPanel .inMeter { position: relative; height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+#inputPanel .inLevel { position: absolute; inset: 0 auto 0 0; background: var(--muted); }
+#inputPanel .inLevel.speaking { background: var(--elixir); }
+#inputPanel .inThresh { position: absolute; top: 0; bottom: 0; width: 2px; background: #4ade80; }
+#inputCalibration { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; }
+#inputCalibration[hidden] { display: none; }
