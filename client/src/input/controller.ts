@@ -103,6 +103,7 @@ export class InputController {
   private pressT = 0; // when the current mouse press began
   private clickTaken = false; // the last mouse press became a voice deploy, not a click
   private setupPreview: HTMLCanvasElement | null = null;
+  private openMic = false; // the setup screen's voice check: stream everything, no pinch needed
   onSetup?: () => void; // the ⋯ menu's "Run setup again"
 
   // DOM
@@ -211,6 +212,13 @@ export class InputController {
   // A second, larger camera preview (the setup screen's). Drawn while it's visible.
   attachPreview(c: HTMLCanvasElement): void {
     this.setupPreview = c;
+  }
+
+  // While the setup screen is open, audio streams without a pinch so "say hello" is heard even
+  // with the camera on (push to talk would hold it back). Talking still can't lock: no match.
+  listenFreely(on: boolean): void {
+    this.openMic = on;
+    this.syncGate();
   }
 
   // Open the STT sockets ahead of the first deploy (match start). Nothing to do with the mic off.
@@ -446,7 +454,7 @@ export class InputController {
   }
 
   private syncGate(): void {
-    this.speech.setGated(gated(this.mic.on, this.voiceLocks()));
+    this.speech.setGated(gated(this.mic.on, this.voiceLocks() || this.openMic));
   }
 
   private flagMismatch(): void {

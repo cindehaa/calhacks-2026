@@ -22,6 +22,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
 
   function open(first = false) {
     el.hidden = false;
+    input.listenFreely(true);
     q('[data-act="skip"]').textContent = first ? 'Skip, use mouse and keys' : 'Close';
     cancelAnimationFrame(raf);
     render();
@@ -30,6 +31,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   function close(how: string) {
     logEvent(`setup:${how}`);
     el.hidden = true;
+    input.listenFreely(false);
     cancelAnimationFrame(raf);
     markDone();
     onClose();
