@@ -331,7 +331,7 @@ export class BoardReactions {
       const name = h.troop.name, cost = String(h.troop.cost);
       g.font = `700 12px ${font}`;
       const nw = g.measureText(name).width;
-      const cw = 18, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 62 - ht / 2;
+      const cw = 22, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 62 - ht / 2;
       g.fillStyle = 'rgba(13,16,32,0.88)';
       g.strokeStyle = h.mine ? '#4aa3ff' : '#ff5d6c';
       g.lineWidth = 1.5;
@@ -342,13 +342,13 @@ export class BoardReactions {
       g.fillStyle = '#e8ebf5';
       g.textAlign = 'left';
       g.fillText(name, x + 9, y + ht / 2 + 1);
-      // The cost on a small flame, like the embers count.
-      const gx = x + w - cw / 2 - 5, gy = y + ht / 2;
-      flameGlyph(g, gx, gy, 19, '#ff8a3d');
-      g.fillStyle = '#ffffff';
+      // The cost after a small flame, like the cost pills: paid in embers.
+      const gx = x + w - cw / 2 - 6, gy = y + ht / 2;
+      flameGlyph(g, gx - 5, gy, 13, '#ff8a3d');
+      g.fillStyle = '#ffe2c4';
       g.textAlign = 'center';
-      g.font = `800 10px ${font}`;
-      g.fillText(cost, gx, gy + 1);
+      g.font = `800 11px ${font}`;
+      g.fillText(cost, gx + 5, gy + 1);
     }
     g.restore();
   }
