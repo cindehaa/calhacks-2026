@@ -48,6 +48,10 @@ To use Maincloud instead of a local server: `spacetime login`, `spacetime publis
 
 Hand tracking and voice come in later phases (see [meta/PROGRESS.md](meta/PROGRESS.md)).
 
+## Designer benchmark
+
+`npm run bench` compares troop-designer backends on the same descriptions: cold start, p50/p90 latency, valid-JSON rate and 9 judgement checks from the prompt's rules (size words, abuse, consistency). It runs every provider that has a key in `.env` (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `GROQ_API_KEY`). With Claude plus another provider, it also reports cost agreement with Claude and what racing the two would give. Options: `--n 40`, `--providers claude,cerebras`, `--dry` (offline designer only). Set `DESIGNER=gemini|cerebras|groq` in `.env` to play with another backend; the default is Claude.
+
 ## Checks
 
 ```sh

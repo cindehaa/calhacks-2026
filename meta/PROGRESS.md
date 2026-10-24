@@ -38,12 +38,11 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 ## Next up
 
 **Waiting on keys**
+- [ ] Run `npm run bench` with Anthropic + Gemini + Cerebras keys (Groq optional) and pick the designer: stay on Claude unless another backend is clearly faster at similar judgement. Then set `DESIGNER` or add a race.
 - [ ] `ANTHROPIC_API_KEY` in `.env`: run the 30 test descriptions through `/api/troop` and check the prompt fixes ("god", "1000 ants", Pikachu, blob names). Without a key the offline designer is used.
 - [ ] Cartesia STT to replace the browser's speech recognition (behind `SpeechSource` in `client/src/input/speech.ts`), then TTS battle cries; fal sprites.
 
 **Can do now**
-- [ ] Decide on the balance sim's pricing fixes (see [sim/README.md](../sim/README.md)): charge per tile of range, drop the speed charge, retune Sniper / Goblin / Knight.
-- [ ] Start designing on the partial transcript, and prompt caching (from the latency research).
 - [ ] Real-webcam test of hand tracking and calibration; two laptops on one network or Maincloud.
 - [ ] Optional `?bot` URL to jump straight into a bot match at the judging table.
 
@@ -179,6 +178,8 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Sound on by default (M mutes). Voice listening is always on while the mic is on; pinching mid-sentence makes it push-to-talk. |
 | 2026-10-24 | Players never pick swarm size: the designer sets count from the creature (small swarmers 8, medium 3–5, big 2–3). Dragon = heavy ranged. |
 | 2026-10-24 | Claude call: 4.5 s timeout, no retries, offline designer as fallback. Bot opponent is local only (browser), never on the server. |
+| 2026-10-24 | Balance fixes from the sim: range charged per tile (+0.2 per tile above 1), no speed charge; Sniper, Goblin and Knight retuned. Starter costs: Goblin 2, Bees 3, Knight 3, Ninja 3, Charger 4, Archers 5, Wizard 6, Sniper 6, Lobber 7, Golem 8. |
+| 2026-10-24 | Designs start on the partial transcript (reused if the final words match); the Claude prompt is cached. Designer backend is switchable (`DESIGNER`), pending `npm run bench` with real keys. |
 
 ## Open questions
 

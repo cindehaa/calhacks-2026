@@ -11,3 +11,4 @@ dist/
 .DS_Store
 # balance sim output
 sim/out/
+bench/out/

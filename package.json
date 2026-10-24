@@ -11,6 +11,7 @@
     "db:generate": "spacetime generate --lang typescript --out-dir client/src/module_bindings --module-path server -y",
     "test": "tsx --test shared/*.test.ts client/src/*.test.ts client/src/input/*.test.ts sim/*.test.ts",
     "balance": "tsx sim/balance.ts",
+    "bench": "tsx bench/designers.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p server"
   },
   "dependencies": {

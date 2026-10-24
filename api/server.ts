@@ -2,7 +2,7 @@
 // Vite proxies /api here in dev (client/vite.config.ts).
 import { existsSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { designTroop, hasKey, warm } from './designer';
+import { designTroop, designerName, hasKey, warm } from './designer';
 
 const envFile = new URL('../.env', import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -42,4 +42,6 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`api on http://localhost:${PORT} (${hasKey() ? 'claude' : 'offline designer: no Anthropic key'})`));
+server.listen(PORT, () =>
+  console.log(`api on http://localhost:${PORT} (designer: ${hasKey() ? designerName() : `offline, no key for ${designerName()}`})`)
+);

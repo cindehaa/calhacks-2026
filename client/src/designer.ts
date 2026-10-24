@@ -5,7 +5,7 @@ export interface Designed {
   design: TroopDesign;
   cost: number;
   ms: number;
-  source: 'claude' | 'offline';
+  source: string; // 'offline', or the model backend that designed it
   early?: boolean; // reused a design started on the partial transcript
 }
 
@@ -59,7 +59,7 @@ async function request(description: string): Promise<Designed> {
     });
     const body = await r.json();
     if (!r.ok || body.error || !body.design) throw new Error(body.error ?? `api returned ${r.status}`);
-    return { ...body, source: body.source === 'claude' ? 'claude' : 'offline' } as Designed;
+    return { ...body, source: String(body.source ?? 'offline') } as Designed;
   } catch (e) {
     console.warn('designer api failed, using offline designer:', e);
     return offline(description, t0);
