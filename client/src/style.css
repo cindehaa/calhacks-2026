@@ -490,6 +490,14 @@ body:not(.devMode) .devSettings { display: none; }
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); border-bottom: 4px solid #0b0e22;
   background: linear-gradient(160deg, #212853e0 0 56%, #1a2045e0 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; font-family: var(--chakra); }
 #handView[hidden], body.inHub #handView { display: none; }
+/* on home, with the camera on, a smaller one hangs just under your blue banner, so you can see
+   tracking works before a match (never the camera image). Too short a screen and it would meet the
+   buttons, so it stays hidden there. */
+body.inHub:has(#lobby:not([hidden])) #handView:not([hidden]) { display: flex; right: auto; bottom: auto; width: 112px;
+  --bw: min(18vw, 31vh, 260px); left: calc(clamp(16px, 4.3vw, 62px) + (var(--bw) - 112px) / 2);
+  top: calc(3.2vh + clamp(48px, 6.6vw, 100px) * 1.15 + 34px + var(--bw) * 1.8227); }
+body.inHub:has(#lobby:not([hidden])) #handView canvas { width: 100px; height: 88px; }
+@media (max-height: 700px) { body.inHub #handView { display: none !important; } }
 #handView canvas { width: 128px; height: 120px; }
 #handView .hvState { font: 700 12px var(--chakra); letter-spacing: .08em; white-space: nowrap; text-transform: uppercase; color: var(--muted); text-align: center; }
 #handView[data-state="open"] .hvState { color: var(--amber); }
@@ -668,3 +676,16 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
   .practiceText .sub { font-size: 14px; }
   .pTarget { width: 92px; height: 92px; margin: -46px 0 0 -46px; }
 }
+
+/* setup: the camera (the only place the raw feed shows) beside what the game makes of it */
+#setup .setupViews { flex: none; display: grid; grid-template-columns: 3fr 2fr; gap: 10px; }
+#setup .setupViews figure { margin: 0; position: relative; min-width: 0; }
+#setup .setupCam { aspect-ratio: 16 / 9; max-height: none; }
+#setup .setupSeen { background: #0a0d1b; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+#setup .setupSeen canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#setup .setupViews figcaption { position: absolute; left: 10px; bottom: 6px; right: 8px; font: 700 11px var(--chakra); letter-spacing: .12em; text-transform: uppercase; color: #8e96b3; pointer-events: none;
+  display: flex; flex-direction: column; gap: 1px; text-shadow: 0 1px 2px #000; }
+#setup .setupSeen [data-seen] { font-size: 12px; color: var(--muted); }
+#setup .setupSeen [data-seen][data-state="open"] { color: var(--amber); }
+#setup .setupSeen [data-seen][data-state="fire"] { color: #fff1c4; }
+#setup .setupSeen [data-seen][data-state="cancel"] { color: #ff9aa4; }

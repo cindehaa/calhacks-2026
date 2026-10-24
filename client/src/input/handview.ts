@@ -68,3 +68,24 @@ export function drawHandView(c: HTMLCanvasElement, world: Landmark[] | null, sta
   g.arc(ix, iy, 5.5, 0, Math.PI * 2);
   g.fill();
 }
+
+// Where the cursor lands on the whole screen: a small screen outline in the top right corner of c
+// with the cursor as a dot in the state's colour. For setup's "What the game sees" panel, drawn
+// after drawHandView. p is in 0..1 of the screen, null with no hand.
+export function drawScreenInset(c: HTMLCanvasElement, p: { x: number; y: number } | null, state: HandState, aspect: number): void {
+  const w = c.clientWidth, dpr = devicePixelRatio || 1;
+  if (!w) return;
+  const g = c.getContext('2d')!;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const iw = Math.round(w * 0.34), ih = Math.round(iw / (aspect || 16 / 9)), x0 = w - iw - 8, y0 = 8;
+  g.fillStyle = '#0a0d1bd0';
+  g.fillRect(x0, y0, iw, ih);
+  g.strokeStyle = '#9cc3e099';
+  g.lineWidth = 1;
+  g.strokeRect(x0 + 0.5, y0 + 0.5, iw - 1, ih - 1);
+  if (!p) return;
+  g.fillStyle = TIP_COLOR[state];
+  g.beginPath();
+  g.arc(x0 + Math.max(0, Math.min(1, p.x)) * iw, y0 + Math.max(0, Math.min(1, p.y)) * ih, 3.5, 0, Math.PI * 2);
+  g.fill();
+}

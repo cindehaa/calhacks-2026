@@ -19,6 +19,7 @@ html { touch-action: manipulation; } /* no double-tap zoom on the board or the b
   #handView { top: 74px; left: 12px; right: auto; bottom: auto; width: 96px; padding: 4px 4px 6px; }
   #handView canvas { width: 88px; height: 82px; }
   #handView .hvState { font-size: 10px; }
+  body.inHub #handView { display: none !important; } /* home's bottom is all buttons on a phone */
 
   #notice { bottom: 150px; font-size: 14px; }
 

@@ -19,7 +19,7 @@ function markDone() {
 export function initSetup(input: InputController, onClose: () => void): { open(): void } {
   const el = document.getElementById('setup')!;
   const q = <T extends HTMLElement = HTMLElement>(sel: string) => el.querySelector<T>(sel)!;
-  input.attachPreview(q<HTMLCanvasElement>('.setupCam canvas'));
+  input.attachPreview(q<HTMLCanvasElement>('.setupCam canvas'), { c: q<HTMLCanvasElement>('.setupSeen canvas'), label: q('[data-seen]') });
   // Which hand points (the other may be holding the mic): remembered with the input prefs.
   const handSel = q<HTMLSelectElement>('select[data-hand-pref]');
   handSel.value = input.handPref;

@@ -12,7 +12,7 @@ import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
 import { OneEuro } from './filter';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
-import { drawHandView } from './handview';
+import { drawHandView, drawScreenInset } from './handview';
 import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { PinchDetector, extension, thumbDownScore } from './pose';
@@ -136,6 +136,7 @@ export class InputController {
   private lastPanel = 0;
   private clickTaken = false; // the last mouse press fired, so it isn't also a click-to-type
   private setupPreview: HTMLCanvasElement | null = null;
+  private setupSeen: { c: HTMLCanvasElement; label: HTMLElement } | null = null;
   onSetup?: () => void; // the ⋯ menu's "Run setup again"
 
   // DOM
@@ -290,9 +291,11 @@ export class InputController {
     };
   }
 
-  // A second, larger camera preview (the setup screen's). Drawn while it's visible.
-  attachPreview(c: HTMLCanvasElement): void {
+  // Setup's camera feed, the one place the raw camera shows, and next to it what the game makes
+  // of it: the virtual hand, where the cursor lands on the screen, and the gesture. Drawn while visible.
+  attachPreview(c: HTMLCanvasElement, seen?: { c: HTMLCanvasElement; label: HTMLElement }): void {
     this.setupPreview = c;
+    this.setupSeen = seen ?? null;
   }
 
   // Open the STT sockets ahead of the first fire (match start). Nothing to do with the mic off.
@@ -792,7 +795,7 @@ export class InputController {
       <div class="inMenu" hidden>
         <button data-act="setup" class="ghost">Run setup again</button>
         <label><input type="checkbox" data-act="mouseKeys"> Mouse and keyboard</label>
-        <label><input type="checkbox" data-act="preview"> Camera preview</label>
+        <label><input type="checkbox" data-act="preview"> Hand preview</label>
         <label>Pointing hand <select data-act="hand"><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
@@ -877,29 +880,45 @@ export class InputController {
     return `Say the troop, then ${send} to send it · ${clear} to cancel`;
   }
 
-  // Mirrored camera frame with the skeleton, and the screen's edges projected back into it
-  // (the touchpad area).
+  // The skeleton with the screen's edges projected back into the camera frame (the touchpad area):
+  // over the mirrored camera image only on the setup screen; the /dev panel draws it on dark.
   private drawPreviews(): void {
     if (!this.tracker) return;
     this.drawHandView();
-    if (this.prefs.preview) this.drawPreview(this.preview, 160);
+    if (this.prefs.preview) this.drawPreview(this.preview, 160, false);
     const s = this.setupPreview;
-    if (s?.clientWidth) this.drawPreview(s, s.clientWidth);
+    if (s?.clientWidth) this.drawPreview(s, s.clientWidth, true);
+    const seen = this.setupSeen;
+    if (seen?.c.clientWidth) {
+      const state = this.cursorState(performance.now());
+      drawHandView(seen.c, this.hand?.world ?? null, state);
+      const p = this.handCursor ? { x: this.handCursor.x / innerWidth, y: this.handCursor.y / innerHeight } : null;
+      drawScreenInset(seen.c, p, state, innerWidth / innerHeight);
+      const label = this.handLabel(state);
+      if (seen.label.textContent !== label) seen.label.textContent = label;
+      seen.label.dataset.state = this.hand ? state : 'none';
+    }
+  }
+
+  private handLabel(state: CursorState): string {
+    return !this.tracker?.ready ? 'Starting camera…'
+      : !this.hand ? 'Show your hand'
+      : state === 'cancel' ? 'Thumbs down · cancel'
+      : state === 'fire' ? (this.menus() ? 'Pinch · click' : 'Pinch · send')
+      : 'Aiming';
   }
 
   // What the tracker sees of your hand, as a virtual hand, with the gesture it reads.
   private drawHandView(): void {
     const state = this.cursorState(performance.now());
-    const label = !this.tracker?.ready ? 'Starting camera…'
-      : !this.hand ? 'Show your hand'
-      : state === 'cancel' ? 'Thumbs down · cancel' : state === 'fire' ? 'Pinch · send' : 'Aiming';
+    const label = this.handLabel(state);
     const el = this.handView.querySelector<HTMLElement>('.hvState')!;
     if (el.textContent !== label) el.textContent = label;
     this.handView.dataset.state = this.hand ? state : 'none';
     drawHandView(this.handView.querySelector('canvas')!, this.hand?.world ?? null, state);
   }
 
-  private drawPreview(c: HTMLCanvasElement, w: number): void {
+  private drawPreview(c: HTMLCanvasElement, w: number, video: boolean): void {
     const v = this.tracker!.video, h = Math.round((w * (v.videoHeight || 9)) / (v.videoWidth || 16));
     const dpr = devicePixelRatio || 1;
     if (c.width !== w * dpr || c.height !== h * dpr) {
@@ -908,9 +927,15 @@ export class InputController {
       c.style.height = `${h}px`;
     }
     const g = c.getContext('2d')!;
-    g.setTransform(-dpr, 0, 0, dpr, w * dpr, 0); // mirror the video
-    g.drawImage(v, 0, 0, w, h);
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (video) {
+      g.setTransform(-dpr, 0, 0, dpr, w * dpr, 0); // mirror the video
+      g.drawImage(v, 0, 0, w, h);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    } else {
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.fillStyle = '#0a0d1b';
+      g.fillRect(0, 0, w, h);
+    }
     const inv = SCREEN_IN_CAMERA;
     if (inv) {
       g.strokeStyle = '#4ade80';
