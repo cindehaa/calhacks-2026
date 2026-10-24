@@ -29,6 +29,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Canvas client: lobby, room codes, board rotated so your side is at the bottom, towers, units, pending drops, elixir bar, clock, result screen, rematch, 20 Hz interpolation.
 - [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
 - [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
+- [x] Offline designer (`shared/offline_designer.ts`, `designOffline(description)`): keyword archetype to anchor stats, deterministic; hash varies only the name epithet and cry. Group size comes from the creature (small swarmers 8, medium groups 3-5, big 2-3), numbers are ignored, junk or profanity gives the weak 150 hp troop. `/api/troop` returns `{ design, cost, ms, source }` and uses it with no key or when Claude fails or takes over 4.5 s; the browser falls back to it after 7 s or an api error. `SHOW=1 npm test` prints a table of 45 sample descriptions.
 
 ## Next up
 

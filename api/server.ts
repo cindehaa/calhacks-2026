@@ -2,8 +2,7 @@
 // Vite proxies /api here in dev (client/vite.config.ts).
 import { existsSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import Anthropic from '@anthropic-ai/sdk';
-import { designTroop } from './designer';
+import { designTroop, hasKey, warm } from './designer';
 
 const envFile = new URL('../.env', import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -24,14 +23,6 @@ function send(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-function errorMessage(e: unknown): string {
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) return 'no Anthropic key: set ANTHROPIC_API_KEY in .env';
-  if (e instanceof Anthropic.AuthenticationError) return 'Anthropic key missing or invalid (set ANTHROPIC_API_KEY in .env)';
-  if (e instanceof Anthropic.RateLimitError) return 'rate limited, try again';
-  if (e instanceof Anthropic.APIError) return `Anthropic ${e.status ?? ''} ${e.message}`.slice(0, 200);
-  return e instanceof Error ? e.message.slice(0, 200) : String(e);
-}
-
 const server = createServer(async (req, res) => {
   try {
     if (req.method === 'POST' && req.url === '/api/troop') {
@@ -40,17 +31,15 @@ const server = createServer(async (req, res) => {
       return send(res, 200, await designTroop(text));
     }
     if (req.method === 'POST' && req.url === '/api/warm') {
-      // The first call per model is slow (schema compile); pay it at match start.
-      const t0 = performance.now();
-      await designTroop('warm up');
-      return send(res, 200, { ms: Math.round(performance.now() - t0) });
+      return send(res, 200, await warm());
     }
     send(res, 404, { error: 'not found' });
   } catch (e) {
-    const msg = errorMessage(e);
+    // Designing never throws (it falls back to offline), so this is a bad request body.
+    const msg = e instanceof Error ? e.message.slice(0, 200) : String(e);
     console.error(req.url, msg);
-    send(res, 502, { error: msg });
+    send(res, 400, { error: msg });
   }
 });
 
-server.listen(PORT, () => console.log(`api on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`api on http://localhost:${PORT} (${hasKey() ? 'claude' : 'offline designer: no Anthropic key'})`));

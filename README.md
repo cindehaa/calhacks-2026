@@ -25,7 +25,7 @@ Needs Node 22+ and the [SpacetimeDB CLI](https://spacetimedb.com/install).
 
 ```sh
 npm install && (cd server && npm install)
-cp .env.example .env          # add ANTHROPIC_API_KEY
+cp .env.example .env          # add ANTHROPIC_API_KEY (optional: without it the offline designer is used)
 
 npm run db:start              # terminal 1: local SpacetimeDB on :3000
 npm run db:publish            # once, and after every server/ change
