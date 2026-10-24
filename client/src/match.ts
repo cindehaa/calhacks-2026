@@ -3,6 +3,7 @@
 import { TICK_HZ, type Side } from '../../shared/arena';
 import type { SimUnit } from '../../shared/sim';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from '../../shared/troop';
+import type { Player, Room } from './module_bindings/types';
 import type { Net } from './net';
 import type { DrawPending, DrawTower, DrawTroop, DrawUnit } from './render';
 
@@ -82,19 +83,41 @@ export class Glide {
 // The player's room on the SpacetimeDB connection. A thin view over the subscribed tables.
 export class OnlineMatch implements MatchSource {
   private glide = new Glide();
+  // The SDK's find() scans the whole table, the player table gains a row for every tab ever
+  // opened, and the HUD asks for me() and room() dozens of times a frame. So look them up again
+  // only after a player or room row has changed.
+  private changes = 0;
+  private looked = -1;
+  private meRow: Player | undefined;
+  private roomRow: Room | undefined;
 
   constructor(readonly net: Net) {
     net.conn.db.unit.onUpdate((_ctx, _old, row) => this.glide.moved(row.id, row.x, row.y));
     net.conn.db.unit.onDelete((_ctx, row) => this.glide.drop(row.id));
+    const changed = () => void this.changes++;
+    for (const t of [net.conn.db.player, net.conn.db.room]) {
+      t.onInsert(changed);
+      t.onUpdate(changed);
+      t.onDelete(changed);
+    }
   }
 
-  me() {
-    return this.net.conn.db.player.identity.find(this.net.identity);
+  me(): Player | undefined {
+    this.lookUp();
+    return this.meRow;
   }
 
-  room() {
-    const p = this.me();
-    return p?.roomCode ? this.net.conn.db.room.code.find(p.roomCode) : undefined;
+  room(): Room | undefined {
+    this.lookUp();
+    return this.roomRow;
+  }
+
+  private lookUp(): void {
+    if (this.looked === this.changes) return;
+    this.looked = this.changes;
+    const db = this.net.conn.db;
+    this.meRow = db.player.identity.find(this.net.identity) ?? undefined;
+    this.roomRow = this.meRow?.roomCode ? db.room.code.find(this.meRow.roomCode) ?? undefined : undefined;
   }
 
   private get code() {
@@ -136,7 +159,7 @@ export class OnlineMatch implements MatchSource {
   troops(): Map<bigint, DrawTroop> {
     const code = this.code;
     return new Map(
-      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, battleCry: t.battleCry, voiceStyle: t.voiceStyle, flavor: t.flavor }])
+      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, flavor: t.flavor }])
     );
   }
 

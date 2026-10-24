@@ -3,7 +3,7 @@
 Headless battles on the real `shared/sim.ts` `step()`, with no rendering. It reports how much each troop gets for its elixir, so K, the pricing formula, the tower stats and the anchors can be tuned from numbers rather than feel.
 
 ```sh
-npm run balance                                        # the 10 anchors, about 2 s
+npm run balance                                        # the 15 anchors, a few seconds
 npm run balance -- --troops sim/sample_troops.json     # plus 22 hand-made designs, about 7 s
 npm run balance -- --rangePerTile 0.2 --speedSlope 0   # try a pricing change
 npm run balance -- --K 90 --towerDamage 70 --towerHealth 3000
@@ -13,7 +13,7 @@ npm run balance -- --help
 
 The table goes to stdout. `sim/out/results.json` (every number, plus each troop's record against each opponent) and `sim/out/summary.md` are written each run; `sim/out/` is gitignored.
 
-Designs in `--troops` / `--anchors` files are a JSON array of `{name, health, damage, attack_speed, move_speed, range, count}`. Each one goes through `clampStats` and `price` as a deploy does in the game, and anything priced above 10 is listed as rejected. That is the format to feed it Claude-generated troops.
+Designs in `--troops` / `--anchors` files are a JSON array of `{name, health, damage, attack_speed, move_speed, range, count}`, plus any quirk fields (`attack`, `targets`, `on_hit`, `windup`, `trait`); missing quirks are plain. Each one goes through `clampStats` and `price` as a deploy does in the game, and anything priced above 10 is listed as rejected. That is the format to feed it Claude-generated troops.
 
 Knobs (`--K`, `--ranged`, `--rangePerTile`, `--speedSlope`, `--towerHealth`, `--towerDamage`, `--towerSpeed`, `--towerRange`) are passed into `price()` and `step()` as parameters. The game defaults in `shared/` are untouched.
 
@@ -39,9 +39,37 @@ Knobs (`--K`, `--ranged`, `--rangePerTile`, `--speedSlope`, `--towerHealth`, `--
 | ~Fair | cost × √(Trade ÷ anchor median). A fight to the end trades HP × DPS = power², so trading x times the median means roughly √x times underpriced. Groups fighting at once amplify this (Lanchester's square law), so treat it as the largest correction worth making. |
 | Flag | `++` / `--`: Trade above 1.5× or below 0.67× the anchor median. `T+` / `T-`: the same test for Twr/e. Medians come from the anchors only, so extra troops don't shift each other's flags. |
 
-## Findings (2026-10-24)
+## Where it stands (2026-10-24, about 3:30 AM)
 
-Current defaults: K = 95, f_range 1.3 flat, f_speed slope 0.25, towers 2400 hp / 60 dps / range 6.
+Defaults: K = 95, f_range = 1.3 + 0.2 per tile above 1, no speed charge, towers 2400 hp / 60 dps / range 6. The 15 anchors are the 10 plain fighters (retuned after the first findings below) plus 5 quirked troops.
+
+| Troop | Cost | Power | Win1v1 | WinEM | Trade | Net/e | HP/e | Twr/e | Took | Alive s | ~Fair | Flag |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Rooftop Sniper | 6 | 591 | 76% | 69% | 2.34 | 0.43 | 155 | 200 | 0/0 | 6/11 | 8.9 | ++ |
+| Storm Wizard | 6 | 607 | 72% | 67% | 1.88 | 0.31 | 151 | 47 | 0/0 | 8/14 | 8.0 | ++ T- |
+| Fire Wizard | 6 | 590 | 77% | 59% | 1.73 | 0.34 | 151 | 173 | 0/0 | 9/15 | 7.7 | ++ |
+| Fire Dragon | 7 | 666 | 47% | 49% | 1.60 | 0.23 | 141 | 51 | 0/0 | 11/13 | 8.6 | ++ T- |
+| Twin Archers | 5 | 497 | 56% | 58% | 1.44 | 0.25 | 133 | 84 | 0/0 | 10/10 | 5.9 | T- |
+| Spark Cannon | 7 | 642 | 52% | 50% | 1.42 | 0.23 | 131 | 94 | 0/0 | 14/22 | 8.1 | T- |
+| Ice Archer | 4 | 393 | 50% | 50% | 1.13 | 0.08 | 100 | 68 | 0/0 | 7/12 | 4.2 | T- |
+| Iron Charger | 4 | 398 | 54% | 58% | 0.97 | −0.02 | 92 | 540 | 0/0 | 20/23 | 3.8 | T+ |
+| Bomb Lobber | 7 | 702 | 70% | 43% | 0.89 | −0.08 | 114 | 257 | 0/0 | 14/20 | 6.4 | |
+| Shield Knight | 3 | 325 | 38% | 59% | 0.82 | −0.12 | 110 | 360 | 0/0 | 22/28 | 2.7 | T+ |
+| Shadow Ninja | 3 | 328 | 28% | 48% | 0.76 | −0.18 | 113 | 230 | 0/0 | 7/9 | 2.5 | |
+| Bee Swarm | 3 | 263 | 37% | 42% | 0.70 | −0.21 | 100 | 12 | 0/0 | 8/8 | 2.5 | -- T- |
+| Stone Golem | 8 | 735 | 65% | 53% | 0.66 | −0.26 | 89 | 488 | 1/1 | 47/57 | 6.3 | -- T+ |
+| Goblin Scrapper | 2 | 215 | 20% | 48% | 0.62 | −0.27 | 75 | 150 | 0/0 | 8/11 | 1.5 | -- |
+| Battering Ram | 4 | 367 | 13% | 13% | 0.00 | −0.87 | 0 | 600 | 1/1 | 25/30 | – | T+ |
+
+Anchor median Trade 1.05 (the Battering Ram only targets buildings, so duels don't rate it and it's left out of that median). The plain fighters now sit between 0.62 and 1.44 apart from the Sniper, so the pricing change did most of what it was meant to. What's left:
+
+- **Ranged casters are still cheap:** the Sniper (plays like ~9), Storm Wizard and Fire Wizard (~8) and the Fire Dragon (~8.6) all trade 1.6–2.3×. The quirk multipliers for chain, breath and burn are first guesses and look low.
+- **Cheap melee is still a little weak:** Goblin Scrapper, Bee Swarm, and the Stone Golem in duels (it does its job on towers).
+- **Tower pressure** follows the design: rams, chargers, knights and the golem push towers; ranged and quirked casters barely touch them alone.
+
+## First findings (2026-10-24, before the pricing change)
+
+Kept for the reasoning behind the pricing change and the anchor retune, which both followed it. Defaults then: K = 95, f_range 1.3 flat, f_speed slope 0.25, towers 2400 hp / 60 dps / range 6, the 10 plain anchors only.
 
 | Troop | Cost | Power | Win1v1 | WinEM | Trade | Net/e | HP/e | Twr/e | Took | Alive s | ~Fair | Flag |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -68,7 +96,7 @@ What's behind it:
 4. **Towers.** Alone, only the Stone Golem (side lane only, as intended) and the Sniper take a tower. The middle tower also covers both side towers' approaches, so a side lane faces 120 dps and the middle 180. Swarms (one-shot by 60-damage shots) and every melee under about 1000 hp do roughly zero tower damage alone, so the `T-` flags on cheap melee are expected. Tower stats don't affect the duels, and 2400 / 60 / 6 looks fine once the Sniper is fixed. If it isn't, `--towerHealth 3000` or `--towerRange 7` both stop the lone Sniper tower kill and keep the Golem's side-tower take.
 5. **K = 95 isn't the problem.** It only rescales costs, and the anchors already round close to their intended costs (power ÷ K: Scrapper 2.04, Golem 6.77). The shape of the formula is what's off.
 
-### Suggested tweaks (not applied; anchor costs are asserted in tests)
+### Suggested tweaks (all three since applied)
 
 | Change | Anchor costs after | Anchor Trade spread |
 |---|---|---|
@@ -81,4 +109,4 @@ With all three, eight of the ten anchors trade between 0.73 and 1.26. The edges 
 
 ### Limits
 
-Duels are a single troop type against a single troop type, with no mixed armies, splash or kiting. So a tank screening ranged units is never measured, and near-zero-damage sponges look worse here than they would in a match: Paper Wall (3000 hp, 10 damage) costs **1** because sqrt(HP × DPS) barely charges for HP when DPS is tiny. A cost floor tied to HP (for example cost ≥ HP × count ÷ 1000) would close that.
+Duels are a single troop type against a single troop type, with no mixed armies or kiting. So a tank screening ranged units is never measured, and near-zero-damage sponges look worse here than they would in a match: Paper Wall (3000 hp, 10 damage) costs **1** because sqrt(HP × DPS) barely charges for HP when DPS is tiny. A cost floor tied to HP (for example cost ≥ HP × count ÷ 1000) would close that.

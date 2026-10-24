@@ -53,6 +53,7 @@ interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcr
 
 const FLUSH_MS = 600; // how long a fire waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
 const FLICK_SHOW_MS = 180; // the cursor fills this long after a flick
+const SCREEN_IN_CAMERA = invertH(DEFAULT_H); // the screen's edges in camera coords, for the preview
 
 export class InputController {
   private tracker: HandTracker | null = null;
@@ -152,10 +153,6 @@ export class InputController {
     if (box) box.checked = on;
   }
 
-  get micOn(): boolean {
-    return this.mic.on;
-  }
-
   // What the setup screen shows.
   setupState() {
     return {
@@ -189,7 +186,7 @@ export class InputController {
     return t;
   }
 
-  // What render.ts draws over the board. Undefined while camera and mic are both off.
+  // What the board (pov.ts) draws over itself. Undefined while camera and mic are both off.
   view(): InputView | undefined {
     if (!this.tracker && !this.mic.on && !this.flashes.length) return undefined;
     const playing = this.host.playing(), at = this.cursor();
@@ -557,7 +554,7 @@ export class InputController {
     g.setTransform(-dpr, 0, 0, dpr, w * dpr, 0); // mirror the video
     g.drawImage(v, 0, 0, w, h);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const inv = invertH(DEFAULT_H);
+    const inv = SCREEN_IN_CAMERA;
     if (inv) {
       g.strokeStyle = '#4ade80';
       g.lineWidth = 1.5;

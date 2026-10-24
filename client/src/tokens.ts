@@ -217,26 +217,3 @@ export function inPose(now: number, lastHit: number, interval: number): boolean 
   if (since >= 0 && since < POSE_AFTER) return true;
   return interval > 0 && since < interval + 0.25 && since >= interval - POSE_BEFORE;
 }
-
-// A sprite recoloured flat (for the slow tint), drawn over the sprite at partial alpha. One
-// copy per image and colour.
-const tints = new WeakMap<object, Map<string, HTMLCanvasElement>>();
-export function tinted(img: CanvasImageSource, color: string): CanvasImageSource {
-  let m = tints.get(img);
-  if (!m) tints.set(img, (m = new Map()));
-  let c = m.get(color);
-  if (!c) {
-    c = document.createElement('canvas');
-    const w = (img as HTMLImageElement).naturalWidth || (img as HTMLCanvasElement).width || 1;
-    const h = (img as HTMLImageElement).naturalHeight || (img as HTMLCanvasElement).height || 1;
-    c.width = w; c.height = h;
-    const g = c.getContext('2d');
-    if (!g) return img;
-    g.drawImage(img, 0, 0, w, h);
-    g.globalCompositeOperation = 'source-atop';
-    g.fillStyle = color;
-    g.fillRect(0, 0, w, h);
-    m.set(color, c);
-  }
-  return c;
-}

@@ -9,6 +9,6 @@ export default defineConfig({
     host: true, // reachable from the second laptop on the same network
     port: 5173,
     fs: { allow: [repoRoot] }, // client imports ../shared
-    proxy: { '/api': 'http://localhost:8787' },
+    proxy: { '/api': `http://localhost:${process.env.API_PORT ?? 8787}` }, // same API_PORT as api/_dev.ts
   },
 });
