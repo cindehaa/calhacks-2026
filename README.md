@@ -39,14 +39,13 @@ After changing tables or reducers in `server/`, run `npm run db:publish` then `n
 
 To use Maincloud instead of a local server: `spacetime login`, `spacetime publish --module-path server --server maincloud <db-name> -y`, then open `http://localhost:5173/?host=https://maincloud.spacetimedb.com&db=<db-name>`.
 
-## Controls (for now)
+## Controls
 
-- Move the mouse over your half to aim; click to lock a spot.
-- `1`–`0` (or the buttons) drop one of the 10 anchor troops at the cursor.
-- Type a description in the box and press Enter: Claude designs it, and it drops at the locked spot. The 2.5 s deploy delay starts when you press Enter, so generation overlaps the wait.
-- Cost is shown on the troop once it lands. Anything over 10, or over your elixir, is refused with what it would have cost.
-
-Hand tracking and voice come in later phases (see [meta/PROGRESS.md](meta/PROGRESS.md)).
+- **Mouse and keys:** aim over your half, click to lock a spot. `1`–`0` (or the buttons) drop the 10 starter troops. Type a description and press Enter to drop it at the locked spot.
+- **Camera** (top-left panel, opt-in): aim with your index knuckle, pinch thumb + middle finger to lock, say or type the troop, release to deploy, drag outside the ring before releasing to cancel. **Calibrate** maps the camera to the screen.
+- **Mic** (opt-in): start talking to lock at the cursor, describe the troop, go quiet to deploy, say "cancel" to cancel. The browser's speech recognition stands in for Cartesia for now.
+- The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your elixir, is refused with what it would have cost.
+- **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes.
 
 ## Designer benchmark
 
