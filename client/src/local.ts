@@ -11,6 +11,7 @@ import type { TroopDesign } from '../../shared/troop';
 import { Glide, quirkView, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
 import type { DrawPending, DrawTroop } from './render';
 import type { BotRoundLog, BotTroopLog } from './telemetry';
+import { exactCost } from './value';
 
 const DT = 1 / TICK_HZ;
 const PENDING_TTL = 15; // seconds; a lock nobody followed up on (same as the server)
@@ -54,7 +55,7 @@ export class LocalMatch implements MatchSource {
       const id = BigInt(u.id);
       const [x, y] = this.glide.pos(id, u.x, u.y);
       const troopId = this.unitTroop.get(u.id) ?? 0n;
-      return { ...quirkView(u), id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range };
+      return { ...quirkView(u), id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range, damage: u.damage };
     });
   }
 
@@ -206,7 +207,7 @@ export class LocalMatch implements MatchSource {
     }
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, {
-      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, flavor: design.flavor,
+      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, flavor: design.flavor, value: exactCost(design),
     });
     this.tallies.set(troopId, {
       troopId, side, bot: side === BOT, nonce, description, name: design.name, design: JSON.stringify(design), cost,

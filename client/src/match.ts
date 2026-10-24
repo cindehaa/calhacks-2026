@@ -5,6 +5,7 @@ import type { SimUnit } from '../../shared/sim';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from '../../shared/troop';
 import type { Player, Room } from './module_bindings/types';
 import type { Net } from './net';
+import { exactCost } from './value';
 import type { DrawPending, DrawTower, DrawTroop, DrawUnit } from './render';
 
 export type MatchStatus = 'lobby' | 'playing' | 'done';
@@ -16,6 +17,7 @@ export type UnitQuirkView = Pick<SimUnit, 'attackSpeed' |
 
 export interface MatchUnit extends DrawUnit, UnitQuirkView {
   attackSeq: number; // bumps on every hit
+  damage?: number; // per hit, for the result screen's MVP tally online (mvp.ts)
 }
 
 // Copies the quirk fields off a SimUnit or a unit row (same camelCase names; enums are strings in the table).
@@ -146,7 +148,7 @@ export class OnlineMatch implements MatchSource {
     for (const u of this.net.conn.db.unit.iter()) {
       if (u.roomCode !== code) continue;
       const [x, y] = this.glide.pos(u.id, u.x, u.y);
-      out.push({ ...quirkView(u), id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range });
+      out.push({ ...quirkView(u), id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range, damage: u.damage });
     }
     return out;
   }
@@ -159,7 +161,7 @@ export class OnlineMatch implements MatchSource {
   troops(): Map<bigint, DrawTroop> {
     const code = this.code;
     return new Map(
-      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, flavor: t.flavor }])
+      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, flavor: t.flavor, value: troopValue(t) }])
     );
   }
 
@@ -215,4 +217,19 @@ export class OnlineMatch implements MatchSource {
   forfeit() {
     return this.net.conn.reducers.forfeit({});
   }
+}
+
+// The unrounded price of a troop row, for the cost reveal's tint (value.ts).
+type TroopRow = { health: number; damage: number; attackSpeed: number; moveSpeed: number; range: number; count: number; attack: string; targets: string; onHit: string; windup: boolean; trait: string };
+const values = new WeakMap<object, number>();
+function troopValue(t: TroopRow): number {
+  let v = values.get(t);
+  if (v === undefined) {
+    v = exactCost({
+      health: t.health, damage: t.damage, attack_speed: t.attackSpeed, move_speed: t.moveSpeed, range: t.range, count: t.count,
+      attack: t.attack as Attack, targets: t.targets as Targets, on_hit: t.onHit as OnHit, windup: t.windup, trait: t.trait as Trait,
+    });
+    values.set(t, v);
+  }
+  return v;
 }

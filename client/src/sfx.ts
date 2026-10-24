@@ -6,7 +6,10 @@
 export type SfxName =
   | 'deploy' | 'incoming' | 'land' | 'hit' | 'attack' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
   | 'count' | 'fight' | 'double' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw'
-  | 'click' | 'versus' | 'joined' | 'forfeit' | 'slam' | 'zap' | 'whoosh' | 'boom' | 'puff' | 'stun';
+  | 'click' | 'versus' | 'joined' | 'forfeit' | 'slam' | 'zap' | 'whoosh' | 'boom' | 'puff' | 'stun'
+  // Juice (juice.ts): cost roll ticks and the settle chime, the name stamp, a refused troop's coin
+  // shattering, the size-scaled landing thud and the shimmer when late art lands. Synth only.
+  | 'tick' | 'chime' | 'stamp' | 'shatter' | 'thud' | 'shimmer';
 
 // The pack's troop families; each has spawn, attack_1/2, hit_1/2 and death.
 export const SOUND_KINDS = ['beast', 'blade', 'heavy', 'magic', 'mech', 'ranged', 'swarm'] as const;
@@ -79,6 +82,7 @@ const VOLUME = 0.35;
 const GAP: Partial<Record<SfxName, number>> = {
   click: 0.05, hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
   slam: 0.1, zap: 0.1, whoosh: 0.08, boom: 0.12, puff: 0.15, stun: 0.12,
+  tick: 0.035, chime: 0.08, stamp: 0.08, shatter: 0.2, thud: 0.06, shimmer: 0.15,
 };
 
 function readMuted(): boolean {
@@ -220,8 +224,9 @@ class Sfx {
 
   onMuteChange(f: (muted: boolean) => void): void { this.listeners.add(f) }
 
-  // `kind` picks the troop family for unit events (land, attack, hit, death).
-  play(name: SfxName, kind?: SoundKind): void {
+  // `kind` picks the troop family for unit events (land, attack, hit, death). `pitch` scales the
+  // synth's frequencies (the landing thud drops for big troops); the pack's samples ignore it.
+  play(name: SfxName, kind?: SoundKind, pitch = 1): void {
     const ac = this.ctx, out = this.master;
     if (!ac || !out || this.muted || ac.state !== 'running') return;
     const now = ac.currentTime;
@@ -232,7 +237,7 @@ class Sfx {
       const s = samplesFor(name, kind);
       const ready = s.pick.filter(k => this.buffers.has(k));
       if (ready.length) this.sample(ready[Math.floor(Math.random() * ready.length)], s.gain, name === 'hit' || name === 'attack');
-      else this.synth(name, ac, out, now);
+      else this.synth(name, ac, out, now, pitch);
       if (s.voice) this.sample(`voice/announcer/${s.voice}`, VOICE_GAIN, false);
     } catch { /* ignore */ }
   }
@@ -250,8 +255,32 @@ class Sfx {
     src.start();
   }
 
-  private synth(name: SfxName, ac: AudioContext, out: GainNode, t: number): void {
+  private synth(name: SfxName, ac: AudioContext, out: GainNode, t: number, pitch = 1): void {
+    const p = pitch;
     switch (name) {
+      case 'tick': // a slot reel clicking over: short bright tick
+        this.tone(ac, out, t, 'square', 1900 * p, 1500 * p, 0.025, 0.07, 5000);
+        break;
+      case 'chime': // the cost settles: two bell partials
+        this.tone(ac, out, t, 'sine', 1320 * p, 1320 * p, 0.5, 0.22);
+        this.tone(ac, out, t, 'sine', 1980 * p, 1980 * p, 0.35, 0.1);
+        this.tone(ac, out, t + 0.06, 'triangle', 2640 * p, 2640 * p, 0.25, 0.06);
+        break;
+      case 'stamp': // the name stamps down: dull wooden knock
+        this.tone(ac, out, t, 'sine', 240, 90, 0.12, 0.5);
+        this.noiseHit(ac, out, t, 0.07, 0.3, 'bandpass', 1100, 500, 1.4);
+        break;
+      case 'shatter': // a refused troop's coin breaking: glassy crack and tinkle
+        this.noiseHit(ac, out, t, 0.18, 0.4, 'highpass', 4200, 2600, 1.2);
+        for (const [i, f] of [2900, 3700, 2400, 4300].entries()) this.tone(ac, out, t + 0.02 + i * 0.035, 'triangle', f, f * 0.94, 0.12, 0.08);
+        break;
+      case 'thud': // a troop landing: pitch drops with size
+        this.tone(ac, out, t, 'sine', 170 * p, 38 * p, 0.18 + 0.25 / p, Math.min(1, 0.45 / p));
+        this.noiseHit(ac, out, t, 0.09 + 0.12 / p, Math.min(0.6, 0.25 / p), 'lowpass', 1100 * p, 160 * p, 0.7);
+        break;
+      case 'shimmer': // art lands on a troop: rising sparkle
+        for (const [i, f] of [1568, 2093, 2637, 3136].entries()) this.tone(ac, out, t + i * 0.04, 'sine', f, f, 0.18, 0.07);
+        break;
       case 'deploy': // rising airy whoosh
         this.noiseHit(ac, out, t, 0.38, 0.5, 'bandpass', 500, 2600, 1.4);
         break;

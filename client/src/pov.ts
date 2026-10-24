@@ -8,6 +8,8 @@ import {
 } from '../../shared/arena';
 import { Fx, quirks, roundRect, towerKey, type Shot, type Trail } from './fx';
 import { drawInput } from './input/draw';
+import { Juice } from './juice';
+import { SummonCircles } from './summon';
 import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View } from './render';
 import { Scenery } from './scenery';
 import { poseFrame } from './sprites';
@@ -96,6 +98,8 @@ void main() {
 
 export class PovBoard {
   readonly fx = new Fx();
+  readonly juice = new Juice(); // cost reveal, landing impact, stamps, bubbles, freeze and slow motion
+  private summons!: SummonCircles;
   eye: Eye = 'top';
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -181,6 +185,7 @@ export class PovBoard {
     this.addSurroundings();
     this.scenery = new Scenery(s);
     this.parts = this.makePoints();
+    this.summons = new SummonCircles(s, (x, y, h, out) => this.at(x, y, h, out));
 
     const ring = (inner: number, outer: number, opacity: number) => {
       const m = new THREE.Mesh(
@@ -232,24 +237,29 @@ export class PovBoard {
   // visible false (an opaque menu covers the board) still runs Fx, which plays the match's sounds
   // and music, but skips the scene and the overlay.
   draw(v: View, visible = true): void {
-    const now = performance.now();
-    const dt = Math.min(0.05, (now - this.last) / 1000);
-    this.last = now;
-    this.frame++;
+    const real = performance.now() / 1000;
+    // Effects run on juice's clock, which slows for a moment when a tower falls (visual only).
+    const now = this.juice.clock(real);
     this.side = v.mySide;
-    this.fx.observe(v, now / 1000);
+    this.fx.observe(v, now);
+    this.juice.observe(v, now, real, this.fx);
     if (!visible) return;
+    if (this.juice.frozen(real)) return; // hit freeze: the last frame stays on screen
+    const dt = Math.min(0.05, real - this.last / 1000) * this.juice.timeRate;
+    this.last = real * 1000;
+    this.frame++;
     this.syncLayout();
     this.syncPockets(v.towers);
-    this.moveCamera(v, dt, now / 1000);
+    this.moveCamera(v, dt, now, real);
     this.syncTowers(v, dt);
-    this.syncUnits(v, now / 1000);
-    this.syncPendings(v, now / 1000);
+    this.syncUnits(v, now);
+    this.syncPendings(v, now);
+    this.summons.sync(v, this.juice.airborne(), now);
     this.syncEffects(v);
-    this.syncCursor(v, now / 1000);
-    this.scenery.update(dt, now / 1000);
+    this.syncCursor(v, now);
+    this.scenery.update(dt, now);
     this.renderer.render(this.scene, this.cam);
-    this.drawOverlay(v);
+    this.drawOverlay(v, now, real);
   }
 
   // ---------- coordinates ----------
@@ -362,7 +372,7 @@ export class PovBoard {
     }
   }
 
-  private moveCamera(v: View, dt: number, now: number): void {
+  private moveCamera(v: View, dt: number, now: number, real: number): void {
     // Your head turns a little toward where you point: the hand cursor if there is one, else the mouse.
     const p = v.input?.cursor ? [v.input.cursor.x, v.input.cursor.y] : this.mouse;
     const nx = p ? (p[0] / this.w) * 2 - 1 : 0, ny = p ? -(p[1] / this.h) * 2 + 1 : 0;
@@ -371,10 +381,12 @@ export class PovBoard {
     this.pitch += (ny * 0.1 - this.pitch) * k;
     const e = EYES[this.eye];
     const [shx, shy] = this.fx.shake();
-    this.cam.position.set(Math.sin(now * 0.7) * 0.05 + shx * 0.01, e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01, MID_Y - e.y);
-    this.cam.rotation.set(e.pitch + this.pitch, this.yaw, 0);
-    if (this.cam.fov !== e.fov) {
-      this.cam.fov = e.fov;
+    const [jx, jy, roll] = this.juice.shake(real);
+    this.cam.position.set(Math.sin(now * 0.7) * 0.05 + shx * 0.01 + jx, e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01 + jy, MID_Y - e.y);
+    this.cam.rotation.set(e.pitch + this.pitch, this.yaw, roll);
+    const fov = e.fov + this.juice.fovKick(real);
+    if (this.cam.fov !== fov) {
+      this.cam.fov = fov;
       this.cam.updateProjectionMatrix();
     }
     this.cam.updateMatrixWorld();
@@ -497,10 +509,11 @@ export class PovBoard {
       mat.rotation = -a.rot;
       // Slowed: tinted blue. Hit: a white flash.
       const slowed = !air && (q.slowT ?? 0) > 0;
-      const f = 1 + a.flash * 1.5;
+      const f = 1 + a.flash * 1.5 + this.juice.shimmer(u.troopId, now) * 1.4;
       if (slowed) mat.color.setRGB(0.55 * f, 0.78 * f, 1.6 * f);
       else mat.color.setScalar(f);
-      m.sprite.scale.set(w * a.sx, h * a.sy, 1);
+      const [jsx, jsy] = this.juice.squash(u.troopId, u.delay, now);
+      m.sprite.scale.set(w * a.sx * jsx, h * a.sy * jsy, 1);
       // The anim's dx/dy are screen-plane offsets in tiles (dy down the screen, toward you); up is the lift.
       const lift = drop + fly + Math.max(-0.1, a.up);
       this.at(u.x, u.y, lift, m.sprite.position);
@@ -906,7 +919,7 @@ export class PovBoard {
 
   // ---------- 2D overlay ----------
 
-  private drawOverlay(v: View): void {
+  private drawOverlay(v: View, now: number, real: number): void {
     const g = this.g, dpr = devicePixelRatio || 1;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, this.w, this.h);
@@ -941,8 +954,9 @@ export class PovBoard {
     }
 
     this.drawStatus(v);
-    this.drawLabels(v);
+    this.drawLabels(v, now);
     this.drawFloaters();
+    this.juice.drawOverlay(g, v, (x, y, h) => this.project(x, y, h), now, real);
     if (this.hurt > 0) this.drawHurt();
     this.fx.drawBanners(g, this.w / 2, this.h * 0.38, Math.min(this.w, 720));
     if (v.input) drawInput(g, v.input);
@@ -1048,7 +1062,7 @@ export class PovBoard {
   // One name per troop above its lead unit, with the cost (or the drop countdown) over it. A
   // small tower before the name marks a troop that only chases buildings. Nearest troops place
   // first; a farther label that would land on one already placed steps up once, else drops its name.
-  private drawLabels(v: View): void {
+  private drawLabels(v: View, now: number): void {
     const lead = this.lead, g = this.g;
     lead.clear();
     for (const u of v.units) {
@@ -1091,11 +1105,20 @@ export class PovBoard {
       const py = y - size - 8 * s;
       if (placed) {
         boxes.push(x - w / 2 - 2, y - size - ph - 4, x + w / 2 + 2, y + 3);
-        this.outlined(name, x + icon / 2, y, size, ink);
+        const st = this.juice.stamp(u.troopId, now); // the name slams in when the design arrives
+        g.globalAlpha = st.alpha;
+        this.outlined(name, x + icon / 2, y, Math.round(size * st.scale), ink);
+        g.globalAlpha = 1;
         if (buildings) this.towerIcon(x - w / 2 + 5 * s, y - size * 0.35, s, ink);
       } else if (!free(x - 10, py - ph / 2, x + 10, py + ph / 2)) continue;
+      // The cost stays hidden until the troop lands, then rolls like a slot reel (juice.ts).
+      const cost = u.delay > 0 ? null : this.juice.costLabel(u.troopId, now);
       if (u.delay > 0) this.pill(u.delay.toFixed(1), x, py, 11 * s, 'rgba(13,16,32,0.9)', mine ? C.mine : C.theirs, C.text);
-      else this.pill(String(troop.cost), x, py, 11 * s, 'rgba(48,16,76,0.94)', C.elixir, '#f3dcff');
+      else if (cost) {
+        if (cost.glow) { g.shadowColor = cost.glow; g.shadowBlur = 14 }
+        this.pill(cost.text, x, py, 11 * s * cost.scale, cost.fill, cost.stroke, cost.ink);
+        g.shadowColor = 'transparent'; g.shadowBlur = 0;
+      } else this.pill(String(troop.cost), x, py, 11 * s, 'rgba(48,16,76,0.94)', C.elixir, '#f3dcff');
       if (!placed) boxes.push(x - 10, py - ph / 2, x + 10, py + ph / 2);
     }
   }

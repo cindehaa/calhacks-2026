@@ -42,7 +42,10 @@ export interface DrawQuirks {
   chainYs?: number[];
 }
 export interface DrawTower { side: number; lane?: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
-export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; flavor?: string }
+export interface DrawTroop {
+  name: string; cost: number; spriteUrl: string; description?: string; flavor?: string;
+  value?: number; // the unrounded price (value.ts), for the cost reveal's bargain / pricey tint
+}
 export interface DrawPending { side: number; x: number; y: number; age: number }
 
 export interface View {

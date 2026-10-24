@@ -560,7 +560,8 @@ export class Fx {
 
   // ---------- pools ----------
 
-  private particle(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, size: number, color: string, kind: 0 | 1 | 2): void {
+  // Public so juice.ts can add to the same pooled particles and rings.
+  particle(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, size: number, color: string, kind: 0 | 1 | 2): void {
     if (this.particles.length >= MAX_PARTICLES) return;
     const p = this.pool.pop() ?? ({} as Particle);
     p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz;
@@ -568,7 +569,7 @@ export class Fx {
     this.particles.push(p);
   }
 
-  private ring(x: number, y: number, r0: number, r1: number, dur: number, color: string, width: number): void {
+  ring(x: number, y: number, r0: number, r1: number, dur: number, color: string, width: number): void {
     if (this.rings.length >= MAX_RINGS) this.rings.shift();
     this.rings.push({ x, y, t0: this.now, dur, r0, r1, color, width });
   }
