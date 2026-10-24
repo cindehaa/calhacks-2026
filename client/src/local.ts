@@ -67,6 +67,10 @@ export class LocalMatch implements MatchSource {
     this.deploy(this.side, nonce, x, y, description, d, spriteUrl);
   }
   async cancelDeploy(nonce: number) { this.unlock(this.side, nonce); }
+  // Nobody else sees this match, so the bot's troops take art the same way yours do.
+  async attachSprite(description: string, spriteUrl: string) {
+    for (const t of this.troopRows.values()) if (t.description === description && !t.spriteUrl) t.spriteUrl = spriteUrl.slice(0, 2048);
+  }
   async rematch() { if (this.status !== 'playing') this.reset(); }
   async leave() {
     cancelAnimationFrame(this.raf);
@@ -170,7 +174,9 @@ export class LocalMatch implements MatchSource {
       throw new Error('deploy on your own half');
     }
     const troopId = BigInt(this.nextId++);
-    this.troopRows.set(troopId, { name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description });
+    this.troopRows.set(troopId, {
+      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style,
+    });
     for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
       const id = this.nextId++;
       this.unitTroop.set(id, troopId);

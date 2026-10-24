@@ -31,6 +31,8 @@ export interface MatchSource {
   beginDeploy(nonce: number, x: number, y: number): Promise<void>;
   deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl?: string): Promise<void>;
   cancelDeploy(nonce: number): Promise<void>;
+  // Art that arrived after the deploy: set it on your troops with this description that have none.
+  attachSprite(description: string, spriteUrl: string): Promise<void>;
   rematch(): Promise<void>;
   leave(): Promise<void>;
 }
@@ -115,7 +117,7 @@ export class OnlineMatch implements MatchSource {
   troops(): Map<bigint, DrawTroop> {
     const code = this.code;
     return new Map(
-      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description }])
+      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description, battleCry: t.battleCry, voiceStyle: t.voiceStyle }])
     );
   }
 
@@ -141,6 +143,22 @@ export class OnlineMatch implements MatchSource {
 
   cancelDeploy(nonce: number) {
     return this.net.conn.reducers.cancelDeploy({ nonce });
+  }
+
+  // set_troop_sprite only takes the owner's troops. The new row can trail the reducer's reply by
+  // a moment, so look a few times before giving up.
+  async attachSprite(description: string, spriteUrl: string) {
+    const desc = description.slice(0, 300);
+    for (let tries = 0; tries < 6; tries++) {
+      const mine = [...this.net.conn.db.troop.iter()].filter(
+        t => t.roomCode === this.code && t.owner.isEqual(this.net.identity) && t.description === desc && !t.spriteUrl
+      );
+      if (mine.length) {
+        await Promise.all(mine.map(t => this.net.conn.reducers.setTroopSprite({ troopId: t.id, spriteUrl })));
+        return;
+      }
+      await new Promise(r => setTimeout(r, 250));
+    }
   }
 
   rematch() {

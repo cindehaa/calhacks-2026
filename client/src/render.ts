@@ -1,5 +1,6 @@
 // Canvas drawing. World units are tiles; the board is rotated so your side is at the bottom.
 import { ARENA_H, ARENA_W, DEPLOY_DELAY, LANE_X, MID_Y, TOWER_RADIUS, UNIT_RADIUS, type Side } from '../../shared/arena';
+import { keyBackground } from './chroma';
 import { drawInput, type InputView } from './input/draw';
 import { Fx, roundRect, towerKey } from './fx';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
@@ -17,7 +18,7 @@ export interface DrawUnit {
   range?: number; // > 1 shoots projectiles
 }
 export interface DrawTower { side: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
-export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string }
+export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; battleCry?: string; voiceStyle?: string }
 export interface DrawPending { side: number; x: number; y: number; age: number }
 
 export interface View {
@@ -76,7 +77,7 @@ export class Board {
   private ox = 0;
   private oy = 0;
   private mySide: Side = 0;
-  private sprites = new Map<string, HTMLImageElement>();
+  private sprites = new Map<string, { img: HTMLImageElement; out: CanvasImageSource | null }>();
   readonly fx = new Fx();
   private toScreenFn = (x: number, y: number) => this.toScreen(x, y);
   private order: DrawUnit[] = [];
@@ -490,13 +491,35 @@ export class Board {
     g.fillText(s, x, y);
   }
 
-  private sprite(url: string): HTMLImageElement | null {
-    let img = this.sprites.get(url);
-    if (!img) {
-      img = new Image();
+  // Null until the image has loaded, so the placeholder token shows meanwhile. A '?key' URL is
+  // art whose background removal timed out: key it here once, into a canvas.
+  private sprite(url: string): CanvasImageSource | null {
+    let s = this.sprites.get(url);
+    if (!s) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // the api sends CORS headers; keeps the canvas readable
+      const entry: { img: HTMLImageElement; out: CanvasImageSource | null } = { img, out: null };
+      img.onload = () => (entry.out = /[?&]key\b/.test(url) ? keyed(img) : img);
       img.src = url;
-      this.sprites.set(url, img);
+      this.sprites.set(url, (s = entry));
     }
-    return img.complete && img.naturalWidth ? img : null;
+    return s.out;
   }
+}
+
+function keyed(img: HTMLImageElement): CanvasImageSource {
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  if (!g) return img;
+  g.drawImage(img, 0, 0);
+  try {
+    const px = g.getImageData(0, 0, c.width, c.height);
+    keyBackground(px.data, c.width, c.height);
+    g.putImageData(px, 0, 0);
+  } catch {
+    return img; // tainted after all: better a square than nothing
+  }
+  return c;
 }

@@ -2,13 +2,15 @@ import { ANCHORS } from '../../shared/anchors';
 import { ARENA_W, ELIXIR_MAX, MATCH_SECONDS, MID_Y, onOwnHalf, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import type { TroopDesign } from '../../shared/troop';
+import { cries } from './cries';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { InputController } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
-import { Board, type DrawUnit } from './render';
+import { Board, type DrawTroop, type DrawUnit } from './render';
 import { sfx } from './sfx';
+import { prefetchSprite, requestSprite } from './sprites';
 import './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -20,6 +22,9 @@ let local: LocalMatch | null = null; // vs Bot, entirely in this tab
 let aim: [number, number] | null = null; // hover point on your half, world coords
 let lock: [number, number] | null = null; // clicked spot for typed troops
 let warmedFor = '';
+let criedFor = '';
+const cried = new Set<bigint>(); // troops that have had their turn to shout
+const arted = new WeakSet<DrawTroop>(); // bot-match troops already sent for art
 
 // ---------- connection ----------
 
@@ -115,16 +120,29 @@ function status(msg: string, bad = false) {
   $('status').classList.toggle('bad', bad);
 }
 
-function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign) {
-  call(
-    match()?.deployTroop(nonce, x, y, description, d),
-    msg => {
-      call(match()?.cancelDeploy(nonce), () => {});
-      sfx.play('buzz');
-      const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
-      status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
-    }
-  );
+// Resolves true once the server took it. On a refusal, cancels the lock and says why.
+async function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign, spriteUrl = ''): Promise<boolean> {
+  try {
+    await match()?.deployTroop(nonce, x, y, description, d, spriteUrl);
+    return true;
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    call(match()?.cancelDeploy(nonce), () => {});
+    sfx.play('buzz');
+    const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
+    status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
+    return false;
+  }
+}
+
+// Deploy with the art if it's already here, else deploy now and set the art when it lands.
+async function deployWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
+  const m = match();
+  const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
+  const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
+  if (!ok || ready !== undefined) return;
+  const url = await art;
+  if (url && m) call(m.attachSprite(description, url), () => {});
 }
 
 // Anchors skip Claude: lock and deploy in one go.
@@ -134,7 +152,7 @@ function deployAnchor(i: number) {
   const spot = spotOrDefault();
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
-  sendDeploy(nonce, spot, a.description, a);
+  void deployWithArt(nonce, spot, a.description, a, requestSprite(a.description));
   status(`${a.name}`);
 }
 
@@ -153,11 +171,12 @@ function cancelAt(nonce: number, msg: string) {
 
 async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
+  const art = requestSprite(description); // in parallel with the designer; often already started
   try {
     const { design, cost, ms, source, early } = await designTroop(description);
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
     status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms${tags ? ` (${tags})` : ''}`);
-    sendDeploy(nonce, spot, description, design);
+    void deployWithArt(nonce, spot, description, design, art);
   } catch (e) {
     cancelAt(nonce, `designer failed: ${(e as Error).message}`);
   }
@@ -180,7 +199,10 @@ const input = new InputController(board.canvas, {
   status,
   typedText: () => $<HTMLInputElement>('descInput').value,
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
-  prefetch: prefetchDesign,
+  prefetch: words => {
+    prefetchDesign(words);
+    prefetchSprite(words);
+  },
 });
 
 $<HTMLFormElement>('describe').onsubmit = e => {
@@ -240,6 +262,8 @@ function frame() {
   if (m.status === 'playing' && warmedFor !== m.key) {
     warmedFor = m.key;
     warmDesigner();
+    cries.warm();
+    input.warm();
   }
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
@@ -249,6 +273,8 @@ function frame() {
   $('elixirText').textContent = String(Math.floor(elixir));
 
   const units: DrawUnit[] = m.units();
+  shout(m, units);
+  if (local) artForBot(local);
 
   board.draw({
     mySide: side,
@@ -263,6 +289,37 @@ function frame() {
     status: m.status,
     winner: m.winner ?? undefined,
   });
+}
+
+// A troop shouts its battle cry as it lands. Online you only hear your own troops (the opponent's
+// laptop plays theirs; two laptops side by side would double up), vs Bot you hear both sides.
+function shout(m: MatchSource, units: DrawUnit[]) {
+  const troops = m.troops();
+  const fresh = criedFor !== m.key;
+  if (fresh) {
+    criedFor = m.key;
+    cried.clear();
+  }
+  for (const u of units) {
+    if (u.delay > 0 || cried.has(u.troopId)) continue;
+    cried.add(u.troopId);
+    const t = troops.get(u.troopId);
+    // Joining mid-match: troops already on the board stay quiet.
+    if (fresh || !t?.battleCry || (u.side !== m.side && m !== local)) continue;
+    cries.speak(t.battleCry, t.voiceStyle ?? '');
+  }
+}
+
+// The bot's troops are anchors, so their art is drawn once and cached by the api like yours.
+function artForBot(m: LocalMatch) {
+  for (const t of m.troops().values()) {
+    if (t.spriteUrl || !t.description || arted.has(t)) continue;
+    arted.add(t);
+    const desc = t.description;
+    requestSprite(desc).then(url => {
+      if (url) void m.attachSprite(desc, url);
+    });
+  }
 }
 
 function escapeHtml(s: string) {
