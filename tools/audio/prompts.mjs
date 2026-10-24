@@ -80,28 +80,28 @@ export const SFX_SETS = {
 export const GAME_SFX = {
   deploy_pending: {
     // Plays through the 2.5 s deploy delay, so the wait sounds intentional.
-    prompt: 'rising magical charge-up whoosh building tension',
+    prompt: 'rising magical charge-up, swirling frost and crackling embers building tension',
     duration: 2.5,
   },
-  deploy_land: { prompt: 'troop arriving on the battlefield, punchy impact and dust', duration: 0.8 },
-  tower_hit: { prompt: 'projectile hitting a stone tower, chunky impact', duration: 0.6, variants: 2 },
-  tower_destroyed: { prompt: 'stone tower collapsing with a big explosion and falling rubble', duration: 2.5 },
-  match_start: { prompt: 'war horn blast signalling the battle start', duration: 2.0 },
-  double_elixir: { prompt: 'bright magical gong with a rising shimmer', duration: 1.5 },
-  match_end: { prompt: 'final whistle and a deep gong', duration: 2.0 },
+  deploy_land: { prompt: 'troop landing in packed snow, punchy impact with a puff of powder snow and an icy crunch', duration: 0.8 },
+  tower_hit: { prompt: 'projectile hitting a frosted stone tower, chunky impact with ice chips cracking off', duration: 0.6, variants: 2 },
+  tower_destroyed: { prompt: 'frozen stone tower collapsing, ice shattering, big explosion and falling rubble', duration: 2.5 },
+  match_start: { prompt: 'deep war horn blast echoing across a frozen valley, signalling the battle start', duration: 2.0 },
+  double_elixir: { prompt: 'bright magical gong with a rising shimmer of ice crystals and a whoosh of flame', duration: 1.5 },
+  match_end: { prompt: 'final deep gong, a fire flaring up then settling to a soft crackle', duration: 2.0 },
   victory: {
-    prompt: 'short triumphant brass fanfare, victory jingle',
+    prompt: 'short triumphant brass fanfare with sparkling sleigh bells and celesta, warm and festive, victory jingle',
     duration: 4.0,
     // Fanfares are music, so drop the "no music" part of the style.
     style: 'stylised mobile game jingle, punchy and clean',
   },
   defeat: {
-    prompt: 'short sad descending trombone, defeat jingle',
+    prompt: 'short sad descending trombone, a cold wind gust and a fire dying down to embers, defeat jingle',
     duration: 3.0,
     style: 'stylised mobile game jingle, punchy and clean',
   },
   arena_ambience: {
-    prompt: 'distant battle arena crowd murmur with soft wind',
+    prompt: 'cold winter wind sweeping over a snowy arena, distant crowd murmur, faint crackling braziers',
     duration: 15,
     loop: true,
     style: 'game background ambience, quiet and even, no music, no speech',
