@@ -225,6 +225,7 @@ export class Fx {
   private hurt(id: bigint, t: UTrack, amt: number, mine: boolean, now: number): void {
     t.flashAt = now;
     this.floater(id, t.x, t.y, amt, mine ? COLORS.theirsLight : '#ffffff', 9);
+    sfx.play('hit');
   }
 
   private attack(t: UTrack, u: DrawUnit, v: View, now: number): void {
