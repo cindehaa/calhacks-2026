@@ -183,20 +183,30 @@ const LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
 let botLevel = ((): BotLevel => {
   try { return (localStorage.getItem(LEVEL_KEY) as BotLevel) || 'normal' } catch { return 'normal' }
 })();
-function renderLevel() {
-  for (const b of $('botLevel').querySelectorAll<HTMLElement>('[data-level]')) b.setAttribute('aria-checked', String(b.dataset.level === botLevel));
+// Practice asks for a difficulty, the last one picked lit amber, and starts straight away.
+function openPractice(open: boolean) {
+  $('practice').hidden = !open;
+  if (!open) return;
+  for (const b of $('botLevel').querySelectorAll<HTMLElement>('[data-level]')) {
+    const last = b.dataset.level === botLevel;
+    b.classList.toggle('amber', last);
+    b.classList.toggle('stone', !last);
+    if (last) b.focus();
+  }
 }
-renderLevel();
 $('botLevel').onclick = e => {
   const level = (e.target as HTMLElement).closest<HTMLElement>('[data-level]')?.dataset.level as BotLevel | undefined;
   if (!level || !LEVELS.includes(level)) return;
   botLevel = level;
   remember(LEVEL_KEY, botLevel);
-  renderLevel();
+  openPractice(false);
+  startBot(level);
 };
+$('practiceBack').onclick = () => openPractice(false);
+$('practice').onclick = e => { if (e.target === e.currentTarget) openPractice(false) };
 
 // Every menu button ticks.
-for (const id of ['lobby', 'raven', 'pause', 'forfeitAsk', 'result']) {
+for (const id of ['lobby', 'practice', 'raven', 'pause', 'forfeitAsk', 'result']) {
   $(id).addEventListener('click', e => { if ((e.target as HTMLElement).closest('button')) sfx.play('click') });
 }
 
@@ -226,7 +236,7 @@ function renderLast() {
 }
 renderLast();
 
-$('botBtn').onclick = () => startBot(botLevel);
+$('botBtn').onclick = () => openPractice(true);
 // No matchmaking yet: Play online and Join a room open the same room pop-up; Join starts at the code boxes.
 $('battleBtn').onclick = () => openRaven();
 $('ravenBtn').onclick = () => {
@@ -839,6 +849,10 @@ $('hand').onclick = e => {
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
     if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (!$('practice').hidden) {
+    if (e.key === 'Escape') openPractice(false);
     return;
   }
   if (local?.paused) {

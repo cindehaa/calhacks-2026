@@ -159,6 +159,9 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .gPanel h2 { margin: 0; font: 800 clamp(30px, 3vw, 44px)/1.1 var(--cinzel); letter-spacing: .03em; color: #fff; }
 .menuPanel .gFace { width: min(380px, calc(100vw - 32px)); padding: 32px; display: flex; flex-direction: column; gap: 14px; text-align: center; }
 .menuPanel .slab .face { width: 100%; }
+.levelPick { display: flex; flex-direction: column; gap: 12px; }
+.textBtn { align-self: center; padding: 6px 14px; border: 0; background: none; color: var(--muted); font: 700 14px var(--chakra); letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+.textBtn:hover { color: #fff; }
 #pause, #forfeitAsk { z-index: 8; }
 
 /* home */
@@ -219,11 +222,6 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .slab.small .face svg { color: var(--amber); }
 .slab.small .face small { font: 500 14px var(--chakra); letter-spacing: .01em; color: var(--muted); white-space: nowrap; }
 .slab.small .face { width: 172px; gap: 6px; }
-.levels { display: flex; gap: 2px; padding: 3px; background: #0b0e22cc; clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px); }
-.levels button { padding: 4px 12px; border: 0; background: none; color: var(--muted); font: 700 14px var(--chakra); letter-spacing: .04em; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
-.levels button:hover { background: #1c2140; color: #fff; }
-.levels button[aria-checked="true"] { background: #2e3558; color: var(--amber); }
-.levels.ghost { visibility: hidden; height: 30px; }
 .homeError { position: absolute; left: 0; right: 0; bottom: 1vh; text-align: center; }
 .hubFoot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; align-items: center; padding: 10px 20px; pointer-events: none;
   font: 500 13px var(--chakra); letter-spacing: .02em; color: #8e96b3c0; }
@@ -353,7 +351,6 @@ body:not(.inHub) #camBtn { display: none; }
   .orderSide { flex: 1; padding-top: 0; }
   .orderSide .slab.small { width: 100%; --h: 84px; }
   .orderSide .slab.small .face { width: 100%; }
-  .levels.ghost { display: none; }
   .hubCredit { display: none; }
   .frostCorner { width: 120px; }
 }
