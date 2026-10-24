@@ -8,6 +8,8 @@ import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { Board, type DrawUnit } from './render';
+import { sfx } from './sfx';
+import './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new Board($<HTMLCanvasElement>('board'));
@@ -118,6 +120,7 @@ function sendDeploy(nonce: number, [x, y]: [number, number], description: string
     match()?.deployTroop(nonce, x, y, description, d),
     msg => {
       call(match()?.cancelDeploy(nonce), () => {});
+      sfx.play('buzz');
       const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
       status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
     }
@@ -228,7 +231,7 @@ function frame() {
   const m = match();
   if (!m) {
     $('roomInfo').textContent = '';
-    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null });
+    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' });
     return;
   }
   const side = m.side;
@@ -254,6 +257,9 @@ function frame() {
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
     input: input.view(),
+    time: m.time,
+    status: m.status,
+    winner: m.winner ?? undefined,
   });
 }
 

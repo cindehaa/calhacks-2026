@@ -49,7 +49,7 @@ export class LocalMatch implements MatchSource {
       const id = BigInt(u.id);
       const [x, y] = this.glide.pos(id, u.x, u.y);
       const troopId = this.unitTroop.get(u.id) ?? 0n;
-      return { id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq };
+      return { id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range };
     });
   }
 
@@ -156,7 +156,7 @@ export class LocalMatch implements MatchSource {
     return this.locks.find(l => l.side === side && l.nonce === nonce);
   }
 
-  private deploy(side: Side, nonce: number, x: number, y: number, _description: string, raw: TroopDesign, spriteUrl: string) {
+  private deploy(side: Side, nonce: number, x: number, y: number, description: string, raw: TroopDesign, spriteUrl: string) {
     this.mustPlay();
     const { design, cost, error } = priceDeploy(raw, this.s.elixir[side]);
     if (error) throw new Error(error);
@@ -170,7 +170,7 @@ export class LocalMatch implements MatchSource {
       throw new Error('deploy on your own half');
     }
     const troopId = BigInt(this.nextId++);
-    this.troopRows.set(troopId, { name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048) });
+    this.troopRows.set(troopId, { name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description });
     for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
       const id = this.nextId++;
       this.unitTroop.set(id, troopId);

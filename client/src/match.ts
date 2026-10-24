@@ -102,7 +102,7 @@ export class OnlineMatch implements MatchSource {
     for (const u of this.net.conn.db.unit.iter()) {
       if (u.roomCode !== code) continue;
       const [x, y] = this.glide.pos(u.id, u.x, u.y);
-      out.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq });
+      out.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range });
     }
     return out;
   }
@@ -115,7 +115,7 @@ export class OnlineMatch implements MatchSource {
   troops(): Map<bigint, DrawTroop> {
     const code = this.code;
     return new Map(
-      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl }])
+      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl, description: t.description }])
     );
   }
 
