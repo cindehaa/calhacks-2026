@@ -304,7 +304,7 @@ export class BoardReactions {
       g.globalAlpha = k > 0.7 ? Math.max(0, 1 - (k - 0.7) / 0.3) : 1;
       const size = (p.emote ? 20 : 14) * pop;
       g.font = `800 ${size.toFixed(1)}px ${font}`;
-      const x = at[0], y = at[1] - 12 - rise;
+      const x = at[0], y = at[1] - 36 - rise;
       if (p.emote) {
         g.beginPath();
         g.arc(x, y, size * 0.8, 0, Math.PI * 2);
