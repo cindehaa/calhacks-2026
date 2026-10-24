@@ -16,7 +16,8 @@ import { prefetchSprite, requestSprite } from './sprites';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
 import { crownSvg, shieldSvg } from './art';
 import { clock, reasons, type RoundSummary } from './chronicle';
-import { applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
+import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
+import { hubFx } from './hubfx';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -47,8 +48,14 @@ connect(
 );
 function netMsg(s: string) {
   $('netStatus').textContent = s;
-  $('hubNet').textContent = s ? `${s} · Practice works offline` : 'Online';
+  // The hub says it plainly; the HUD keeps the raw status for debugging.
+  const state = !s ? 'online' : s === 'connected' || s === 'connecting…' ? 'joining' : 'off';
+  $('hubNet').textContent = { online: 'Online', joining: 'Connecting…', off: 'Offline · the Training Yard still works' }[state];
+  $('hubNet').className = `hubNet ${state}`;
+  $('hubNet').title = s;
 }
+hubFx(document.querySelector('#title .hubSky')!);
+hubFx(document.querySelector('#lobby .hubSky')!, { embers: { x: 0.5, y: 0.5, w: 0.3 } });
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
 // The first designer call is 2–3 s cold. Warm it now, not at match start, so the lobby absorbs it.
@@ -117,11 +124,13 @@ let botLevel = ((): BotLevel => {
   try { return (localStorage.getItem(LEVEL_KEY) as BotLevel) || 'normal' } catch { return 'normal' }
 })();
 function renderLevel() {
-  $('botLevel').innerHTML = `Squire · <b>${botLevel[0].toUpperCase()}${botLevel.slice(1)}</b>`;
+  for (const b of $('botLevel').querySelectorAll<HTMLElement>('[data-level]')) b.setAttribute('aria-checked', String(b.dataset.level === botLevel));
 }
 renderLevel();
-$('botLevel').onclick = () => {
-  botLevel = LEVELS[(LEVELS.indexOf(botLevel) + 1) % LEVELS.length];
+$('botLevel').onclick = e => {
+  const level = (e.target as HTMLElement).closest<HTMLElement>('[data-level]')?.dataset.level as BotLevel | undefined;
+  if (!level || !LEVELS.includes(level)) return;
+  botLevel = level;
   remember(LEVEL_KEY, botLevel);
   renderLevel();
 };
@@ -134,8 +143,12 @@ for (const id of ['lobby', 'raven', 'pause', 'forfeitAsk', 'result']) {
 // Embers: your warmth, kept in this browser.
 let embers = loadEmbers();
 function renderEmbers() {
+  const rank = rankOf(embers);
   $('emberCount').textContent = embers.toLocaleString('en-US');
-  $('emberRank').textContent = rankOf(embers).name;
+  $('emberRank').textContent = rank.name;
+  const from = RANKS.find(r => r.name === rank.name)!.at;
+  $('emberBar').style.width = rank.nextAt === null ? '100%' : `${((embers - from) / (rank.nextAt - from)) * 100}%`;
+  $('emberNext').textContent = rank.nextAt === null ? 'The highest rank' : `${rank.nextAt - embers} more to ${rank.next}`;
 }
 renderEmbers();
 

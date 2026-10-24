@@ -39,7 +39,11 @@
 
   <div id="title" class="screen gScreen">
     <img class="gBg" src="/ui/home.svg" alt="">
-    <div class="gGlow"></div><img class="frostCorner tl" src="/ui/frost-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-br.svg" alt="">
+    <div class="moon" aria-hidden="true"></div>
+    <div class="gGlow"></div>
+    <canvas class="hubSky" aria-hidden="true"></canvas>
+    <img class="frostCorner tl" src="/ui/frost-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-br.svg" alt="">
+    <div class="vignette"></div>
     <div class="titleInner">
       <h1 class="wordmark">Arena</h1>
       <p class="tagline">The frost draws closer every night.</p>
@@ -49,9 +53,17 @@
 
   <div id="lobby" class="screen gScreen home" hidden>
     <img class="gBg" src="/ui/home.svg" alt="">
-    <div class="gGlow"></div><img class="frostCorner tl" src="/ui/frost-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-br.svg" alt="">
+    <div class="backlight" aria-hidden="true"></div>
+    <div class="gGlow"></div>
+    <canvas class="hubSky" aria-hidden="true"></canvas>
+    <img class="frostCorner tl" src="/ui/frost-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-br.svg" alt="">
+    <div class="vignette"></div>
     <h1 class="wordmark homeMark">Arena</h1>
-    <img class="island" src="/ui/island.svg" alt="The Twin Bridges">
+    <div class="islandWrap" aria-hidden="true">
+      <div class="islandShadow"></div>
+      <img class="island" src="/ui/island.svg" alt="">
+      <div class="islandLight"><i style="--x:50%;--y:10.6%"></i><i style="--x:33.6%;--y:18.6%"></i><i style="--x:66.4%;--y:18.6%"></i><i style="--x:31.6%;--y:38.8%"></i><i style="--x:50%;--y:40.7%;--s:1.3"></i><i style="--x:68.4%;--y:38.8%"></i></div>
+    </div>
 
     <div class="banner left">
       <img src="/ui/banner-raven.svg" alt="">
@@ -59,8 +71,11 @@
         <span class="sigil"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg></span>
         <span class="bHouse">House</span><span class="bName">Raven</span><span class="bRule"></span>
         <input id="nameInput" maxlength="20" placeholder="Your name" spellcheck="false" aria-label="Your name" title="Click to rename">
-        <span class="bEmbers"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><b id="emberCount">0</b></span>
-        <span class="bTag" id="emberRank">Cinder</span>
+        <div class="bRank">
+          <span class="bRankRow"><span class="bRankName" id="emberRank">Cinder</span><span class="bEmbers"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><b id="emberCount">0</b></span></span>
+          <span class="bBar"><i id="emberBar"></i></span>
+          <span class="bNext" id="emberNext"></span>
+        </div>
       </div>
     </div>
     <div class="banner right">
@@ -69,23 +84,25 @@
         <span class="sigil"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
         <span class="bHouse">House</span><span class="bName">Sun</span><span class="bRule"></span>
         <span class="bLine">Your rival across the river</span>
-        <span class="bTag">Awaiting a foe</span>
+        <span class="bWait"><i></i>Awaiting a foe</span>
       </div>
     </div>
 
     <div class="orders">
       <div class="orderSide">
-        <button id="botBtn" class="slab purple small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Training Yard</b></span></button>
-        <button id="botLevel" class="levelChip" title="Change the bot's difficulty">Squire · <b>Normal</b></button>
+        <button id="botBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Training Yard</b><small>Practise against a bot</small></span></button>
+        <div id="botLevel" class="levels" role="radiogroup" aria-label="Bot difficulty">
+          <button role="radio" data-level="easy">Easy</button><button role="radio" data-level="normal">Normal</button><button role="radio" data-level="hard">Hard</button>
+        </div>
       </div>
       <button id="battleBtn" class="slab amber battle"><span class="face"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>To Battle</b><small>Find a worthy foe</small></span></span></button>
       <div class="orderSide">
-        <button id="ravenBtn" class="slab blue small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg><b>Send a Raven</b></span></button>
-        <span class="levelChip ghost" aria-hidden="true"></span>
+        <button id="ravenBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg><b>Send a Raven</b><small>Fight a friend by code</small></span></button>
+        <span class="levels ghost" aria-hidden="true"></span>
       </div>
     </div>
     <p id="lobbyError" class="error homeError"></p>
-    <span id="hubNet" class="hubNet"></span>
+    <footer class="hubFoot"><span id="hubNet" class="hubNet joining">Connecting…</span><span class="hubCredit">Cal Hacks 13.0 · Claude, Cartesia, SpacetimeDB</span></footer>
   </div>
 
   <div id="raven" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="ravenTitle">
