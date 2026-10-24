@@ -15,7 +15,7 @@ import { drawHandView } from './handview';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { FistDetector } from './pose';
 import { AutoSpeech } from './cartesia_stt';
-import { chooseDescription, isCancel, isMismatch, Transcript } from './speech';
+import { chooseDescription, FIRE_WAIT_MS, fireWaits, isCancel, isMismatch, routeWords, Transcript } from './speech';
 import { KEYS, load, save } from './store';
 import { CursorHistory, type Pt } from './trail';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
@@ -53,10 +53,10 @@ export interface DeployHow {
 
 interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean }
 
-// A fire waiting for the recogniser to finish its last words.
-interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcript }
+// A fire waiting for the recogniser to finish its last words: those from audio up to cut.
+interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcript; cut: number; done: Promise<void> }
 
-const FLUSH_MS = 600; // how long a fire waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
+const FLUSH_MS = 600; // cap on finalising an utterance when the talking stops or the words are cleared
 const LOST_MS = 1000; // hand out of view this long before "show your hand"
 const FADE_MS = 450; // the cursor fades out over this when the hand goes
 const FLICK_SHOW_MS = 180; // the cursor fills this long after a flick
@@ -69,7 +69,7 @@ export class InputController {
   private speech = new AutoSpeech(() => this.mic.media); // Cartesia, else the browser's recogniser
   private prompt = new Transcript(); // words since the last fire or cancel
   private firing: Firing | null = null;
-  private skipUtterance = false; // the utterance in progress was cancelled: drop it until its final
+  private dropped = -1; // newest speech epoch already fired or cleared: its late words are dropped
 
   private fx = new OneEuro(1.0, 0.007);
   private fy = new OneEuro(1.0, 0.007);
@@ -111,8 +111,8 @@ export class InputController {
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
     this.vad.o.thresholdDb = this.prefs.vadDb;
     this.speech.setGated(false); // always listening
-    this.speech.onPartial = t => this.words(t, false);
-    this.speech.onFinal = t => this.words(t, true);
+    this.speech.onPartial = (t, e) => this.words(t, false, e);
+    this.speech.onFinal = (t, e) => this.words(t, true, e);
     this.speech.onFallback = () => (this.fellBack = true); // told once a match is under way
     this.speech.onError = msg => {
       this.heard = msg;
@@ -334,7 +334,10 @@ export class InputController {
   private fire(p: Pt | null, by: string): boolean {
     if (!p || !this.host.playing() || this.firing) return false;
     const said = this.prompt.text, typed = this.host.typedText().trim();
-    if (!said && !typed) {
+    // The recogniser runs behind the voice: words just said may not have arrived yet. If the mic
+    // heard speech a moment ago, deploy anyway and let the words catch up during the delay.
+    const listening = this.mic.on && this.speech.available;
+    if (!fireWaits({ said, typed, listening, msSinceSpeech: performance.now() - this.vad.lastLoud })) {
       this.missed(p);
       return true;
     }
@@ -345,8 +348,10 @@ export class InputController {
     }
     const nonce = this.host.begin(spot, by);
     if (nonce === null) return false;
-    // The prompt keeps taking words until the recogniser has finished the last of them.
-    this.firing = { nonce, spot, at: p, by, words: this.prompt };
+    // Cut the audio here: what was said up to now is this troop, what comes after is the next.
+    const { epoch, done } = listening ? this.speech.cut(FIRE_WAIT_MS) : { epoch: this.dropped, done: Promise.resolve() };
+    this.firing = { nonce, spot, at: p, by, words: this.prompt, cut: epoch, done };
+    this.prompt = new Transcript();
     this.flash(p, 'deploy', '', said || typed);
     this.host.released?.(nonce, said);
     void this.land(this.firing);
@@ -354,29 +359,32 @@ export class InputController {
   }
 
   private async land(f: Firing): Promise<void> {
-    if (this.mic.on && f.words.text) await this.speech.flush(FLUSH_MS);
+    // Wait for the words up to the cut to be final, capped; past the cap the partials stand in.
+    await Promise.race([f.done, new Promise(r => setTimeout(r, FIRE_WAIT_MS))]);
     if (this.firing !== f) return; // cancelled meanwhile
     this.firing = null;
-    this.prompt = new Transcript();
+    this.dropped = Math.max(this.dropped, f.cut);
     const d = chooseDescription(this.host.typedText(), f.words.text);
     if (d.ok) {
       if (d.from === 'typed') this.host.clearTyped();
       this.host.deploy(f.nonce, f.spot, d.text, { from: d.from, by: f.by, transcript: f.words.text });
-      return;
+    } else {
+      if (d.reason === 'cancel') this.flash(f.at, 'cancel', 'cancelled');
+      else this.missed(f.at);
+      this.host.cancel(f.nonce, d.reason === 'cancel' ? 'cancelled' : 'cancelled: no description heard', f.words.text);
     }
-    if (d.reason === 'cancel') this.flash(f.at, 'cancel', 'cancelled');
-    else this.missed(f.at);
-    this.host.cancel(f.nonce, d.reason === 'cancel' ? 'cancelled' : 'cancelled: no description heard', f.words.text);
+    // Words said since the fire are the next troop: show them and start designing.
+    if (this.prompt.text) this.words('', false, -Infinity);
   }
 
   // Throw away the words said so far, and a fire still waiting on its last words.
   private clear(why: 'fist' | 'key' | 'said' | 'mismatch'): void {
     const f = this.firing, words = f?.words.text ?? this.prompt.text;
     if (!f && !words) return;
-    if (this.prompt.pending) this.skipUtterance = true; // its final would bring the words back
     this.firing = null;
     this.prompt = new Transcript();
-    if (this.mic.on) void this.speech.flush(FLUSH_MS);
+    // Cut so the utterance in progress, whose final would bring the words back, is dropped.
+    if (this.mic.on) this.dropped = Math.max(this.dropped, this.speech.cut(FLUSH_MS).epoch);
     const at = f?.at ?? this.cursor();
     if (why !== 'mismatch' && at) this.flash(at, 'cancel', 'cleared', words);
     if (f) this.host.cancel(f.nonce, `cancelled (${why})`, words);
@@ -384,12 +392,17 @@ export class InputController {
     if (why !== 'mismatch') this.host.status('');
   }
 
-  private words(text: string, final: boolean): void {
+  // epoch -Infinity: no new words, just refresh what the prompt shows.
+  private words(raw: string, final: boolean, epoch: number): void {
+    const text = raw.trim(); // the Transcript gets raw, which keeps the source's own spacing
     this.heard = text ? `heard: “${text}”` : this.heard;
     if (text) this.heardWords = true;
-    if (final && text) this.host.heard?.(text, this.firing?.nonce ?? 0);
-    if (this.skipUtterance) {
-      if (final) this.skipUtterance = false;
+    const f = this.firing, to = epoch === -Infinity ? 'prompt' : routeWords(epoch, f?.cut ?? null, this.dropped);
+    if (final && text) this.host.heard?.(text, to === 'firing' ? f!.nonce : 0);
+    if (to === 'drop') return;
+    if (to === 'firing') {
+      if (final) f!.words.final(raw, epoch);
+      else f!.words.interim(raw, epoch);
       return;
     }
     // Act on interim words too: waiting for the final result adds most of a second.
@@ -398,8 +411,10 @@ export class InputController {
       this.clear('mismatch');
       return this.flagMismatch();
     }
-    if (final) this.prompt.final(text);
-    else this.prompt.interim(text);
+    if (epoch !== -Infinity) {
+      if (final) this.prompt.final(raw, epoch);
+      else this.prompt.interim(raw, epoch);
+    }
     const all = this.prompt.text;
     if (all && this.host.playing() && !this.firing) {
       this.host.status(`“${all}”`);

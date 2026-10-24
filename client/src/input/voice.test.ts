@@ -63,8 +63,8 @@ test('transcript joins finished segments and the one in progress', () => {
   const t = new Transcript();
   t.interim('a giant');
   assert.equal(t.text, 'a giant');
-  t.final('a giant frog');
-  t.interim('with a');
+  t.final(' a giant frog'); // segments carry their own leading space, as the sources send them
+  t.interim(' with a');
   assert.equal(t.text, 'a giant frog with a');
   t.interim('');
   assert.equal(t.text, 'a giant frog');
