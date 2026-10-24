@@ -5,7 +5,7 @@ export interface InputView {
   lock: {
     x: number;
     y: number;
-    by: 'pinch' | 'voice';
+    by: 'pinch' | 'key' | 'voice';
     out: boolean; // outside the drag-off ring: letting go now cancels
     radius: number;
     transcript: string;
@@ -30,7 +30,7 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
     circle(g, l.x, l.y, 16 + pulse, col, 3, l.out ? 'rgba(255,93,108,0.15)' : 'rgba(74,163,255,0.15)');
     const words = l.transcript ? `“${clip(l.transcript, 40)}”` : l.by === 'voice' ? 'listening…' : 'say the troop…';
     pill(g, words, l.x, l.y - 30, l.transcript ? C.text : C.muted);
-    if (l.out) text(g, l.by === 'voice' ? 'stop talking to cancel' : 'let go to cancel', l.x, l.y + 36, 13, C.bad);
+    if (l.out) text(g, l.by === 'voice' ? 'stop talking to cancel' : l.by === 'key' ? 'let go of Space to cancel' : 'let go to cancel', l.x, l.y + 36, 13, C.bad);
   }
   for (const f of v.flashes) {
     const a = (now - f.t) / FLASH_MS;

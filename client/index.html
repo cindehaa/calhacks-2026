@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
+  <canvas id="board3d" hidden></canvas>
   <canvas id="board"></canvas>
 
   <div id="hud">
@@ -14,6 +15,7 @@
   </div>
 
   <div id="tools">
+    <button id="viewBtn" class="round" aria-label="Switch view" title="Switch view (V)">3D</button>
     <button id="muteBtn" class="round" aria-label="Sound"></button>
     <button id="helpBtn" class="round" aria-label="How to play" title="How to play">?</button>
   </div>
@@ -87,10 +89,10 @@
       <div class="tutHead"><h1 id="tutTitle">How to play</h1><span class="sub">about 10 seconds</span></div>
       <ol>
         <li><span><b>Aim</b> by pointing with your index knuckle, or move the mouse over your half.</span></li>
-        <li><span><b>Lock</b> the spot: pinch thumb and middle finger, click, or just start talking.</span></li>
+        <li><span><b>Lock</b> the spot: pinch thumb and middle finger, hold Space, click, or just start talking.</span></li>
         <li><span><b>Say</b> (or type) what the troop is: “wizard with fire”, “angry bee swarm”.</span></li>
-        <li><span><b>Release</b> the pinch, or go quiet, to deploy.</span></li>
-        <li><span><b>Cancel</b> by dragging off the ring before you let go.</span></li>
+        <li><span><b>Release</b> the pinch or Space, or go quiet, to deploy.</span></li>
+        <li><span><b>Cancel</b> by dragging off the ring before you let go, pressing Esc, or saying “cancel”.</span></li>
         <li><span>The <b>cost</b> is a surprise. It shows on the troop once it lands.</span></li>
         <li><span>Keys <kbd>1</kbd>–<kbd>0</kbd> drop the starter troops.</span></li>
         <li><span>Not what you asked for? Say <b>“that’s wrong”</b> or press <kbd>X</kbd>.</span></li>

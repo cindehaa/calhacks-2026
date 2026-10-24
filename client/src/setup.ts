@@ -51,7 +51,10 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     b.blur();
     const act = b.dataset.act;
     if (act === 'devices') void turnOn();
-    else if (act === 'done' || act === 'skip') close(act);
+    else if (act === 'skip') {
+      input.setMouseKeys(true);
+      close(act);
+    } else if (act === 'done') close(act);
   });
 
   function step(name: string, done: boolean, msg: string) {
