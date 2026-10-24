@@ -1,5 +1,5 @@
 // Hand cursor, locked spot, drag-off ring and live transcript, drawn over the board in screen px.
-import { CAL_TARGETS, type PinchCalibration } from './calibrate';
+import { CAL_TARGETS, type PinchCalibration, type PursuitCalibration } from './calibrate';
 
 export interface InputView {
   cursor: { x: number; y: number; pinched: boolean } | null; // hand cursor only; the mouse has its own ring
@@ -42,29 +42,62 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
     if (f.label) text(g, f.label, f.x, f.y - 30 - a * 10, 13, f.kind === 'deploy' ? C.good : C.bad);
     g.globalAlpha = 1;
   }
-  if (v.cursor) {
-    const c = v.cursor;
-    circle(g, c.x, c.y, 10, C.mine, 2.5, c.pinched ? C.mine : 'rgba(13,16,32,0.4)');
-  }
+  if (v.cursor) drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.pinched);
   if (v.hint) text(g, v.hint, innerWidth / 2, 70, 13, '#fbbf24');
   g.restore();
 }
 
 // Full-screen calibration screens, on their own canvas above everything else.
-export function drawPointerCalibration(g: CanvasRenderingContext2D, w: number, h: number, index: number, hand: boolean, now: number): void {
+// The hand cursor: a soft glow, a ring, and a filled centre while pinched.
+export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, pinched: boolean): void {
+  const glow = g.createRadialGradient(x, y, 0, x, y, 42);
+  glow.addColorStop(0, 'rgba(74,163,255,0.5)');
+  glow.addColorStop(1, 'rgba(74,163,255,0)');
+  circle(g, x, y, 42, null, 0, glow);
+  circle(g, x, y, 14, '#bfe0ff', 2.5, pinched ? C.mine : 'rgba(13,16,32,0.35)');
+  circle(g, x, y, 3, null, 0, '#fff');
+}
+
+export function drawPointerCalibration(g: CanvasRenderingContext2D, w: number, h: number, run: PursuitCalibration, hand: boolean, now: number): void {
   g.fillStyle = 'rgba(8,10,20,0.92)';
   g.fillRect(0, 0, w, h);
-  CAL_TARGETS.forEach(([x, y], j) => {
-    if (j < index) circle(g, x * w, y * h, 6, null, 0, C.good);
-    else if (j > index) circle(g, x * w, y * h, 6, '#3a4050', 2);
+  // The rectangle the dot will trace.
+  g.setLineDash([6, 10]);
+  g.strokeStyle = '#2f3758';
+  g.lineWidth = 2;
+  g.beginPath();
+  CAL_TARGETS.forEach(([x, y], i) => (i ? g.lineTo(x * w, y * h) : g.moveTo(x * w, y * h)));
+  g.closePath();
+  g.stroke();
+  g.setLineDash([]);
+  const ready = run.ready(now);
+  const [x, y] = run.target(now);
+  const glow = g.createRadialGradient(x * w, y * h, 0, x * w, y * h, 60);
+  glow.addColorStop(0, 'rgba(74,163,255,0.6)');
+  glow.addColorStop(1, 'rgba(74,163,255,0)');
+  circle(g, x * w, y * h, 60, null, 0, glow);
+  circle(g, x * w, y * h, ready ? 22 + 5 * Math.sin(now / 120) : 18, C.mine, 3);
+  circle(g, x * w, y * h, 5, null, 0, '#fff');
+  const ty = h * 0.3;
+  text(g, ready ? 'Point at the dot' : 'Follow the dot with your hand', w / 2, ty, 24, C.text);
+  text(g, hand ? 'Move your whole hand and keep your index knuckle on the dot. Esc cancels.' : 'No hand in view', w / 2, ty + 30, 15, hand ? C.muted : '#fbbf24');
+  g.fillStyle = '#2a3050';
+  g.fillRect(w / 2 - 150, ty + 50, 300, 6);
+  g.fillStyle = C.mine;
+  g.fillRect(w / 2 - 150, ty + 50, 300 * run.progress(now), 6);
+}
+
+// After the fit: the new cursor is live, and touching each corner lights it up.
+export function drawCalibrationCheck(g: CanvasRenderingContext2D, w: number, h: number, touched: boolean[], hand: boolean, now: number): void {
+  g.fillStyle = 'rgba(8,10,20,0.8)';
+  g.fillRect(0, 0, w, h);
+  CAL_TARGETS.forEach(([x, y], i) => {
+    if (touched[i]) circle(g, x * w, y * h, 22, C.good, 3, 'rgba(74,222,128,0.25)');
+    else circle(g, x * w, y * h, 22 + 3 * Math.sin(now / 150 + i), '#5a6282', 2);
   });
-  if (index < CAL_TARGETS.length) {
-    const [x, y] = CAL_TARGETS[index];
-    circle(g, x * w, y * h, 20 + 4 * Math.sin(now / 150), C.mine, 3);
-    circle(g, x * w, y * h, 4, null, 0, C.mine);
-  }
-  text(g, `Point at the glowing dot and pinch (${Math.min(index + 1, 4)} of 4)`, w / 2, h / 2 - 10, 22, C.text);
-  text(g, hand ? 'Aim with your index knuckle, hold still, pinch thumb to middle finger. Esc cancels.' : 'No hand in view', w / 2, h / 2 + 20, 15, hand ? C.muted : '#fbbf24');
+  const all = touched.every(Boolean);
+  text(g, all ? 'Looks good' : 'Touch the 4 corners with the cursor', w / 2, h / 2 - 10, 24, all ? C.good : C.text);
+  text(g, hand ? 'R recalibrates · Esc keeps it as it is' : 'No hand in view', w / 2, h / 2 + 20, 15, hand ? C.muted : '#fbbf24');
 }
 
 export function drawPinchCalibration(g: CanvasRenderingContext2D, w: number, h: number, run: PinchCalibration, hand: boolean, now: number): void {
@@ -82,7 +115,7 @@ export function drawPinchCalibration(g: CanvasRenderingContext2D, w: number, h: 
 
 const clip = (s: string, n: number) => (s.length > n ? '…' + s.slice(-n) : s);
 
-function circle(g: CanvasRenderingContext2D, x: number, y: number, r: number, stroke: string | null, width: number, fill?: string): void {
+function circle(g: CanvasRenderingContext2D, x: number, y: number, r: number, stroke: string | null, width: number, fill?: string | CanvasGradient): void {
   g.beginPath();
   g.arc(x, y, Math.max(0, r), 0, Math.PI * 2);
   if (fill) {

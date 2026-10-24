@@ -78,8 +78,8 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     dev.textContent = errors.length ? 'Try again' : 'Turn on';
 
     step('calibrate', s.calibrated,
-      s.calibrating ? 'point at the glowing dot and pinch'
-      : s.calMsg || (s.calibrated ? 'calibrated' : 'point at 4 dots and pinch at each'));
+      s.calibrating ? 'follow the dot, then touch the 4 corners'
+      : s.calMsg || (s.calibrated ? 'calibrated' : 'follow a dot around the screen with your hand'));
     const cal = q<HTMLButtonElement>('[data-act="calibrate"]');
     cal.disabled = !s.cameraReady || s.calibrating;
     cal.textContent = s.calibrated ? 'Redo' : 'Start';

@@ -2,8 +2,8 @@
 // machine, and reports locks, deploys and cancels to the game. Mouse and keyboard keep working
 // untouched; this only adds a second way in.
 import { ARENA_W, onOwnHalf, type Side } from '../../../shared/arena';
-import { KEYS, load, PinchCalibration, PointerCalibration, save, type PointerCal } from './calibrate';
-import { drawPinchCalibration, drawPointerCalibration, FLASH_MS, type InputView } from './draw';
+import { CAL_TARGETS, KEYS, load, PinchCalibration, PursuitCalibration, save, type PointerCal } from './calibrate';
+import { drawCalibrationCheck, drawCursor, drawPinchCalibration, drawPointerCalibration, FLASH_MS, type InputView } from './draw';
 import { OneEuro } from './filter';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
@@ -35,6 +35,7 @@ interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; camera: boo
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
 const FLUSH_MS = 600; // how long a deploy waits for the recogniser to finalise the last words
+const CORNER_PX = 70; // how close the cursor must get to light a corner in the calibration check
 
 export class InputController {
   private machine: LockMachine;
@@ -59,9 +60,10 @@ export class InputController {
   private ratio = 0;
   private mouse: Pt | null = null;
   private flashes: InputView['flashes'] = [];
-  private calibPointer: PointerCalibration | null = null;
+  private pursuit: PursuitCalibration | null = null;
+  private check: { touched: boolean[]; msg: string; allAt: number } | null = null; // after a pursuit fit
   private calibPinch: PinchCalibration | null = null;
-  private calPinchedPrev = false;
+  private overlayDrawn = false;
   private camStatus = '';
   private heard = '';
   private heardWords = false; // the recogniser has returned words at least once
@@ -72,7 +74,7 @@ export class InputController {
 
   // DOM
   private el = document.createElement('div');
-  private calCanvas = document.createElement('canvas');
+  private overlay = document.createElement('canvas'); // calibration screens and the cursor outside a match
   private preview!: HTMLCanvasElement;
 
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
@@ -93,8 +95,10 @@ export class InputController {
     canvas.addEventListener('mousemove', e => (this.mouse = { x: e.clientX, y: e.clientY }));
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
     addEventListener('keydown', e => {
+      if (this.check && (e.key === 'r' || e.key === 'R')) return this.calibrate();
       if (e.key !== 'Escape') return;
-      if (this.calibPointer || this.calibPinch) this.endCalibration('calibration cancelled');
+      if (this.check) this.endCalibration(this.check.msg);
+      else if (this.pursuit || this.calibPinch) this.endCalibration('calibration cancelled');
       else this.machine.cancel('key');
     });
     this.mountUi();
@@ -121,7 +125,7 @@ export class InputController {
       speaking: this.vad.speaking,
       heardWords: this.heardWords,
       calibrated: !!this.pointerCal,
-      calibrating: !!this.calibPointer,
+      calibrating: !!(this.pursuit || this.check),
       calMsg: this.calMsg,
     };
   }
@@ -156,7 +160,9 @@ export class InputController {
   private tick(now: number): void {
     const f = this.tracker?.detect(now);
     if (f !== undefined) this.onHandFrame(f, now);
-    const calibrating = !!(this.calibPointer || this.calibPinch);
+    const calibrating = !!(this.pursuit || this.check || this.calibPinch);
+    if (this.pursuit?.done(now)) this.finishPointerCalibration();
+    if (this.check) this.checkCorners(now);
 
     if (this.mic.on) {
       const ev = this.vad.push(now, this.mic.levelDb());
@@ -167,7 +173,7 @@ export class InputController {
       this.machine.frame(now, { cursor: this.handCursor ?? this.mouse, hand: !!this.hand, pinched: this.pinched });
     }
     this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
-    this.drawCalibration(now);
+    this.drawOverlay(now);
     if (now - this.lastPanel > 250) this.renderPanel();
   }
 
@@ -187,12 +193,7 @@ export class InputController {
     const [u, v] = applyH(this.pointerCal?.H ?? DEFAULT_H, this.raw);
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
 
-    if (this.calibPointer) {
-      const c = this.calibPointer;
-      c.pushRaw(now, this.raw);
-      if (this.pinched && !this.calPinchedPrev && c.click(now) && c.done) this.finishPointerCalibration();
-    }
-    this.calPinchedPrev = this.pinched;
+    this.pursuit?.push(now, this.raw);
     if (this.calibPinch) {
       this.calibPinch.push(now, m2, m3);
       if (this.calibPinch.done(now)) this.finishPinchCalibration();
@@ -339,28 +340,38 @@ export class InputController {
   calibrate(): void {
     if (!this.tracker) return void this.host.status('turn the camera on first', true);
     this.machine.cancel('calibrating');
-    this.calibPinch = null;
-    this.calibPointer = new PointerCalibration(LOCK_DEFAULTS.lagMs);
-    this.calCanvas.hidden = false;
+    this.calibPinch = this.check = null;
+    this.pursuit = new PursuitCalibration(performance.now());
   }
 
   private finishPointerCalibration(): void {
-    const r = this.calibPointer?.result(innerWidth, innerHeight);
-    if (!r) return this.endCalibration('calibration failed: point at the dots with bigger hand movements');
-    this.pointerCal = r;
-    save(KEYS.pointer, r);
+    const w = innerWidth, h = innerHeight;
+    const r = this.pursuit?.result(w, h);
+    this.pursuit = null;
+    if (!r) return this.endCalibration('calibration failed: keep your hand in view and follow the dot');
+    if (r.residual > 0.08 * Math.hypot(w, h)) return this.endCalibration('calibration failed: follow the dot more closely');
+    this.pointerCal = { H: r.H, residual: r.residual };
+    save(KEYS.pointer, this.pointerCal);
     this.fx.reset();
     this.fy.reset();
     this.camStatus = '';
-    this.endCalibration(`calibrated, fit ±${r.residual.toFixed(0)} px`);
+    this.check = { touched: CAL_TARGETS.map(() => false), msg: `calibrated, fit ±${r.residual.toFixed(0)} px`, allAt: 0 };
+  }
+
+  private checkCorners(now: number): void {
+    const c = this.check!, p = this.handCursor;
+    if (p) CAL_TARGETS.forEach(([x, y], i) => {
+      if (Math.hypot(p.x - x * innerWidth, p.y - y * innerHeight) < CORNER_PX) c.touched[i] = true;
+    });
+    if (!c.allAt && c.touched.every(Boolean)) c.allAt = now;
+    if (c.allAt && now - c.allAt > 700) this.endCalibration(c.msg);
   }
 
   private startPinchCalibration(): void {
     if (!this.tracker) return void this.host.status('turn the camera on first', true);
     this.machine.cancel('calibrating');
-    this.calibPointer = null;
+    this.pursuit = this.check = null;
     this.calibPinch = new PinchCalibration(performance.now());
-    this.calCanvas.hidden = false;
   }
 
   private finishPinchCalibration(): void {
@@ -373,23 +384,30 @@ export class InputController {
   }
 
   private endCalibration(msg: string): void {
-    this.calibPointer = this.calibPinch = null;
-    this.calCanvas.hidden = true;
+    this.pursuit = this.check = this.calibPinch = null;
     this.calMsg = msg;
     this.host.status(msg);
   }
 
-  private drawCalibration(now: number): void {
-    if (this.calCanvas.hidden) return;
-    const c = this.calCanvas, dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
+  private drawOverlay(now: number): void {
+    const cal = this.pursuit || this.calibPinch || this.check;
+    // The board draws the cursor during a match; in the lobby, the setup screen and the
+    // calibration check it's drawn here, above everything.
+    const p = this.handCursor && !this.pursuit && !this.calibPinch && (this.check || !this.host.playing()) ? this.handCursor : null;
+    if (!cal && !p && !this.overlayDrawn) return;
+    const c = this.overlay, dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
     if (c.width !== w * dpr || c.height !== h * dpr) {
       c.width = w * dpr;
       c.height = h * dpr;
     }
     const g = c.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (this.calibPointer) drawPointerCalibration(g, w, h, this.calibPointer.index, !!this.hand, now);
+    g.clearRect(0, 0, w, h);
+    if (this.pursuit) drawPointerCalibration(g, w, h, this.pursuit, !!this.hand, now);
     else if (this.calibPinch) drawPinchCalibration(g, w, h, this.calibPinch, !!this.hand, now);
+    else if (this.check) drawCalibrationCheck(g, w, h, this.check.touched, !!this.hand, now);
+    if (p) drawCursor(g, p.x, p.y, this.pinched);
+    this.overlayDrawn = !!(cal || p);
   }
 
   // ---------- UI ----------
@@ -400,7 +418,7 @@ export class InputController {
       <div class="inRow">
         <button data-act="cam" title="Aim with your index knuckle, pinch thumb + middle finger to lock">Camera</button>
         <button data-act="mic" title="Start talking to lock, describe the troop, go quiet to deploy">Mic</button>
-        <button data-act="calPointer" title="Point at 4 dots and pinch at each">Calibrate</button>
+        <button data-act="calPointer" title="Follow a dot around the screen with your hand">Calibrate</button>
         <button data-act="menu" class="ghost" title="Pinch calibration and mic settings">⋯</button>
       </div>
       <div class="inPreview"><canvas></canvas></div>
@@ -416,9 +434,8 @@ export class InputController {
       </div>`;
     document.body.appendChild(this.el);
     this.preview = this.el.querySelector('.inPreview canvas')!;
-    this.calCanvas.id = 'inputCalibration';
-    this.calCanvas.hidden = true;
-    document.body.appendChild(this.calCanvas);
+    this.overlay.id = 'inputOverlay';
+    document.body.appendChild(this.overlay);
 
     const q = <T extends HTMLElement>(act: string) => this.el.querySelector<T>(`[data-act="${act}"]`)!;
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;

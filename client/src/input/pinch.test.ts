@@ -1,7 +1,7 @@
 // Pinch metric, hysteresis and the calibration fits.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PinchCalibration, PointerCalibration, CAL_TARGETS, PINCH_PHASES } from './calibrate';
+import { PinchCalibration, PINCH_PHASES, PURSUIT_MS, PursuitCalibration, pursuitTarget } from './calibrate';
 import { applyH, invertH } from './homography';
 import { choosePinch, fitPinch, Hysteresis, pinchMetric2d, pinchMetric3d, segDist, type Landmark } from './pinch';
 
@@ -94,25 +94,26 @@ test('pinch calibration run buckets samples by phase', () => {
   assert.ok(r.on > 0.2 && r.off < 1.0 && r.on < r.off);
 });
 
-test('pointer calibration: four pinches give a mapping onto the targets', () => {
+test('pointer calibration: following the dot recovers the mapping and the lag', () => {
   const truth = [1.5, 0.05, -0.3, 0.02, 1.7, -0.25, 0.1, 0.05, 1]; // camera → screen
   const inv = invertH(truth)!;
-  const cal = new PointerCalibration(100);
-  let t = 0;
-  for (const target of CAL_TARGETS) {
-    const cam = applyH(inv, target);
-    for (let i = 0; i < 20; i++, t += 16) cal.pushRaw(t, cam);
-    // the pinch itself drags the pointer; the sample must come from before it
-    for (let i = 0; i < 5; i++, t += 16) cal.pushRaw(t, [cam[0] + 0.05, cam[1] + 0.05]);
-    assert.ok(cal.click(t));
+  const cal = new PursuitCalibration(0);
+  let seed = 1;
+  const noise = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 0.004;
+  for (let t = 0; t <= PURSUIT_MS; t += 16) {
+    const [x, y] = applyH(inv, pursuitTarget(t - 250)); // the hand trails the dot by 250 ms
+    cal.push(t, [x + noise(), y + noise()]);
   }
-  assert.ok(cal.done);
+  assert.ok(cal.done(PURSUIT_MS));
   const r = cal.result(1920, 1080)!;
-  assert.ok(r.residual < 1, `residual ${r.residual}`);
-  const [u, v] = applyH(r.H, applyH(inv, [0.5, 0.5]));
-  assert.ok(Math.abs(u - 0.5) < 1e-6 && Math.abs(v - 0.5) < 1e-6);
+  assert.equal(r.lagMs, 250);
+  assert.ok(r.residual < 5, `residual ${r.residual}`);
+  const [u, v] = applyH(r.H, applyH(inv, [0.3, 0.7]));
+  assert.ok(Math.abs(u - 0.3) < 0.01 && Math.abs(v - 0.7) < 0.01, `${u}, ${v}`);
 });
 
-test('pointer calibration: no hand samples, no click', () => {
-  assert.equal(new PointerCalibration().click(1000), false);
+test('pointer calibration: a hand that never moves gives no mapping', () => {
+  const cal = new PursuitCalibration(0);
+  for (let t = 0; t <= PURSUIT_MS; t += 16) cal.push(t, [0.5, 0.5]);
+  assert.equal(cal.result(1920, 1080), null);
 });

@@ -1,5 +1,5 @@
 // Pointer and pinch calibration runs, and where their results are kept between visits.
-import { fitHomography, residualPx, type Homography, type Pt2 } from './homography';
+import { applyH, fitHomography, residualPx, type Homography, type Pt2 } from './homography';
 import { choosePinch, type PinchMetric, type PinchThresholds } from './pinch';
 
 // ---------- persistence ----------
@@ -25,46 +25,91 @@ export const KEYS = { pointer: 'arena.input.pointer', pinch: 'arena.input.pinch'
 
 export interface PointerCal { H: Homography; residual: number }
 
-// ---------- pointer: 4 targets, point and pinch at each ----------
+// ---------- pointer: follow a dot around the screen ----------
+// The dot traces a rectangle (corners inset 10 %), easing into each corner, then crosses to the
+// middle. Every hand frame is a sample, so the fit uses hundreds of points instead of 4 pinches,
+// and nothing depends on the pinch working yet. A hand trails a moving target; the fit finds by
+// how much.
 
 // Screen corners inset by 10 %, in 0..1 of the window.
 export const CAL_TARGETS: Pt2[] = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+const PATH: Pt2[] = [...CAL_TARGETS, CAL_TARGETS[0], [0.5, 0.5]];
+const SEGMENT_MS = [1800, 1300, 1800, 1300, 1000];
+export const PURSUIT = { readyMs: 1500, holdMs: 500 };
+export const PURSUIT_MS = PURSUIT.readyMs + SEGMENT_MS.reduce((a, b) => a + b) + PURSUIT.holdMs;
 
-export class PointerCalibration {
-  readonly samples: Pt2[] = [];
-  private raw: { t: number; p: Pt2 }[] = [];
+// Where the dot is dt ms into the run.
+export function pursuitTarget(dt: number): Pt2 {
+  let t = dt - PURSUIT.readyMs;
+  if (t <= 0) return PATH[0];
+  for (let i = 0; i < SEGMENT_MS.length; i++) {
+    if (t < SEGMENT_MS[i]) {
+      const s = t / SEGMENT_MS[i], e = s * s * (3 - 2 * s);
+      const a = PATH[i], b = PATH[i + 1];
+      return [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e];
+    }
+    t -= SEGMENT_MS[i];
+  }
+  return PATH[PATH.length - 1];
+}
 
-  constructor(private lagMs = 100) {}
+export class PursuitCalibration {
+  private samples: { dt: number; p: Pt2 }[] = [];
 
-  get index(): number {
-    return this.samples.length;
+  constructor(readonly start: number) {}
+
+  target(t: number): Pt2 {
+    return pursuitTarget(t - this.start);
   }
 
-  get done(): boolean {
-    return this.samples.length >= CAL_TARGETS.length;
+  progress(t: number): number {
+    return Math.min(1, (t - this.start) / PURSUIT_MS);
   }
 
-  // Raw (mirrored, unfiltered) camera-space pointer, every hand frame.
-  pushRaw(t: number, p: Pt2): void {
-    this.raw.push({ t, p });
-    while (this.raw.length && this.raw[0].t < t - 1500) this.raw.shift();
+  ready(t: number): boolean {
+    return t - this.start < PURSUIT.readyMs;
   }
 
-  // A pinch at t takes the median pointer over the 120 ms before the pinch began to move it.
-  click(t: number): boolean {
-    const end = t - this.lagMs;
-    let pts = this.raw.filter(s => s.t <= end && s.t >= end - 120);
-    if (!pts.length) pts = this.raw.slice(-3);
-    if (!pts.length || this.done) return false;
-    const med = (a: number[]) => a.sort((p, q) => p - q)[a.length >> 1];
-    this.samples.push([med(pts.map(s => s.p[0])), med(pts.map(s => s.p[1]))]);
-    return true;
+  done(t: number): boolean {
+    return t - this.start >= PURSUIT_MS;
   }
 
-  result(w: number, h: number): PointerCal | null {
-    const H = fitHomography(this.samples, CAL_TARGETS);
-    return H ? { H, residual: residualPx(H, this.samples, CAL_TARGETS, w, h) } : null;
+  // Raw (mirrored, unfiltered) camera-space pointer, every hand frame. The ready phase is
+  // skipped: the hand is still finding the first dot.
+  push(t: number, raw: Pt2): void {
+    const dt = t - this.start;
+    if (dt >= PURSUIT.readyMs && dt <= PURSUIT_MS) this.samples.push({ dt, p: raw });
   }
+
+  // Tries lags of 0–600 ms and keeps the best fit. Null if there's too little to fit, or the
+  // hand barely moved.
+  result(w: number, h: number): (PointerCal & { lagMs: number }) | null {
+    const src = this.samples.map(s => s.p);
+    if (src.length < 60) return null;
+    const span = (k: 0 | 1) => Math.max(...src.map(p => p[k])) - Math.min(...src.map(p => p[k]));
+    if (span(0) < 0.05 || span(1) < 0.04) return null;
+    let best: (PointerCal & { lagMs: number }) | null = null;
+    for (let lag = 0; lag <= 600; lag += 50) {
+      const fit = trimmedFit(src, this.samples.map(s => pursuitTarget(s.dt - lag)), w, h);
+      if (fit && (!best || fit.residual < best.residual)) best = { ...fit, lagMs: lag };
+    }
+    return best;
+  }
+}
+
+// Fit, drop the worst 20 % (a glance away, overshooting a corner), fit again.
+function trimmedFit(src: Pt2[], dst: Pt2[], w: number, h: number): PointerCal | null {
+  const H0 = fitHomography(src, dst);
+  if (!H0) return null;
+  const err = src.map((p, i) => {
+    const [u, v] = applyH(H0, p);
+    return ((u - dst[i][0]) * w) ** 2 + ((v - dst[i][1]) * h) ** 2;
+  });
+  const cut = [...err].sort((a, b) => a - b)[Math.floor(err.length * 0.8)];
+  const keep = err.flatMap((e, i) => (e <= cut ? [i] : []));
+  const s = keep.map(i => src[i]), d = keep.map(i => dst[i]);
+  const H = fitHomography(s, d);
+  return H && { H, residual: residualPx(H, s, d, w, h) };
 }
 
 // ---------- pinch: open hand, then a held pinch ----------
