@@ -46,7 +46,7 @@ To use Maincloud instead of a local server: `spacetime login`, `spacetime publis
 
 ## Deploy
 
-The repo is linked to the Vercel project `calhacks-2026`: every push to `main` deploys to production, other branches get preview URLs. Vercel builds `client/` (`npm run build`) and serves `api/*.ts` as functions; their API keys (`ANTHROPIC_API_KEY`, `CARTESIA_API_KEY`, `FAL_KEY`) are Vercel environment variables, not `.env`. The deployed site plays online against the Maincloud database `calhacks-arena`, so after changing `server/` run `spacetime publish --module-path server --server maincloud calhacks-arena -y`. New columns get defaults so that publish keeps the play logs; one without a default makes it ask for `--delete-data`, which wipes them.
+The repo is linked to the Vercel project `calhacks-2026`: every push to `main` deploys to production, other branches get preview URLs. Vercel builds `client/` (`npm run build`) and serves `api/*.ts` as functions; their API keys (`ANTHROPIC_API_KEY`, `CARTESIA_API_KEY`, `FAL_KEY`) are Vercel environment variables, not `.env`. The deployed site plays online against the Maincloud database `calhacks-arena`, so after changing `server/` run `spacetime publish --module-path server --server maincloud calhacks-arena -y`. The deployed site is behind a password gate (`middleware.ts`); the password is the `SITE_PASSWORD` environment variable on Vercel, and changing it signs everyone out. New columns get defaults so that publish keeps the play logs; one without a default makes it ask for `--delete-data`, which wipes them.
 
 ## Controls
 

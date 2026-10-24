@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "0.133.0",
     "@mediapipe/tasks-vision": "0.10.14",
     "@types/three": "0.169.0",
+    "@vercel/functions": "3.10.3",
     "spacetimedb": "2.13.0",
     "three": "0.169.0"
   },

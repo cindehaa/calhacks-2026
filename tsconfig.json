@@ -13,5 +13,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["shared", "client", "api", "sim", "bench"]
+  "include": ["shared", "client", "api", "sim", "bench", "middleware.ts"]
 }
