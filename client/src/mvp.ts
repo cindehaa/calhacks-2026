@@ -1,5 +1,5 @@
-// The MVP on the result screen: your troop that did the most damage, with its art, its name, the
-// words that summoned it and the damage it dealt. Bot matches have exact numbers from the round's
+// The MVP on the result screen: your troop that did the most damage, with its art, its name and the
+// words that summoned it, beside the total damage all your troops dealt. Bot matches have exact numbers from the round's
 // tallies (LocalMatch.report()); online, each hit a unit lands (its attackSeq bumping) is credited
 // with that unit's damage per hit, which leaves out splash and chain targets past the first.
 import './mvp.css';
@@ -38,6 +38,14 @@ export class MvpTracker {
     }
   }
 
+  // Damage dealt by all your troops; `exact` as for best().
+  total(side: number, exact?: { side: number; unitDamage: number; towerDamage: number }[]): number {
+    if (exact) return exact.reduce((n, t) => n + (t.side === side ? t.unitDamage + t.towerDamage : 0), 0);
+    let n = 0;
+    for (const [tid, d] of this.dmg) if (this.info.get(tid)?.side === side) n += d;
+    return n;
+  }
+
   // Your best troop. `exact` (bot matches) is the round's tallies by troop id.
   best(side: number, exact?: { troopId: bigint; side: number; unitDamage: number; towerDamage: number; name: string; description: string; cost: number }[]): MvpPick | null {
     if (exact) {
@@ -55,8 +63,9 @@ export class MvpTracker {
   }
 }
 
-// Fills (or hides) the card on the result screen, just above the buttons.
-export function renderMvp(pick: MvpPick | null): void {
+// Fills the card on the result screen, just above the buttons. With no troop to show (none
+// deployed, or none landed a hit) it still shows the total.
+export function renderMvp(pick: MvpPick | null, total: number): void {
   let card = document.getElementById('mvpCard');
   if (!card) {
     card = document.createElement('div');
@@ -64,10 +73,8 @@ export function renderMvp(pick: MvpPick | null): void {
     card.className = 'gPanel mvpCard';
     document.querySelector('#result .resultCol .actions')?.before(card);
   }
-  card.hidden = !pick;
-  if (!pick) return;
-  const art = /^\/api\/sprite\//.test(pick.spriteUrl) ? pick.spriteUrl.replace(/\?key$/, '') : '';
-  const words = pick.words.length > 90 ? pick.words.slice(0, 89) + '…' : pick.words;
+  const art = pick && /^\/api\/sprite\//.test(pick.spriteUrl) ? pick.spriteUrl.replace(/\?key$/, '') : '';
+  const words = !pick ? '' : pick.words.length > 90 ? pick.words.slice(0, 89) + '…' : pick.words;
   card.innerHTML = `<div class="gFace">
     <div class="mvpArt"></div>
     <div class="mvpText">
@@ -75,10 +82,12 @@ export function renderMvp(pick: MvpPick | null): void {
       <b class="mvpName"></b>
       <q class="mvpWords"></q>
     </div>
-    <div class="mvpDamage"><b>${Math.round(pick.damage).toLocaleString('en-US')}</b><small>${pick.exact ? 'Damage' : 'Damage, about'}</small><span class="mvpCost">${pick.cost}</span></div>
+    <div class="mvpDamage"><b>${Math.round(total).toLocaleString('en-US')}</b><small>Total damage</small></div>
   </div>`;
-  card.querySelector('.mvpName')!.textContent = pick.name;
+  card.classList.toggle('none', !pick);
+  card.querySelector('.mvpName')!.textContent = pick?.name ?? 'No troops landed a hit';
   card.querySelector('.mvpWords')!.textContent = words;
+  if (!pick) return;
   const box = card.querySelector('.mvpArt')!;
   if (art) {
     const img = new Image();

@@ -337,7 +337,7 @@ class Sfx {
         this.tone(ac, out, t + 0.14, 'sawtooth', 120, 100, 0.13, 0.22, 900);
         break;
       case 'click': // menu tick
-        this.tone(ac, out, t, 'triangle', 880, 660, 0.05, 0.18);
+        this.tone(ac, out, t, 'triangle', 880, 660, 0.05, 0.3);
         break;
       case 'joined':
         this.tone(ac, out, t, 'triangle', 660, 660, 0.12, 0.25);

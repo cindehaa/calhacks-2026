@@ -16,7 +16,7 @@ import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
 import { crownSvg, shieldSvg } from './art';
-import { clock, reasons, type RoundSummary } from './chronicle';
+import { clock } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
 import { hubFx, resultFx } from './hubfx';
 import { tapestry } from './banner';
@@ -91,12 +91,7 @@ function netMsg(s: string) {
     clearNotice('net');
     notice('Back online', { tone: 'good', ms: 1600, key: 'netBack' });
   }
-  $('netStatus').textContent = s;
-  // The hub says it plainly; the HUD keeps the raw status for debugging.
-  const state = !s ? 'online' : s === 'connected' || s === 'connecting…' ? 'joining' : 'off';
-  $('hubNet').textContent = { online: 'Online', joining: 'Connecting…', off: 'Offline · practice still works' }[state];
-  $('hubNet').className = `hubNet ${state}`;
-  $('hubNet').title = s;
+  $('netStatus').textContent = s; // raw status, for debugging
 }
 hubFx(document.querySelector('#title .hubSky')!);
 for (const [sel, house, rim, phase] of [['left', 'raven', 'right', 0], ['right', 'sun', 'left', 2.3]] as const) {
@@ -454,48 +449,25 @@ function renderResult() {
   embers = applyDelta(embers, emberDelta(outcome, local ? local.level : 'online'));
   saveEmbers(embers);
   renderEmbers();
-  const delta = embers - before;
 
   const towers = m.towers();
-  const theirs = towers.filter(t => t.side !== side), mine = towers.filter(t => t.side === side);
-  const king = (ts: typeof towers) => ts.find(t => t.lane === KING_LANE);
-  let myBest: RoundSummary['myBest'] = null, theirBest: RoundSummary['theirBest'] = null;
-  if (local) {
-    const troops = local.report().troops;
-    const top = <T,>(xs: T[], f: (x: T) => number) => xs.reduce<T | null>((a, x) => (!a || f(x) > f(a) ? x : a), null);
-    const a = top(troops.filter(t => t.side === side), t => t.unitDamage + t.towerDamage);
-    const b = top(troops.filter(t => t.side !== side), t => t.towerDamage);
-    if (a) myBest = { name: a.name, damage: a.unitDamage + a.towerDamage };
-    if (b) theirBest = { name: b.name, towerDamage: b.towerDamage };
-  }
-  const summary: RoundSummary = {
-    outcome, forfeit: byForfeit(m),
-    towersTaken: theirs.filter(t => t.hp <= 0).length, towersLost: mine.filter(t => t.hp <= 0).length,
-    theirKingDown: (king(theirs)?.hp ?? 1) <= 0, myKingDown: (king(mine)?.hp ?? 1) <= 0,
-    myKingStruck: !!king(mine) && king(mine)!.hp < king(mine)!.maxHp,
-    theirKingFellAt: round.theirKingFellAt, myKingFellAt: round.myKingFellAt, cappedSecs: round.cappedSecs, endedAt: m.time, myBest, theirBest,
-  };
+  const towersTaken = towers.filter(t => t.side !== side && t.hp <= 0).length, towersLost = towers.filter(t => t.side === side && t.hp <= 0).length;
+  const forfeit = byForfeit(m);
 
-  remember(LAST_KEY, JSON.stringify({ foe: foeName(m), outcome, score: `${summary.towersTaken}–${summary.towersLost}` } satisfies LastMatch));
+  remember(LAST_KEY, JSON.stringify({ foe: foeName(m), outcome, score: `${towersTaken}–${towersLost}` } satisfies LastMatch));
   renderLast();
   const res = $('result');
   res.className = `screen gScreen result ${outcome}`;
   $<HTMLImageElement>('resultBg').src = `/ui/${outcome === 'win' ? 'gold' : outcome === 'lose' ? 'ice' : 'home'}.svg`;
   $('resultLabel').textContent = `${m.label} · ${clockText(m, true)}`;
   $('resultText').textContent = { win: 'Victory', lose: 'Defeat', draw: 'Draw' }[outcome].toUpperCase();
-  $('resultLine').textContent = !summary.forfeit ? '' : outcome === 'lose' && iForfeited ? 'You forfeited.' : outcome === 'win' ? 'Your opponent forfeited.' : '';
+  $('resultLine').textContent = !forfeit ? '' : outcome === 'lose' && iForfeited ? 'You forfeited.' : outcome === 'win' ? 'Your opponent forfeited.' : '';
   const tone = outcome === 'lose' ? 'ice' : 'gold';
-  $('crowns').innerHTML = [0, 1, 2].map(i => crownSvg(i < summary.towersTaken ? tone : `empty-${tone}`, 64)).join('');
+  $('crowns').innerHTML = [0, 1, 2].map(i => crownSvg(i < towersTaken ? tone : `empty-${tone}`, 64)).join('');
   $('erIcon').innerHTML = outcome === 'lose' ? SNOW_ICON : FLAME_ICON;
-  countUp($('emberDelta'), delta);
   const rk = rankOf(embers);
   $('erRank').textContent = rk.name;
-  $('erNext').textContent = rk.next ? `${embers.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${embers.toLocaleString('en-US')} points`;
-  $('whyLabel').textContent = { win: 'Why you won', lose: 'Why you lost', draw: 'How it ended' }[outcome];
-  $('whyList').innerHTML = reasons(summary).map(r => `<li>${escapeHtml(r)}</li>`).join('');
-  const damage = theirs.reduce((n, t) => n + Math.max(0, t.maxHp - Math.max(0, t.hp)), 0);
-  $('stats').innerHTML = [[`${summary.towersTaken}–${summary.towersLost}`, 'Towers'], [Math.round(damage).toLocaleString('en-US'), 'Tower damage'],
-    [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Embers']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
+  countUp(before, embers);
   // The loser's tapestry freezes over.
   resultBanners.me.set({ frozen: outcome === 'lose' });
   resultBanners.foe.set({ frozen: outcome === 'win' });
@@ -504,23 +476,48 @@ function renderResult() {
   const tag = (won: boolean) => outcome === 'draw' ? 'Draw' : won ? 'Winner' : 'Defeated';
   $('resMeTag').textContent = tag(outcome === 'win');
   $('resFoeTag').textContent = tag(outcome === 'lose');
-  renderMvp(mvp.best(side, local?.report().troops));
+  const report = local?.report().troops;
+  renderMvp(mvp.best(side, report), mvp.total(side, report));
   $('rematchText').textContent = 'Rematch';
-  $('rematchSub').textContent = local ? `Same bot, ${local.level}` : 'Same opponent';
+  $('rematchSub').textContent = local ? '' : 'Same opponent';
+  $('rematchSub').hidden = !!local;
 }
 
-// The points tick up (or down) once the crowns have landed.
-function countUp(el: HTMLElement, delta: number) {
-  const fmt = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !delta) return void (el.textContent = fmt(delta));
-  const start = performance.now() + 1100, dur = 700;
-  el.textContent = '0';
+// Once the points slab has risen, the points tick up one at a time with a tick each (rising in
+// pitch), the total and its rank line count with them, and a chime and a pop land on the last one.
+const pointsLine = (total: number) => {
+  const rk = rankOf(total);
+  return rk.next ? `${total.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${total.toLocaleString('en-US')} points`;
+};
+let countRaf = 0;
+function countUp(before: number, after: number) {
+  const delta = after - before, el = $('emberDelta'), slab = $('emberReward');
+  cancelAnimationFrame(countRaf);
+  slab.classList.remove('counted');
+  const show = (n: number) => {
+    el.textContent = `+${n}`;
+    $('erNext').textContent = pointsLine(before + n);
+  };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || delta <= 0) return void show(delta);
+  show(0);
+  const start = performance.now() + 1300, dur = Math.min(1400, 60 * delta + 300);
+  let shown = 0;
   const step = (now: number) => {
     const k = Math.min(1, Math.max(0, (now - start) / dur));
-    el.textContent = fmt(Math.round(delta * (1 - (1 - k) ** 3)));
-    if (k < 1) requestAnimationFrame(step);
+    const n = Math.round(delta * (1 - (1 - k) ** 2));
+    if (n > shown) {
+      shown = n;
+      show(n);
+      sfx.play('tick', undefined, 0.8 + 0.5 * (n / delta));
+    }
+    if (k < 1) countRaf = requestAnimationFrame(step);
+    else {
+      sfx.play('chime');
+      void slab.offsetWidth; // restart the pop
+      slab.classList.add('counted');
+    }
   };
-  requestAnimationFrame(step);
+  countRaf = requestAnimationFrame(step);
 }
 
 // ---------- versus card, pause and forfeit ----------
