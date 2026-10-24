@@ -177,3 +177,47 @@ test('cursor history returns the latest sample at or before t', () => {
   h.push(2000, { x: 3, y: 0 });
   assert.equal(h.at(15)?.x, 3, 'old samples are trimmed');
 });
+
+test('Space locks at the cursor and letting go deploys, hand or not', () => {
+  const r = rig();
+  r.frames(100, { x: 40, y: 50 }, false, false);
+  r.m.keyDown(r.now());
+  assert.deepEqual(r.log, ['lock key 40,50']);
+  r.frames(100, { x: 60, y: 50 }, false, false);
+  r.m.keyUp();
+  assert.deepEqual(r.log, ['lock key 40,50', 'deploy 40,50']);
+});
+
+test('letting go of Space outside the drag-off ring cancels, Esc cancels outright', () => {
+  const r = rig();
+  r.frames(100, { x: 100, y: 100 }, false);
+  r.m.keyDown(r.now());
+  r.frames(100, { x: 400, y: 100 }, false);
+  r.m.keyUp();
+  r.m.keyDown(r.now());
+  r.m.cancel('key');
+  r.m.keyUp();
+  assert.deepEqual(r.log, ['lock key 100,100', 'cancel drag', 'lock key 400,100', 'cancel key']);
+});
+
+test('Space takes over a voice lock, so going quiet no longer deploys', () => {
+  const r = rig();
+  r.frames(100, { x: 10, y: 10 }, false, false);
+  r.m.speechStart(r.now());
+  r.m.keyDown(r.now());
+  r.m.speechEnd();
+  assert.equal(r.m.lock?.by, 'key');
+  r.m.keyUp();
+  assert.deepEqual(r.log, ['lock voice 10,10', 'deploy 10,10']);
+});
+
+test('a pinch release does not end a Space lock', () => {
+  const r = rig();
+  r.frames(100, { x: 100, y: 100 }, false);
+  r.m.keyDown(r.now());
+  r.frames(100, { x: 100, y: 100 }, true);
+  r.frames(100, { x: 100, y: 100 }, false);
+  assert.deepEqual(r.log, ['lock key 100,100']);
+  r.m.keyUp();
+  assert.deepEqual(r.log, ['lock key 100,100', 'deploy 100,100']);
+});

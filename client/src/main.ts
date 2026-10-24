@@ -246,7 +246,9 @@ addEventListener('keydown', e => {
     if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
     return;
   }
-  if (/^[0-9]$/.test(e.key)) deployAnchor((Number(e.key) + 9) % 10);
+  if (/^[0-9]$/.test(e.key)) {
+    if (input.mouseKeys) deployAnchor((Number(e.key) + 9) % 10);
+  }
   else if (e.key === 'Escape') lock = null;
   else if (e.key === 'v' || e.key === 'V') cycleView();
   else if (e.key === 'Enter' || e.key === '/') {
@@ -256,6 +258,7 @@ addEventListener('keydown', e => {
 });
 
 board.canvas.addEventListener('mousemove', e => {
+  if (!input.mouseKeys) return void (aim = lock = null);
   const [x, y] = board.toWorld(e.clientX, e.clientY);
   aim = onOwnHalf(mySide(), y) && x > 0 && x < ARENA_W ? [x, y] : null;
 });

@@ -30,7 +30,7 @@ export interface InputHost {
   prefetch?(words: string): void; // start designing from words heard so far
 }
 
-interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; camera: boolean; mic: boolean }
+interface Prefs { preview: boolean; vadDb: number; vadEndMs: number; camera: boolean; mic: boolean; mouseKeys: boolean }
 
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
@@ -48,7 +48,7 @@ export class InputController {
   private fx = new OneEuro(1.0, 0.007);
   private fy = new OneEuro(1.0, 0.007);
   private hyst = new Hysteresis(DEFAULT_PINCH.on, DEFAULT_PINCH.off);
-  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, camera: false, mic: false, ...load<Partial<Prefs>>(KEYS.prefs) };
+  private prefs: Prefs = { preview: true, vadDb: VAD_DEFAULTS.thresholdDb, vadEndMs: VAD_DEFAULTS.endMs, camera: false, mic: false, mouseKeys: true, ...load<Partial<Prefs>>(KEYS.prefs) };
 
   private hand: HandFrame | null = null;
   private handCursor: Pt | null = null;
@@ -86,8 +86,24 @@ export class InputController {
 
     canvas.addEventListener('mousemove', e => (this.mouse = { x: e.clientX, y: e.clientY }));
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
+    // Space and Escape stand in for the hand at any time: hold Space to lock at the cursor (hand or
+    // mouse), let go to deploy; Escape cancels whatever is locked, like dragging off or saying "cancel".
+    const typing = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
     addEventListener('keydown', e => {
       if (e.key === 'Escape') this.machine.cancel('key');
+      else if (e.code === 'Space' && !typing(e.target)) {
+        e.preventDefault(); // no page scroll, no clicking a focused button
+        if (!e.repeat) this.machine.keyDown(performance.now());
+      }
+    });
+    addEventListener('keyup', e => {
+      if (e.code !== 'Space' || typing(e.target)) return;
+      e.preventDefault();
+      this.machine.keyUp();
+    });
+    // A Space held while the window loses focus never sends its keyup.
+    addEventListener('blur', () => {
+      if (this.machine.lock?.by === 'key') this.machine.cancel('focus lost');
     });
     this.mountUi();
     const loop = () => {
@@ -98,6 +114,19 @@ export class InputController {
     // Turn back on whatever was on last visit; the browser remembers the permission.
     if (this.prefs.camera) void this.setCamera(true);
     if (this.prefs.mic) void this.setMic(true);
+  }
+
+  // Mouse and keyboard mode: the mouse aims and clicks, number keys drop troops. On by default
+  // alongside the hand, and the fallback if vision fails; Space and Esc work either way.
+  get mouseKeys(): boolean {
+    return this.prefs.mouseKeys;
+  }
+
+  setMouseKeys(on: boolean): void {
+    this.prefs.mouseKeys = on;
+    save(KEYS.prefs, this.prefs);
+    const box = this.el.querySelector<HTMLInputElement>('[data-act="mouseKeys"]');
+    if (box) box.checked = on;
   }
 
   // What the setup screen shows.
@@ -150,7 +179,7 @@ export class InputController {
       if (ev?.kind === 'start') this.machine.speechStart(ev.t);
       else if (ev?.kind === 'end') this.machine.speechEnd();
     }
-    this.machine.frame(now, { cursor: this.handCursor ?? this.mouse, hand: !!this.hand, pinched: this.pinched });
+    this.machine.frame(now, { cursor: this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null), hand: !!this.hand, pinched: this.pinched });
     this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
@@ -178,7 +207,7 @@ export class InputController {
     if (!this.host.playing()) return false;
     const [x, y] = this.host.toWorld(l.x, l.y);
     if (!onOwnHalf(this.host.side(), y) || x <= 0 || x >= ARENA_W) {
-      if (l.by === 'pinch') this.flash(l, 'cancel', 'your half only');
+      if (l.by !== 'voice') this.flash(l, 'cancel', 'your half only');
       return false;
     }
     const nonce = this.host.begin([x, y]);
@@ -186,7 +215,8 @@ export class InputController {
     const words = new Transcript();
     this.listeners.add(words);
     this.active = { nonce, spot: [x, y], words };
-    this.host.status(this.mic.on ? 'say what the troop is…' : 'locked: type a troop, or let go to use the text box');
+    const letGo = l.by === 'key' ? 'let go of Space' : 'let go';
+    this.host.status(this.mic.on ? `say what the troop is, ${letGo} to deploy, Esc to cancel` : `locked: ${letGo} to deploy what's in the text box, Esc to cancel`);
     return true;
   }
 
@@ -337,6 +367,7 @@ export class InputController {
       <div class="inStatus"></div>
       <div class="inMenu" hidden>
         <button data-act="setup" class="ghost">Run setup again</button>
+        <label><input type="checkbox" data-act="mouseKeys"> Mouse and keyboard</label>
         <label><input type="checkbox" data-act="preview"> Camera preview</label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
@@ -349,6 +380,7 @@ export class InputController {
 
     const q = <T extends HTMLElement>(act: string) => this.el.querySelector<T>(`[data-act="${act}"]`)!;
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;
+    q<HTMLInputElement>('mouseKeys').checked = this.prefs.mouseKeys;
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
     q<HTMLInputElement>('vadEnd').value = String(this.prefs.vadEndMs);
@@ -368,6 +400,7 @@ export class InputController {
     });
     this.el.addEventListener('input', e => {
       const t = e.target as HTMLInputElement;
+      if (t.dataset.act === 'mouseKeys') this.prefs.mouseKeys = t.checked;
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
       if (t.dataset.act === 'vadDb') this.prefs.vadDb = this.vad.o.thresholdDb = Number(t.value);
       if (t.dataset.act === 'vadEnd') this.prefs.vadEndMs = this.vad.o.endMs = Number(t.value);
