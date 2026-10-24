@@ -211,7 +211,7 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .bRankRow { display: flex; justify-content: space-between; align-items: baseline; }
 .bRankName { font: 700 6.6cqw var(--cinzel); letter-spacing: .08em; color: #fff; }
 .bEmbers { display: flex; align-items: center; gap: 1.6cqw; font: 800 7.6cqw var(--chakra); color: #ffd9b0; }
-.bEmbers svg { width: 6.4cqw; height: 6.4cqw; color: var(--amber); }
+.bEmbers svg { width: 6.4cqw; height: 6.4cqw; color: var(--gold); } /* XP's star; the flame is for embers */
 .bEmbers b { color: #fff; }
 .bBar { height: 2.6cqw; background: #0a1430a6; box-shadow: inset 0 -1px 0 #ffffff1f; clip-path: polygon(1.3cqw 0, 100% 0, calc(100% - 1.3cqw) 100%, 0 100%); }
 .bBar i { display: block; height: 100%; min-width: 3cqw; background: linear-gradient(90deg, #ff8a2e, #ffb02e); box-shadow: 0 0 8px #ff8a2e; }
@@ -309,10 +309,10 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .slabStatic { --a: #2a1d1a; --b: #21171a; --side: #0f0a0b; --c: 16px; filter: drop-shadow(0 7px 0 var(--side)) drop-shadow(0 3px 0 #000); }
 .result.lose .slabStatic { --a: #16283a; --b: #112131; --side: #08121c; }
 .emberReward .face { display: flex; align-items: center; gap: 18px; height: 84px; padding: 0 26px 0 22px; }
-.erIcon { display: flex; color: var(--ember); } .result.lose .erIcon { color: var(--ice2); }
+.erIcon { display: flex; color: var(--gold); } .result.lose .erIcon { color: var(--ice2); }
 .erDelta, .erRank { display: flex; flex-direction: column; gap: 2px; }
 .erDelta b { font: 800 40px/1 var(--cinzel); color: #fff; }
-.erDelta small { font: 700 13px var(--chakra); letter-spacing: .22em; text-transform: uppercase; color: var(--ember); }
+.erDelta small { font: 700 13px var(--chakra); letter-spacing: .22em; text-transform: uppercase; color: var(--gold); }
 .result.lose .erDelta small { color: var(--ice2); }
 .emberReward i { width: 1px; height: 46px; background: #ffffff22; }
 .erRank b { font: 700 13px var(--chakra); letter-spacing: .18em; text-transform: uppercase; color: #fff; }

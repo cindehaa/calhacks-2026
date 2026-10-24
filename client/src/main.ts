@@ -169,8 +169,7 @@ function remember(key: string, v: string) {
 const myName = () => me()?.name || savedName() || 'You';
 const initial = (name: string) => [...name.trim()][0]?.toUpperCase() ?? '?';
 const icon = (body: string) => `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
-const FLAME_ICON = icon('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>');
-const SNOW_ICON = icon('<path d="M12 2v20"/><path d="m4.93 7 14.14 10"/><path d="m4.93 17 14.14-10"/><path d="m9 4 3 3 3-3"/><path d="m9 20 3-3 3 3"/>');
+const XP_ICON = icon('<path fill="currentColor" d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>'); // XP; the flame belongs to embers
 
 $<HTMLInputElement>('nameInput').value = savedName();
 $<HTMLInputElement>('nameInput').onchange = e => {
@@ -221,7 +220,7 @@ function renderEmbers() {
   $('emberRank').textContent = rank.name;
   const from = RANKS.find(r => r.name === rank.name)!.at;
   $('emberBar').style.width = rank.nextAt === null ? '100%' : `${((embers - from) / (rank.nextAt - from)) * 100}%`;
-  $('emberNext').textContent = rank.nextAt === null ? 'The highest rank' : `${rank.nextAt - embers} more to ${rank.next}`;
+  $('emberNext').textContent = rank.nextAt === null ? 'The highest rank' : `${rank.nextAt - embers} XP to ${rank.next}`;
 }
 renderEmbers();
 
@@ -399,7 +398,7 @@ interface Round {
   theirKingFellAt: number | null;
   deploys: number;
   elixirSpent: number;
-  shown: boolean; // result screen filled and points awarded
+  shown: boolean; // result screen filled and XP awarded
 }
 const newRound = (): Round => ({ cappedSecs: 0, myKingFellAt: null, theirKingFellAt: null, deploys: 0, elixirSpent: 0, shown: false });
 let round = newRound();
@@ -478,7 +477,7 @@ function renderResult() {
   $('resultLine').textContent = !forfeit ? '' : outcome === 'lose' && iForfeited ? 'You forfeited.' : outcome === 'win' ? 'Your opponent forfeited.' : '';
   const tone = outcome === 'lose' ? 'ice' : 'gold';
   $('crowns').innerHTML = [0, 1, 2].map(i => crownSvg(i < towersTaken ? tone : `empty-${tone}`, 64)).join('');
-  $('erIcon').innerHTML = outcome === 'lose' ? SNOW_ICON : FLAME_ICON;
+  $('erIcon').innerHTML = XP_ICON;
   const rk = rankOf(embers);
   $('erRank').textContent = rk.name;
   countUp(before, embers);
@@ -501,7 +500,7 @@ function renderResult() {
 // pitch), the total and its rank line count with them, and a chime and a pop land on the last one.
 const pointsLine = (total: number) => {
   const rk = rankOf(total);
-  return rk.next ? `${total.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${total.toLocaleString('en-US')} points`;
+  return rk.next ? `${total.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} XP to ${rk.next}` : `${total.toLocaleString('en-US')} XP`;
 };
 let countRaf = 0;
 function countUp(before: number, after: number) {

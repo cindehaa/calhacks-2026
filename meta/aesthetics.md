@@ -92,7 +92,7 @@ Designed in Paper ("Arena — UI design systems", page "Tower frost"; picked dir
 
 Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones-style heraldry inspires the look.
 
-- **Words are plain.** Heraldry and fantasy are visual inspiration only. Game text says what things are: Practice, Play online, Join a room, Blue side and Red side, points, ranks Bronze to Diamond, Forfeit this match?, Rematch. No "houses", "embers", "ravens" or "foes" in the text.
+- **Words are plain.** Heraldry and fantasy are visual inspiration only. Game text says what things are: Practice, Play online, Join a room, Blue side and Red side, XP and ranks Bronze to Diamond, Embers for the match resource, Forfeit this match?, Rematch. No "houses", "embers", "ravens" or "foes" in the text.
 - **Sides:** you are always the blue side, the opponent the red side. The banners and shields keep a raven and a sun sigil as pictures.
 - **Shapes:** chamfered slabs split into a lit and a shadow facet, each sitting on a solid darker side face so it pops, with a 1 px lit top edge. No gradients beyond the facet split; no gilding, parchment or ornament.
 - **Type:** Cinzel Decorative for the *Arena* wordmark (faceted fill: light gold top half, amber bottom half, with a warm glow), Cinzel for titles and names, Alegreya Sans for everything else, always with lining figures. Alegreya Sans replaced Chakra Petch, whose squared techno shapes fought the heraldry.
@@ -139,3 +139,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** The difficulty row under Practice moved into a pop-up: Practice opens a panel with Easy, Normal and Hard stacked as slabs (the last pick amber) and a Back link; picking one starts the match.
 - **2026-10-24:** Dropped the starter-troop chips (and keys 1–0). The top-left camera / mic panel is dev-only (`/dev`); players reach camera and mic from the camera button in the tools.
 - **2026-10-24:** Elixir cap is 15, so the kindling pile has one stick per elixir (15 by default, rebuilt to match whatever cap the match runs on). At `/dev` the Practice pop-up has a collapsed Dev settings section under the difficulties: Max elixir, Starting elixir, Elixir per second, and Reset, in muted small type so it stays out of the way.
+- **2026-10-24:** Names: the in-match resource is **Embers** (flame icon), rank progress is **XP** (gold star icon). XP replaced "points" on home, results and the forfeit prompt; the result screen's flame next to XP became a star so the two never share an icon.

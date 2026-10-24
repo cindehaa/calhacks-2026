@@ -1,5 +1,6 @@
-// Points, kept in this browser (stored as "embers"). Every round adds some: a win the most, a draw
-// half that, a loss a little. The total sets your rank, from Bronze up to Diamond.
+// XP, kept in this browser (stored as "arena.embers", its old name; in-match "embers" are the
+// resource you spend on troops). Every round adds some: a win the most, a draw half that, a loss a
+// little. The total sets your rank, from Bronze up to Diamond.
 import type { BotLevel } from '../../shared/bot';
 
 export const RANKS = [
