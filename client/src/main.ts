@@ -14,6 +14,7 @@ import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
+import { initControlsFeedback } from './feedback';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logScheme, logUtterance } from './telemetry';
 import { crownSvg, shieldSvg } from './art';
 import { clock, reasons, type RoundSummary } from './chronicle';
@@ -448,6 +449,7 @@ function renderResult() {
   $<HTMLButtonElement>('rematchBtn').disabled = !local && !myRoom()?.guest;
   if (round.shown) return;
   round.shown = true;
+  feedback.ask();
   const side = m.side;
   const outcome: Outcome = m.winner === -1 ? 'draw' : m.winner === side ? 'win' : 'lose';
   const before = embers;
@@ -827,6 +829,8 @@ function flagMismatch() {
 
 // First visit (after the title screen): camera and mic, then the how-to card.
 const setup = initSetup(input, showTutorialOnce);
+const feedback = initControlsFeedback(input);
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('lab')) void import('./lab').then(m => m.openLab(input));
 
 $<HTMLFormElement>('describe').onsubmit = e => {
   e.preventDefault();

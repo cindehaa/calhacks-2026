@@ -428,6 +428,13 @@ export class InputController {
     };
     this.inst = s.create(i => this.act(i), ctx);
     if (how === 'picked') sessionSet(SCHEME_KEY, s.id);
+    // The how-to card's "Fire" line follows the scheme (flick keeps the card's own wording).
+    const tut = document.getElementById('tutFire');
+    if (tut) {
+      tut.dataset.flick ??= tut.innerHTML;
+      if (s.id === 'flick') tut.innerHTML = tut.dataset.flick;
+      else tut.innerHTML = `<span><b>${s.name}:</b> ${s.howTo} No camera? Click or press Space.</span>`;
+    }
     this.host.event?.('scheme', `${s.id} (${how})`);
     this.host.schemeChanged?.(s.id);
     if (this.preview) this.renderPanel();
@@ -439,6 +446,11 @@ export class InputController {
     if (!s) return false;
     this.useScheme(s, 'picked');
     return true;
+  }
+
+  // What the scheme says it's doing, for the workshop page.
+  schemeState(): string {
+    return this.inst?.state?.() ?? '';
   }
 
   get schemes(): Scheme[] {

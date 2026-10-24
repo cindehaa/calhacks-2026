@@ -51,7 +51,11 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     b.blur();
     const act = b.dataset.act;
     if (act === 'devices') void turnOn();
-    else if (act === 'skip') {
+    else if (act === 'scheme') {
+      // Cycle through every scheme; the choice holds for this session.
+      const all = input.schemes, i = all.findIndex(x => x.id === input.scheme.id);
+      input.setScheme(all[(i + 1) % all.length].id);
+    } else if (act === 'skip') {
       input.setMouseKeys(true);
       close(act);
     } else if (act === 'done') close(act);
@@ -94,6 +98,11 @@ export function initSetup(input: InputController, onClose: () => void): { open()
 
     q('.setupHint').textContent = !s.camera ? 'camera off' : starting ? s.camStatus : s.hand ? '' : 'show your hand';
     q<HTMLButtonElement>('[data-act="done"]').disabled = !s.mic || starting;
+    const sc = input.scheme;
+    if (q('[data-scheme-name]').textContent !== sc.name) {
+      q('[data-scheme-name]').textContent = sc.name;
+      q('[data-scheme-how]').textContent = sc.howTo;
+    }
   }
 
   input.onSetup = () => open();
