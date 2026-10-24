@@ -1,5 +1,5 @@
-// Points, kept in this browser (stored as "embers"). Wins add points, losses take some away;
-// the total sets your rank, from Bronze up to Diamond.
+// Points, kept in this browser (stored as "embers"). Every round adds some: a win the most, a draw
+// half that, a loss a little. The total sets your rank, from Bronze up to Diamond.
 import type { BotLevel } from '../../shared/bot';
 
 export const RANKS = [
@@ -21,11 +21,10 @@ export function rankOf(total: number): Rank {
 
 export type Outcome = 'win' | 'lose' | 'draw';
 
-// Online rounds are worth the most; against the bot, harder bots pay more and cost less to lose to.
+// Online rounds are worth the most; against the bot, harder bots pay more. Win > draw > loss.
 export function emberDelta(outcome: Outcome, vs: BotLevel | 'online'): number {
-  if (outcome === 'draw') return 0;
-  const table = { online: [30, -20], easy: [10, -15], normal: [20, -10], hard: [30, -5] } as const;
-  return table[vs][outcome === 'win' ? 0 : 1];
+  const table = { online: [30, 15, 8], easy: [10, 5, 2], normal: [20, 10, 4], hard: [30, 15, 6] } as const;
+  return table[vs][outcome === 'win' ? 0 : outcome === 'draw' ? 1 : 2];
 }
 
 export const applyDelta = (total: number, delta: number) => Math.max(0, total + delta);

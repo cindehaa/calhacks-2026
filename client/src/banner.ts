@@ -6,8 +6,9 @@
 
 const NS = 'http://www.w3.org/2000/svg';
 const COLS = 14, ROWS = 26;
-// In the SVG's own units (viewBox 0 0 260 600).
-const L = 20, R = 240, TOP = 126, TAILS = 560, NOTCH = 520;
+// In the SVG's own units (viewBox 0 0 260 600, or taller when the box is: the cloth hangs to fill it).
+const L = 20, R = 240, TOP = 126, TEXT_Y = 265; // TEXT_Y: where the overlay's text rides
+const W = 260, H = 600;
 // Each look's lit and shadowed facet colours (left half lit, right half in shadow) and its trim.
 const LOOKS = {
   raven: { lit: [31, 70, 127], shade: [24, 55, 102], trim: '#f3d58a' }, // #1f467f / #183766
@@ -28,7 +29,17 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
   const still = matchMedia('(prefers-reduced-motion: reduce)');
   let house = o.house, frozen = false, ice = 0; // ice eases 0 → 1 as the cloth freezes
   const phase = o.phase ?? 0;
-  svg.setAttribute('viewBox', '0 0 260 600');
+  // The tails sit 40 above the bottom of the box, the swallowtail notch 80.
+  let tails = H - 40, notch = H - 80;
+  const fit = () => {
+    const { width, height } = svg.getBoundingClientRect();
+    const h = width ? Math.max(H, (W * height) / width) : H;
+    svg.setAttribute('viewBox', `0 0 ${W} ${h.toFixed(1)}`);
+    tails = h - 40;
+    notch = h - 80;
+  };
+  fit();
+  new ResizeObserver(() => { fit(); draw(); }).observe(svg);
   // Chains, the rod and its finials stay put.
   for (const x of [50, 210]) {
     svg.append(el('line', { x1: x, y1: 0, x2: x, y2: 118, stroke: '#1b1e2c', 'stroke-width': 4 }));
@@ -49,7 +60,7 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
     el('polygon', { points: '0,121 6,113 12,121 6,129', fill: '#c98a2e' }), el('polygon', { points: '248,121 254,113 260,121 254,129', fill: '#c98a2e' }));
 
   // Where a point on the cloth sits: u across (0 left, 1 right), v down (0 at the rod, 1 at the tails).
-  const bottom = (u: number) => TAILS - (TAILS - NOTCH) * (1 - Math.abs(2 * u - 1)); // swallowtail
+  const bottom = (u: number) => tails - (tails - notch) * (1 - Math.abs(2 * u - 1)); // swallowtail
   let t = 0, amp = 0;
   const at = (u: number, v: number): [number, number] => {
     const y = TOP + v * (bottom(u) - TOP);
@@ -94,8 +105,9 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
     rime.setAttribute('points', pts([[0, 0.86], [0.25, 0.9], [0.5, 0.82], [0.75, 0.9], [1, 0.86], [1, 1], [0.5, 1], [0, 1]]));
     const [kx, ky] = at(0.5, 0.86);
     knot.setAttribute('points', `${kx},${ky - 7} ${kx + 5},${ky} ${kx},${ky + 7} ${kx - 5},${ky}`);
-    // The text rides on the cloth around a third of the way down.
-    const [ox] = at(0.5, 0.32), [ox2] = at(0.5, 0.42);
+    // The text rides on the cloth at TEXT_Y, however long the cloth is.
+    const vt = (TEXT_Y - TOP) / (bottom(0.5) - TOP);
+    const [ox] = at(0.5, vt), [ox2] = at(0.5, vt + 0.1 * (H - 40 - TOP) / (bottom(0.5) - TOP));
     overlay.style.transform = `translateX(${((ox - 130) / 260 * 100).toFixed(2)}cqw) rotate(${((ox2 - ox) * 0.4).toFixed(2)}deg)`;
   }
 

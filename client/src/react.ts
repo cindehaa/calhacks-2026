@@ -64,8 +64,8 @@ export function blip(name: Blip): void {
   const r = 0.94 + Math.random() * 0.12; // a little wobble so repeats don't drone
   try {
     switch (name) {
-      case 'hover': tone(ac, out, t, 'sine', 1500 * r, 1700 * r, 0.035, 0.035); break; // a breath of a tick
-      case 'press': tone(ac, out, t, 'triangle', 420 * r, 260 * r, 0.06, 0.12); hiss(ac, out, t, 0.03, 0.05, 'bandpass', 2400); break; // soft thock
+      case 'hover': tone(ac, out, t, 'sine', 1500 * r, 1700 * r, 0.035, 0.06); break; // a breath of a tick
+      case 'press': tone(ac, out, t, 'triangle', 420 * r, 260 * r, 0.06, 0.2); hiss(ac, out, t, 0.03, 0.08, 'bandpass', 2400); break; // soft thock
       case 'hop': tone(ac, out, t, 'sine', 520 * r, 1040 * r, 0.12, 0.13); break; // boing up
       case 'flinch': tone(ac, out, t, 'square', 330 * r, 200 * r, 0.07, 0.05); hiss(ac, out, t, 0.05, 0.08, 'highpass', 3000); break;
       case 'frost': // stone knock and ice tinkle

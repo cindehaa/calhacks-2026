@@ -92,18 +92,14 @@
     <div class="orders">
       <div class="orderSide">
         <button id="botBtn" data-primary class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Practice</b><small>Play against the bot</small></span></button>
-        <div id="botLevel" class="levels" role="radiogroup" aria-label="Bot difficulty">
-          <button role="radio" data-level="easy">Easy</button><button role="radio" data-level="normal">Normal</button><button role="radio" data-level="hard">Hard</button>
-        </div>
       </div>
       <button id="battleBtn" class="slab amber battle"><span class="face"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>Play online</b><small>Start a room and invite a friend</small></span></span></button>
       <div class="orderSide">
         <button id="ravenBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg><b>Join a room</b><small>Enter a friend’s code</small></span></button>
-        <span class="levels ghost" aria-hidden="true"></span>
       </div>
     </div>
     <p id="lobbyError" class="error homeError"></p>
-    <footer class="hubFoot"><span id="hubNet" class="hubNet joining">Connecting…</span><span class="hubCredit">Built at Cal Hacks 13.0 with Claude, Cartesia and SpacetimeDB</span></footer>
+    <footer class="hubFoot"><span class="hubCredit">Built at Cal Hacks 13.0 with Claude, Cartesia and SpacetimeDB</span></footer>
   </div>
 
   <div id="raven" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="ravenTitle">
@@ -136,6 +132,19 @@
     <div class="vsSide vsMe"><span class="vsShield" id="vsMeShield"></span><span class="vsName" id="vsMe"></span><span class="vsTag">Blue side</span></div>
     <div class="vsMid">VS</div>
     <div class="vsSide vsThem"><span class="vsShield" id="vsThemShield"></span><span class="vsName" id="vsThem"></span><span class="vsTag" id="vsThemTag">Red side</span></div>
+  </div>
+
+  <div id="practice" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="practiceTitle">
+    <div class="gPanel menuPanel"><div class="gFace">
+      <h2 id="practiceTitle">Practice</h2>
+      <p class="sub">Choose how hard the bot plays.</p>
+      <div id="botLevel" class="levelPick">
+        <button data-level="easy" class="slab stone"><span class="face"><b>Easy</b></span></button>
+        <button data-level="normal" class="slab stone"><span class="face"><b>Normal</b></span></button>
+        <button data-level="hard" class="slab stone"><span class="face"><b>Hard</b></span></button>
+      </div>
+      <button id="practiceBack" class="textBtn">Back</button>
+    </div></div>
   </div>
 
   <div id="pause" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
@@ -187,10 +196,6 @@
           <span class="erRank"><b id="erRank"></b><small id="erNext"></small></span>
         </div></div>
       </div>
-      <div class="gPanel chronicle" id="chronicle"><div class="gFace">
-        <div class="why"><span class="gLabel" id="whyLabel"></span><ul id="whyList"></ul></div><i></i>
-        <div class="stats" id="stats"></div>
-      </div></div>
       <div class="actions">
         <button id="rematchBtn" data-primary class="slab amber battle mid"><span class="face"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b id="rematchText">Rematch</b><small id="rematchSub">Same opponent</small></span></span></button>
         <button id="lobbyBtn" class="slab stone"><span class="face"><b>Home</b></span></button>

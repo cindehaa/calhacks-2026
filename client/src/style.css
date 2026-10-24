@@ -159,6 +159,9 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .gPanel h2 { margin: 0; font: 800 clamp(30px, 3vw, 44px)/1.1 var(--cinzel); letter-spacing: .03em; color: #fff; }
 .menuPanel .gFace { width: min(380px, calc(100vw - 32px)); padding: 32px; display: flex; flex-direction: column; gap: 14px; text-align: center; }
 .menuPanel .slab .face { width: 100%; }
+.levelPick { display: flex; flex-direction: column; gap: 12px; }
+.textBtn { align-self: center; padding: 6px 14px; border: 0; background: none; color: var(--muted); font: 700 14px var(--chakra); letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+.textBtn:hover { color: #fff; }
 #pause, #forfeitAsk { z-index: 8; }
 
 /* home */
@@ -219,17 +222,9 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .slab.small .face svg { color: var(--amber); }
 .slab.small .face small { font: 500 14px var(--chakra); letter-spacing: .01em; color: var(--muted); white-space: nowrap; }
 .slab.small .face { width: 172px; gap: 6px; }
-.levels { display: flex; gap: 2px; padding: 3px; background: #0b0e22cc; clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px); }
-.levels button { padding: 4px 12px; border: 0; background: none; color: var(--muted); font: 700 14px var(--chakra); letter-spacing: .04em; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
-.levels button:hover { background: #1c2140; color: #fff; }
-.levels button[aria-checked="true"] { background: #2e3558; color: var(--amber); }
-.levels.ghost { visibility: hidden; height: 30px; }
 .homeError { position: absolute; left: 0; right: 0; bottom: 1vh; text-align: center; }
-.hubFoot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; pointer-events: none;
+.hubFoot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; align-items: center; padding: 10px 20px; pointer-events: none;
   font: 500 13px var(--chakra); letter-spacing: .02em; color: #8e96b3c0; }
-.hubNet { display: inline-flex; align-items: center; gap: 8px; }
-.hubNet::before { content: ''; width: 6px; height: 6px; transform: rotate(45deg); background: #4ade80; box-shadow: 0 0 6px #4ade80; }
-.hubNet.off::before { background: #8e96b3; box-shadow: none; }
 
 /* motion: one entrance, then only the weather moves */
 #title .wordmark, .homeMark { view-transition-name: wordmark; }
@@ -317,25 +312,12 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .emberReward i { width: 1px; height: 46px; background: #ffffff22; }
 .erRank b { font: 700 13px var(--chakra); letter-spacing: .18em; text-transform: uppercase; color: #fff; }
 .erRank small { font: 600 13px var(--chakra); color: var(--muted); }
-.chronicle > .gFace { width: min(760px, calc(100vw - 2 * (14vw + 24px))); display: flex; gap: 30px; padding: 24px 30px; }
-.result.win .chronicle { --a: #1e1b14; --b: #17140e; --side: #0b0906; }
-.result.lose .chronicle { --a: #16283a; --b: #112131; --side: #08121c; }
-.chronicle .why { flex: 1; display: flex; flex-direction: column; gap: 12px; }
-.chronicle > .gFace > i { width: 1px; background: #ffffff1a; }
-#whyList { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
-#whyList li { display: flex; align-items: center; gap: 12px; font: 500 17px var(--chakra); color: #fff; }
-#whyList li::before { content: ''; flex: none; width: 8px; height: 8px; background: currentColor; transform: rotate(45deg); color: var(--gold); }
-.result.lose #whyList li::before { color: var(--ice2); }
-.stats { width: 230px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 10px; align-content: center; }
-.stats div { display: flex; flex-direction: column; gap: 2px; }
-.stats b { font: 800 30px/1 var(--cinzel); color: #fff; }
-.stats small { font: 700 12px var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 .actions { display: flex; align-items: center; gap: 22px; }
 .result .slab.stone { --h: 72px; } .result .slab.stone .face { width: 180px; }
 .result.win .slab.stone { --a: #2a2416; --b: #211c10; --side: #0f0c06; }
 .result.lose .slab.stone { --a: #1d3346; --b: #162839; --side: #0b1824; }
 #resultFrost { display: none; } .result.lose #resultFrost { display: block; }
-@media (max-width: 900px) { .spoils { flex-direction: column; gap: 14px; } .chronicle > .gFace { width: calc(100vw - 32px); flex-direction: column; } }
+@media (max-width: 900px) { .spoils { flex-direction: column; gap: 14px; } }
 
 /* tools: small stone slabs */
 #tools button.round { width: 42px; height: 46px; border-radius: 0; border: 0; border-bottom: 5px solid #0e1230; color: #fff;
@@ -352,7 +334,6 @@ body:not(.inHub) #camBtn { display: none; }
 #inputPanel .inRow button:hover { color: #fff; background: linear-gradient(160deg, #2e3558 0 56%, #232947 56% 100%); }
 #inputPanel .inRow button.on { color: #0b1a10; border-bottom-color: #1d5a3c; background: linear-gradient(160deg, #6fe3a0 0 56%, #4ac987 56% 100%); }
 #inputPanel .inMenu { border-radius: 0; background: #151a33f2; border: 0; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); font-family: var(--chakra); }
-.hubNet.joining::before { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: pulse 1.2s ease-in-out infinite; }
 
 /* portrait and phones: a bigger island, the buttons stacked under it */
 @media (max-aspect-ratio: 1/1) {
@@ -370,7 +351,6 @@ body:not(.inHub) #camBtn { display: none; }
   .orderSide { flex: 1; padding-top: 0; }
   .orderSide .slab.small { width: 100%; --h: 84px; }
   .orderSide .slab.small .face { width: 100%; }
-  .levels.ghost { display: none; }
   .hubCredit { display: none; }
   .frostCorner { width: 120px; }
 }
@@ -485,9 +465,10 @@ body.inHub #inputPanel { display: none; }
 .result .crowns > svg:nth-child(1) { animation-delay: .5s; } .result .crowns > svg:nth-child(2) { animation-delay: .65s; } .result .crowns > svg:nth-child(3) { animation-delay: .8s; }
 @keyframes pop { from { opacity: 0; transform: scale(.3) translateY(14px); } }
 .result .emberReward { animation: rise .6s .9s cubic-bezier(.2, .8, .2, 1) both; }
-.result .chronicle { animation: rise .7s 1.1s cubic-bezier(.2, .8, .2, 1) both; }
-.result #whyList li { animation: slideIn .45s cubic-bezier(.2, .8, .2, 1) both; }
-.result #whyList li:nth-child(1) { animation-delay: 1.3s; } .result #whyList li:nth-child(2) { animation-delay: 1.45s; } .result #whyList li:nth-child(3) { animation-delay: 1.6s; }
+.result .emberReward.counted { animation: rise .6s .9s cubic-bezier(.2, .8, .2, 1) both, pointsPop .45s cubic-bezier(.2, .9, .3, 1.4); }
+.result .emberReward.counted .erDelta b { animation: pointsGlow .9s ease-out; }
+@keyframes pointsPop { 40% { transform: scale(1.08); } }
+@keyframes pointsGlow { 0% { color: var(--gold); text-shadow: 0 0 18px #f3d58acc; } }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } }
 .result .actions { animation: rise .6s 1.5s cubic-bezier(.2, .8, .2, 1) both; }
 /* frost creeps in from the corners on a defeat */
@@ -582,8 +563,8 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .result.draw::before { background: radial-gradient(ellipse 52% 60% at 50% 45%, #0a0c18d9, #0a0c1873 100%); }
 .result #resultFrost { display: none !important; } /* the freeze layer's frost carries on underneath */
 /* result tapestries: smaller, with the result tags */
-.tapestry.small { width: min(14vw, 27vh, 220px); }
-.tapestry.small .bannerBody { top: 23%; gap: 3.4cqw; }
+.tapestry.small { width: min(14vw, 27vh, 220px); bottom: 0; aspect-ratio: auto; } /* hangs the full height */
+.tapestry.small .bannerBody { top: 53cqw; gap: 3.4cqw; } /* 23% of a 260 × 600 cloth, so it stays put as the cloth grows */
 .tapestry.small .bLine { font: 600 8cqw/1.3 var(--chakra); color: #fff; padding: 0 4cqw; }
 .tapestry.small .bTag { font: 700 5.6cqw var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: #f3d58ab3; }
 .result .tapestry.left { animation: lower 1s .15s cubic-bezier(.2, .8, .2, 1) both; }

@@ -1,6 +1,6 @@
-/* The MVP card on the result screen (mvp.ts): a chamfered stone slab like the chronicle, with the
-   troop's art standing on a lit octagon, its name in Cinzel, the words that summoned it, and the
-   damage in big lining figures. Gold on a win, ice on a loss, like the rest of the screen. */
+/* The MVP card on the result screen (mvp.ts): a chamfered stone slab with the troop's art standing
+   on a lit octagon, its name in Cinzel, the words that summoned it, and your total damage in big
+   lining figures. Gold on a win, ice on a loss, like the rest of the screen. */
 .mvpCard > .gFace { width: min(760px, calc(100vw - 2 * (14vw + 24px))); display: flex; align-items: center; gap: 22px; padding: 14px 26px 14px 18px; }
 .result.win .mvpCard { --a: #2a2312; --b: #201a0d; --side: #0b0906; }
 .result.lose .mvpCard { --a: #16283a; --b: #112131; --side: #08121c; }
@@ -18,9 +18,8 @@
 .mvpDamage b { font: 900 clamp(30px, 3vw, 42px)/1 var(--cinzel); color: #fff; font-variant-numeric: lining-nums; }
 .result.win .mvpDamage b { color: var(--gold); } .result.lose .mvpDamage b { color: var(--ice); }
 .mvpDamage small { font: 700 12px var(--chakra); letter-spacing: .18em; text-transform: uppercase; color: var(--muted, #8e96b3); }
-.mvpCost { position: absolute; top: -8px; left: -30px; width: 24px; height: 24px; display: grid; place-items: center;
-  font: 800 13px var(--cinzel); color: #f3dcff; background: #5b2a86;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.mvpCard.none .mvpArt, .mvpCard.none .mvpWords { display: none; }
+.mvpCard.none .mvpName { font: 500 17px var(--chakra); color: var(--muted, #8e96b3); }
 .mvpCard { animation: mvpIn .5s 1.4s cubic-bezier(.2, .9, .3, 1.2) both; }
 @keyframes mvpIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
 @media (prefers-reduced-motion: reduce) { .mvpCard { animation: none; } }
