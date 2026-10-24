@@ -227,9 +227,9 @@ export class BoardReactions {
         this.fx.particle(tx + Math.cos(a) * 0.8, ty + Math.sin(a) * 0.8, 2.4 + Math.random() * 1.2, Math.cos(a) * s, Math.sin(a) * s, 0.5 + Math.random(),
           0.7 + Math.random() * 0.4, 0.06 + Math.random() * 0.06, i % 3 ? '#dbe9f4' : '#9cc3e0', 1);
       }
-      for (let i = 0; i < (few ? 2 : 6); i++) {
+      for (let i = 0; i < (few ? 3 : 9); i++) {
         const a = Math.random() * Math.PI * 2;
-        this.fx.particle(tx, ty, 2.8, Math.cos(a) * 0.7, Math.sin(a) * 0.7, 0.2, 0.9, 0.3, '#eef5ff', 0);
+        this.fx.particle(tx + Math.cos(a) * 0.4, ty + Math.sin(a) * 0.4, 2.6 + Math.random() * 0.8, Math.cos(a) * 0.9, Math.sin(a) * 0.9, 0.3, 1 + Math.random() * 0.4, 0.4 + Math.random() * 0.2, '#eef5ff', 0);
       }
       blip('frost');
     } else if (reaction === 'puff') {
@@ -328,7 +328,7 @@ export class BoardReactions {
       const name = h.troop.name, cost = String(h.troop.cost);
       g.font = `700 12px ${font}`;
       const nw = g.measureText(name).width;
-      const cw = 18, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 38 - ht / 2;
+      const cw = 18, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 62 - ht / 2;
       g.fillStyle = 'rgba(13,16,32,0.88)';
       g.strokeStyle = h.mine ? '#4aa3ff' : '#ff5d6c';
       g.lineWidth = 1.5;
