@@ -9,7 +9,8 @@ import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { LockMachine, LOCK_DEFAULTS, type Lock, type Pt } from './lock';
 import { DEFAULT_PINCH, Hysteresis, pinchMetric2d, pinchMetric3d, type PinchThresholds } from './pinch';
-import { chooseDescription, isCancel, Transcript, WebSpeechSource, type SpeechSource } from './speech';
+import { AutoSpeech } from './cartesia_stt';
+import { chooseDescription, isCancel, Transcript } from './speech';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import './input.css';
 
@@ -34,14 +35,14 @@ interface Prefs { preview: boolean; vadDb: number; vadEndMs: number }
 
 interface Active { nonce: number; spot: Spot; words: Transcript }
 
-const FLUSH_MS = 600; // how long a deploy waits for the recogniser to finalise the last words
+const FLUSH_MS = 600; // how long a deploy waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
 
 export class InputController {
   private machine: LockMachine;
   private tracker: HandTracker | null = null;
   private mic = new Mic();
   private vad = new Vad({ ...VAD_DEFAULTS });
-  private speech: SpeechSource = new WebSpeechSource();
+  private speech = new AutoSpeech(() => this.mic.media); // Cartesia, else the browser's recogniser
   private listeners = new Set<Transcript>(); // transcripts still taking words
   private active: Active | null = null;
 
@@ -101,6 +102,11 @@ export class InputController {
     requestAnimationFrame(loop);
   }
 
+  // Open the STT sockets ahead of the first deploy (match start). Nothing to do with the mic off.
+  warm(): void {
+    if (this.mic.on) this.speech.warm();
+  }
+
   // What render.ts draws over the board. Undefined while camera and mic are both off.
   view(): InputView | undefined {
     if (!this.tracker && !this.mic.on && !this.flashes.length) return undefined;
@@ -131,7 +137,11 @@ export class InputController {
     if (this.mic.on) {
       const ev = this.vad.push(now, this.mic.levelDb());
       if (!calibrating && ev?.kind === 'start') this.machine.speechStart(ev.t);
-      else if (ev?.kind === 'end') this.machine.speechEnd();
+      else if (ev?.kind === 'end') {
+        this.machine.speechEnd();
+        // Close the utterance so the next one starts clean (a no-op if a deploy already flushed).
+        this.speech.flush(FLUSH_MS);
+      }
     }
     if (!calibrating) {
       this.machine.frame(now, { cursor: this.handCursor ?? this.mouse, hand: !!this.hand, pinched: this.pinched });
@@ -283,7 +293,7 @@ export class InputController {
     try {
       await this.mic.start();
       this.speech.start();
-      this.heard = this.speech.available ? 'listening' : 'no speech recognition in this browser: voice locks, typed text describes';
+      this.heard = this.speech.available ? `listening (${this.speech.engine})` : 'no speech recognition in this browser: voice locks, typed text describes';
     } catch (e) {
       this.heard = `mic failed: ${(e as Error).name === 'NotAllowedError' ? 'blocked' : (e as Error).message}`;
     }

@@ -61,6 +61,10 @@ export class Mic {
     return !!this.an;
   }
 
+  get media(): MediaStream | null {
+    return this.stream;
+  }
+
   async start(): Promise<void> {
     if (this.an) return;
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true } });
