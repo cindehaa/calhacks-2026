@@ -604,7 +604,7 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 /* result screens: the same banners as home, and a narrow middle column (title, crowns, XP, damage,
    most creative troop, buttons) stacked vertically so the banners have room on both sides */
 .resultCol { top: 6vh; gap: clamp(10px, 1.7vh, 18px); }
-.resultCol h1 { font-size: clamp(56px, 7vw, 104px); }
+.resultCol h1 { font-size: clamp(68px, 9.1vw, 132px); } /* as big as fits between the banners */
 .spoils { flex-direction: column; gap: clamp(8px, 1.2vh, 12px); }
 .crowns svg { width: 52px; height: auto; }
 .spoils .emberReward { width: 340px; }
