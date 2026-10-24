@@ -307,7 +307,7 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 #resultLine:empty { display: none; }
 #resultLine { margin: -4px 0 0; font: 600 19px var(--chakra); color: #f5e6c4; }
 .result.lose #resultLine { color: #c3d6e6; }
-.spoils { display: flex; align-items: center; gap: 36px; }
+.spoils { display: flex; align-items: center; gap: 24px; }
 .crowns { display: flex; gap: 10px; align-items: flex-end; }
 .slabStatic { --a: #2a1d1a; --b: #21171a; --side: #0f0a0b; --c: 16px; filter: drop-shadow(0 7px 0 var(--side)) drop-shadow(0 3px 0 #000); }
 .result.lose .slabStatic { --a: #16283a; --b: #112131; --side: #08121c; }
@@ -572,3 +572,11 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .result .tapestry.left { animation: lower 1s .15s cubic-bezier(.2, .8, .2, 1) both; }
 .result .tapestry.right { animation: lower 1s .3s cubic-bezier(.2, .8, .2, 1) both; }
 @media (prefers-reduced-motion: reduce) { #freeze .frostCorner, .result { animation: none !important; } }
+
+/* the versus card wears the houses' heraldry (heraldry.ts): damask over the cloth, the emblem etched behind the shield */
+.vsSide { position: relative; isolation: isolate; }
+.vsSide::before, .vsSide::after { content: ''; position: absolute; pointer-events: none; z-index: -1; }
+.vsSide::before { inset: 0; background-size: 30px 30px; opacity: .1; }
+.vsMe::before { background-image: var(--damask-raven); } .vsThem::before { background-image: var(--damask-sun); }
+.vsSide::after { left: 50%; top: 50%; width: min(70vh, 44vw); aspect-ratio: 1; transform: translate(-50%, -50%); background: center / contain no-repeat; opacity: .5; mix-blend-mode: overlay; } /* etched into the cloth, not pasted on */
+.vsMe::after { background-image: var(--emblem-raven); left: 46%; } .vsThem::after { background-image: var(--emblem-sun); left: 54%; }

@@ -22,6 +22,7 @@ import { clock } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
 import { hubFx, resultFx } from './hubfx';
 import { tapestry } from './banner';
+import { heraldryCss } from './heraldry';
 import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
@@ -95,6 +96,7 @@ function netMsg(s: string) {
   }
   $('netStatus').textContent = s; // raw status, for debugging
 }
+heraldryCss();
 hubFx(document.querySelector('#title .hubSky')!);
 for (const [sel, house, rim, phase] of [['left', 'raven', 'right', 0], ['right', 'sun', 'left', 2.3]] as const) {
   tapestry(document.querySelector(`#lobby .tapestry.${sel} .cloth`)!, document.querySelector(`#lobby .tapestry.${sel} .bannerBody`)!, { house, rim, phase });

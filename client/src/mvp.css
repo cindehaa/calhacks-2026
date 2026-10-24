@@ -1,6 +1,6 @@
-/* The MVP card on the result screen (mvp.ts): a chamfered stone slab with the troop's art standing
-   on a lit octagon, its name in Cinzel, the words that summoned it, and your total damage in big
-   lining figures. Gold on a win, ice on a loss, like the rest of the screen. */
+/* The "Most creative troop" card on the result screen (mvp.ts): a chamfered stone slab with the troop's
+   art standing on a lit octagon, its name in Cinzel and the words that summoned it. Gold on a win, ice
+   on a loss, like the rest of the screen. */
 .mvpCard > .gFace { width: min(760px, calc(100vw - 2 * (14vw + 24px))); display: flex; align-items: center; gap: 22px; padding: 14px 26px 14px 18px; }
 .result.win .mvpCard { --a: #2a2312; --b: #201a0d; --side: #0b0906; }
 .result.lose .mvpCard { --a: #16283a; --b: #112131; --side: #08121c; }

@@ -1,5 +1,6 @@
-// The MVP on the result screen: your troop that did the most damage, with its art, its name and the
-// words that summoned it, beside the total damage all your troops dealt. Bot matches have exact numbers from the round's
+// The "Most creative troop" card on the result screen: your troop that did the most damage, with its
+// art, its name and the words that summoned it. The total damage all your troops dealt goes in its own
+// slab (#dmgTotal). Bot matches have exact numbers from the round's
 // tallies (LocalMatch.report()); online, each hit a unit lands (its attackSeq bumping) is credited
 // with that unit's damage per hit, which leaves out splash and chain targets past the first.
 import './mvp.css';
@@ -78,12 +79,13 @@ export function renderMvp(pick: MvpPick | null, total: number): void {
   card.innerHTML = `<div class="gFace">
     <div class="mvpArt"></div>
     <div class="mvpText">
-      <span class="gLabel">MVP</span>
+      <span class="gLabel">Most creative troop</span>
       <b class="mvpName"></b>
       <q class="mvpWords"></q>
     </div>
-    <div class="mvpDamage"><b>${Math.round(total).toLocaleString('en-US')}</b><small>Total damage</small></div>
   </div>`;
+  // Total damage is everyone's, not this troop's: it has its own slab beside the XP.
+  document.getElementById('dmgTotal')!.textContent = Math.round(total).toLocaleString('en-US');
   card.classList.toggle('none', !pick);
   card.querySelector('.mvpName')!.textContent = pick?.name ?? 'No troops landed a hit';
   card.querySelector('.mvpWords')!.textContent = words;

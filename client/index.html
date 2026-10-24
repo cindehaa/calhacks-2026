@@ -69,7 +69,6 @@
     <div class="tapestry left">
       <svg class="cloth" aria-hidden="true"></svg>
       <div class="bannerBody">
-        <span class="sigil"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg></span>
         <span class="bHouse">Blue side</span>
         <input id="nameInput" class="bName" maxlength="20" placeholder="Your name" spellcheck="false" aria-label="Your name" title="Click to rename"><span class="bRule"></span>
         <div class="bRank">
@@ -82,7 +81,6 @@
     <div class="tapestry right">
       <svg class="cloth" aria-hidden="true"></svg>
       <div class="bannerBody">
-        <span class="sigil"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
         <span class="bHouse">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
         <div class="bLast empty" id="lastMatch"><span class="bLastLabel">Last match</span><span class="bLastFoe" id="lastFoe">No matches yet</span><span class="bLastScore" id="lastScore">Play one and it shows here</span></div>
       </div>
@@ -184,12 +182,12 @@
     <div id="resultFrost"><img class="frostCorner tl" src="/ui/frost-heavy-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-heavy-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-heavy-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-heavy-br.svg" alt=""></div>
     <div class="tapestry left small" id="resBanMe">
       <svg class="cloth" aria-hidden="true"></svg>
-      <div class="bannerBody"><span class="sigil"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg></span><span class="bHouse">Blue side</span><span class="bName">You</span><span class="bRule"></span>
+      <div class="bannerBody"><span class="bHouse">Blue side</span><span class="bName">You</span><span class="bRule"></span>
         <span class="bLine" id="resMeName"></span><span class="bTag" id="resMeTag"></span></div>
     </div>
     <div class="tapestry right small" id="resBanFoe">
       <svg class="cloth" aria-hidden="true"></svg>
-      <div class="bannerBody"><span class="sigil"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span><span class="bHouse">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
+      <div class="bannerBody"><span class="bHouse">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
         <span class="bLine" id="resFoeName"></span><span class="bTag" id="resFoeTag"></span></div>
     </div>
     <div class="resultCol">
@@ -202,6 +200,10 @@
           <span class="erIcon" id="erIcon"></span>
           <span class="erDelta"><b id="emberDelta"></b><small>XP</small></span><i></i>
           <span class="erRank"><b id="erRank"></b><small id="erNext"></small></span>
+        </div></div>
+        <div class="slabStatic emberReward dmgReward"><div class="face">
+          <span class="erIcon"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg></span>
+          <span class="erDelta"><b id="dmgTotal">0</b><small>Damage dealt</small></span>
         </div></div>
       </div>
       <div class="actions">

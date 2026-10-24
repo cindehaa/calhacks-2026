@@ -1,13 +1,18 @@
 // Tapestries hung on chains from the top of the screen, rippling in the wind: your blue one and the
 // red one on the home and result screens. The cloth is a grid of flat facets moved every frame by a
 // wave that grows toward the tails; each facet's shade follows its slope, so the folds catch the
-// light as they travel down. The text on the cloth (an HTML overlay) sways with it. A frozen
-// tapestry (the loser's, on a result screen) turns to ice and barely moves.
+// light as they travel down. Each carries its house's emblem and damask (heraldry.ts); the text on
+// the cloth (an HTML overlay) sways with it. A frozen tapestry (the loser's, on a result screen)
+// turns to ice and moves a little stiffer.
+
+import { DAMASK, EMBLEM } from './heraldry';
 
 const NS = 'http://www.w3.org/2000/svg';
+let uid = 0;
 const COLS = 14, ROWS = 26;
 // In the SVG's own units (viewBox 0 0 260 600, or taller when the box is: the cloth hangs to fill it).
 const L = 20, R = 240, TOP = 126, TEXT_Y = 265; // TEXT_Y: where the overlay's text rides
+const EMBLEM_Y = 440; // the main emblem's centre, under the text
 const W = 260, H = 600;
 // Each look's lit and shadowed facet colours (left half lit, right half in shadow) and its trim.
 const LOOKS = {
@@ -55,7 +60,28 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
   const rim = el('polyline', { fill: 'none', stroke: '#ffb02e', 'stroke-width': 5, opacity: 0.45 }); // brazier light on the edge facing the island
   const knot = el('polygon', { opacity: 0.75 });
   const rime = el('polygon', { fill: '#dbe9f4', opacity: 0 }); // frost gathered along the tails when frozen
-  cloth.append(top, chevron, trim, rim, rime, knot);
+  // The house's damask over the whole cloth, and its emblem embroidered on the lower half.
+  const id = `dmk${uid++}`;
+  const defs = el('defs', {});
+  const pattern = el('pattern', { id, width: 26, height: 26, patternUnits: 'userSpaceOnUse' });
+  const tile = el('g', { transform: 'scale(.65)' });
+  pattern.append(tile);
+  defs.append(pattern);
+  svg.prepend(defs);
+  const damask = el('polygon', { fill: `url(#${id})`, opacity: 0.1 });
+  // The emblem sits under the text; a long cloth (the result screens hang to the floor) repeats it
+  // smaller down the middle, so the length is never bare.
+  const emblems = Array.from({ length: 5 }, () => {
+    const g = el('g', {}), art = el('g', { transform: 'translate(-100 -100)' });
+    g.append(art);
+    return { g, art };
+  });
+  const drawHouse = () => {
+    tile.innerHTML = DAMASK[house];
+    for (const e of emblems) e.art.innerHTML = EMBLEM[house];
+  };
+  drawHouse();
+  cloth.append(damask, top, chevron, ...emblems.map(e => e.g), trim, rim, rime, knot);
   svg.append(el('rect', { x: 6, y: 116, width: 248, height: 10, fill: '#1b1e2c' }), el('rect', { x: 6, y: 116, width: 248, height: 3, fill: '#4a4f68' }),
     el('polygon', { points: '0,121 6,113 12,121 6,129', fill: '#c98a2e' }), el('polygon', { points: '248,121 254,113 260,121 254,129', fill: '#c98a2e' }));
 
@@ -102,6 +128,18 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
     for (const e of [trim]) e.setAttribute('stroke', trimColor);
     for (const e of [chevron, knot]) e.setAttribute('fill', trimColor);
     rime.setAttribute('opacity', String(0.55 * ice));
+    damask.setAttribute('points', pts([...Array.from({ length: 9 }, (_, k) => [0, k / 8] as [number, number]), [0.5, 1], ...Array.from({ length: 9 }, (_, k) => [1, 1 - k / 8] as [number, number])]));
+    // Each emblem rides the cloth: it follows the wave's sideways shift and leans with its slope.
+    const span = tails - TOP, last = span * 0.74; // keep clear of the chevron and the tails
+    emblems.forEach((e, k) => {
+      const y = k === 0 ? Math.min(EMBLEM_Y, TOP + span * 0.69) : EMBLEM_Y + 170 + (k - 1) * 230;
+      const v = (y - TOP) / span, show = k === 0 || y + 70 < TOP + last;
+      e.g.style.display = show ? '' : 'none';
+      if (!show) return;
+      const [x] = at(0.5, v), [ax] = at(0.5, Math.max(0, v - 0.05)), [bx] = at(0.5, Math.min(1, v + 0.05));
+      e.g.setAttribute('transform', `translate(${x.toFixed(1)} ${(y - Math.abs(x - 130) * 0.12).toFixed(1)}) rotate(${((bx - ax) * 0.5).toFixed(2)}) scale(${k ? 0.5 : 0.98})`);
+      e.g.setAttribute('opacity', String((k ? 0.55 : 0.95) - 0.4 * ice));
+    });
     rime.setAttribute('points', pts([[0, 0.86], [0.25, 0.9], [0.5, 0.82], [0.75, 0.9], [1, 0.86], [1, 1], [0.5, 1], [0, 1]]));
     const [kx, ky] = at(0.5, 0.86);
     knot.setAttribute('points', `${kx},${ky - 7} ${kx + 5},${ky} ${kx},${ky + 7} ${kx - 5},${ky}`);
@@ -125,14 +163,17 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
     ice += ((frozen ? 1 : 0) - ice) * Math.min(1, dt * 1.5);
     // A steady breeze with gusts every so often; frozen cloth hangs stiff.
     const gust = Math.max(0, Math.sin(t * 0.37)) ** 4 + 0.5 * Math.max(0, Math.sin(t * 0.83 + 1)) ** 6;
-    amp = (5 + gust * 7) * (1 - ice * 0.85);
+    amp = (5 + gust * 7) * (1 - ice * 0.2); // frozen cloth still moves, a little stiffer
     draw();
   }
   draw();
   requestAnimationFrame(frame);
   return {
     set(next) {
-      if (next.house) house = next.house;
+      if (next.house && next.house !== house) {
+        house = next.house;
+        drawHouse();
+      }
       if (next.frozen !== undefined) {
         frozen = next.frozen;
         if (still.matches) ice = frozen ? 1 : 0;
