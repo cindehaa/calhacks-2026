@@ -1,0 +1,185 @@
+# Progress
+
+Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the top, decisions dated at the bottom. Update it whenever something lands, changes or gets cut.
+
+**Last updated:** 2026-10-24 · **Submission:** Devpost, 9:00 AM PT Sat Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Oct 25
+
+## Where we are
+
+Prep is done: latency is measured, the troop designer prompt is tested, pricing is calibrated, and hand tracking, the voice-to-troop loop and SpacetimeDB rooms have all been prototyped as throwaway experiments. **No game code exists in this repo yet.** Next is phase 1 of the build plan.
+
+## Build plan status
+
+| Phase | Person A: game + multiplayer | Person B: AI + input | Status |
+|---|---|---|---|
+| 1 | SpacetimeDB rooms; arena, lanes, towers, elixir, hardcoded troops fighting in a shared `step()` | Troop designer: text in, JSON stats out; cost formula; anchors | **Next** |
+| 2 | Hook designer up via a text box | Cartesia STT with push-to-talk | Not started (cut line) |
+| 3 | Code animations, silhouette placeholder, headless sim | Hand tracking, lock, drag-off cancel, voice click | Not started |
+| 4 | `step()` in the 20 Hz server tick; interpolation, rematch, demo room | Sprite gen, background removal, cache, anchor art, TTS cries | Not started |
+| 5 | Polish, tutorial overlay, sound | Polish, Devpost writeup, backup video | Not started |
+
+## Next up
+
+Phase 1, in order. Each item ends in something you can see working.
+
+**Person A — game + multiplayer**
+- [ ] Scaffold the repo (layout below). First check that the SpacetimeDB module can import `shared/`: if `spacetime build` won't bundle a sibling folder, copy `shared/` into the module with a script instead.
+- [ ] Tables `player`, `room`, `unit`, `tower`, `match_timer`. Reducers: `create_room` (4-letter code, no I/O), `join_room` (joining `DEMO` creates it), `leave_room`, `start_match`, `deploy_troop`.
+- [ ] Canvas arena: vertical, dark, 3 lanes, towers on each side, elixir bar, 90 s clock.
+- [ ] `shared/step(state, dt)`: walk the lane, target the nearest enemy in range, attack on a cooldown, towers shoot back, units die, towers fall.
+- [ ] Hardcoded anchor troops deployable with keys 1–7 or a click. Done when two browsers in one room watch the same fight.
+
+**Person B — AI + input**
+- [ ] `api/` key proxy (Node + TypeScript), so keys never reach the browser: `POST /troop` calls Claude and returns stats + cost; `POST /warm` warms everything at match start.
+- [ ] Troop designer in `shared/troop/`: system prompt, JSON schema, clamps, `price()`, battle-cry trim to 8 words. Use the tested prompt as the starting point.
+- [ ] Fix the anchors before they go in the prompt: swarm health 40 is below the 50 clamp and sits on the 3/4 cost edge. Add the 3 missing anchors to reach 10.
+- [ ] A text box that shows the resulting troop card (name, stats, cost, cry). Done when any description gives a priced troop in under 2.5 s.
+
+### Recommendation: run combat on the server from phase 1
+
+The spec puts `step()` in the server tick in phase 4. The rooms spike already ran a 20 Hz scheduled tick reliably, so running `step()` there from day one costs little. It also avoids two browsers each simulating their own copy and drifting apart, then a rewrite in phase 4. Clients only render unit rows. The same `step()` still runs locally for bot mode and the headless sim.
+
+### Proposed repo layout
+
+```
+server/   SpacetimeDB TypeScript module: tables, reducers, the 20 Hz tick that calls step()
+client/   Vite + TypeScript: canvas arena, input (hand, voice, mouse, text), audio
+shared/   step(), unit/tower types, troop schema, clamps, price(), anchors
+api/      Node key proxy: Claude troop designer, Cartesia STT/TTS, image gen
+sim/      headless balancing harness (phase 3), runs shared/step()
+meta/     SPEC.md and this file
+```
+
+## What prep settled
+
+Numbers, settings and lessons to build from. Everything here was learned before the event; no prep code is carried over.
+
+### Latency (measured Oct 23, 20 calls each)
+
+| Step | p50 | p90 |
+|---|---|---|
+| Cartesia STT `ink-2`, end of speech → final transcript | 0.09 s | 0.10 s |
+| Claude Haiku 5.5, troop JSON | 1.58 s | 2.11 s |
+| Claude Sonnet 5.5, troop JSON | 1.83 s | 2.35 s |
+| Cartesia TTS `sonic-3.6`, time to first audio (warm) | 0.08 s | 0.09 s |
+| fal FLUX.1 schnell, 384 px | about 1.4–3.0 s | |
+| fal BiRefNet v2 background removal | 0.4 s | up to 2.4 s |
+
+Release → stats ready is **2.21 s at p90 with Haiku**, inside the 2.5 s deploy delay with about 0.3 s spare. Cold costs to avoid by warming at match start: the first Claude call takes 2–3 s, and opening a Cartesia socket takes about 0.5 s.
+
+### Troop designer
+
+- Model `claude-haiku-5-5`: faster, about 20× cheaper than Sonnet, and just as consistent. Settings: effort `low`, thinking disabled, structured output via `output_config.format` with the JSON schema, `max_tokens` 400, description wrapped in `<description>` tags.
+- Consistency passed: every description gave a cost spread of 1 elixir or less over 5 runs. "Tiny" is always cheaper. "Giant" is pricier for the wizard, but equal for the golem (the prompt caps giants at big-tank strength).
+- Abuse passed with caveats: no crashes or invalid JSON, nothing over 10 elixir, and injection, gibberish, empty input and "cancel" all give a weak "Confused Blob".
+- `voice_style` values: `gruff_warrior`, `squeaky_critter`, `mystic_whisper`, `booming_giant`, `robotic`, `cheerful_hero`.
+
+### Pricing and anchors
+
+Formula and K = 95 are in [SPEC.md](SPEC.md#pricing). Anchors used as few-shot references, and the cost each prices at:
+
+| Role | health | damage | atk/s | move | range | count | Cost |
+|---|---|---|---|---|---|---|---|
+| Swarm (bees) | 40* | 20 | 1.2 | 1.6 | 1 | 8 | 3 |
+| Melee mini-tank (knight) | 900 | 110 | 0.8 | 0.8 | 1 | 1 | 3 |
+| Ranged caster (wizard) | 380 | 260 | 0.8 | 0.9 | 5 | 1 | 4 |
+| Fast assassin (ninja) | 360 | 230 | 1.3 | 1.9 | 1 | 1 | 4 |
+| Splash (bomber) | 650 | 300 | 0.7 | 0.8 | 4 | 1 | 5 |
+| Glass cannon (sniper) | 220 | 600 | 1.6 | 1.0 | 5 | 1 | 6 |
+| Big tank (golem) | 3000 | 300 | 0.6 | 0.5 | 1 | 1 | 7 |
+
+\* Below the 50 clamp; after clamping it prices at about 3.4. Fix before use.
+
+Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 0, hence the floor of 1.
+
+### Voice (Cartesia)
+
+- STT: websocket, model `ink-2`, 16 kHz `pcm_s16le`. On release send `finalize` and wait for `flush_done`. Keep one spare socket pre-opened and swap in a fresh one after each use.
+- TTS: one warm websocket for the whole match, model `sonic-3.6`, raw `pcm_s16le` at 24 kHz, many cries multiplexed by `context_id`.
+- API version header `2026-08-14`.
+- Voice per style: gruff_warrior → Darius `23112795-d54e-4560-9568-791a87c30201`, squeaky_critter → Lulu `e13cae5c-ec59-4f71-b0a6-266df3c9bb8e`, mystic_whisper → Alaric `87748186-23bb-4158-a1eb-332911b0b708`, booming_giant → Damon `dbfa416f-d5c3-4006-854b-235ef6bdf4fd`, robotic → Daniel `47c38ca4-5f35-497b-b1a3-415245fb35e1`, cheerful_hero → Zander `afb19d1b-4044-4f34-a962-f4aef640a002`.
+
+### Art
+
+- fal FLUX.1 schnell at 384 px, 4 steps, on a flat magenta `#FF00FF` background. Put the troop description first in the prompt, then the shared style.
+- Style prompt so far: "Single game unit, full body, centered, chunky stylised 3D mobile-game art, bold silhouette, bright saturated colours, soft studio lighting, no text, no signature, no watermark, no border".
+- Background removal: fal BiRefNet v2 with a 3 s timeout. If it fails, key the background in the browser by sampling the border colour and flood-filling from the edges. Plain magenta chroma-key ate pink and purple troops in testing.
+- Fetch generated images server-side and pass them on as data URIs, so the canvas isn't tainted by a cross-origin image.
+- This differs from the spec (256 px, magenta chroma-key in the browser). Spec to be updated.
+
+### Hand tracking and input
+
+- MediaPipe Tasks Vision 0.10.14 in VIDEO mode, one hand, GPU delegate with CPU fallback. Now that the fist gesture is dropped, the plain `HandLandmarker` is enough.
+- Pointer: index knuckle (landmark 5), mirrored. Smoothed with a One Euro filter (min cutoff 1.0, beta 0.007).
+- Camera → screen mapping: a 4-point calibration fit as a homography. Uncalibrated, the middle of the camera frame acts as a touchpad.
+- Pinch: distance from thumb tip (4) to the middle finger's last segment (11–12), divided by hand size (the larger of wrist → middle knuckle, and palm width ÷ 0.8). Hysteresis: on below 0.45, off above 0.65. A 7-second calibration picks the 2D or 3D measure and sets both thresholds.
+- Judge the lock and the release position from the cursor about 100 ms earlier, so the release flick doesn't count as a drag.
+- Drag-off cancel radius 150 px; losing the hand for over 250 ms cancels.
+- Voice click: mic level above −45 dB for 60 ms starts speech and locks at the cursor from when the sound began. 500 ms of quiet ends it.
+
+### SpacetimeDB (2.13, TypeScript module)
+
+- Observed a steady 20.0 Hz tick and 7–9 ms deploy round trip on a local server.
+- Interval timer rows are not deleted automatically: the tick must delete its own row when the match ends.
+- Scheduled reducers can be called by clients too. Guard the tick with `ctx.sender.equals(ctx.databaseIdentity)`.
+- Two tabs in the same browser share a localStorage token (same identity). Store the token in sessionStorage to get two players.
+- Inside reducers, `ctx.random` and `ctx.timestamp` are the only randomness and clock.
+- The local server listens on all interfaces, so a laptop on the venue LAN can be the fallback server if Maincloud is unreachable.
+
+## Prep checklist status
+
+| Item | Status |
+|---|---|
+| Hand tracking and pinch lock prototype | Done |
+| Samson Q2U mic | ? Confirm |
+| API keys: Anthropic, Cartesia, fal; SpacetimeDB CLI | Done |
+| SpacetimeDB quickstart + rooms spike | Done locally; Maincloud and two-machine test ? Confirm |
+| Latency benchmarks | Done (STT, Claude, TTS, FLUX schnell); other image models not compared |
+| Shared art style prompt | Draft exists; "5 troops look like one game" not confirmed |
+| 10 anchor troops + cost formula | 7 of 10 anchors; formula done |
+| Game name | Open |
+| Packing list | ? Confirm |
+| SpacetimeDB workshop, sponsor booths, track criteria | ? Confirm |
+
+| Prep test | Result |
+|---|---|
+| 1 Latency | Pass with Haiku (2.21 s p90) |
+| 2 Consistency | Pass |
+| 3 Abuse | Pass with caveats (see Known issues) |
+| 4 Art style | Not confirmed |
+| 5 Background removal | Done: BiRefNet v2, border-sample key as fallback |
+| 6 STT in hall noise | On site |
+| 7 Troop voices | Voices mapped; check they're distinct on site |
+
+## Known issues to fix while building
+
+- Swarm anchor: health below the clamp, and its cost sits on the 3/4 edge.
+- Haiku gave "a god that kills everything" near-tank stats at cost 8, against the "ordinary stats" rule.
+- "1000 ants" pushed count to the max of 12 on Sonnet.
+- Battle cries can run over 8 words, and the schema can't enforce that: trim in code.
+- The Pikachu battle cry echoed "Pika". "Confused Blob" is the same every time; let the name vary.
+- There's no splash stat in the schema, but the bomber anchor is meant to be a splash unit.
+- Voice "cancel" can lose the race with the 500 ms quiet timer; try 700 ms.
+
+## Decisions log
+
+| Date | Decision |
+|---|---|
+| 2026-10-22 | Spec v2. "Clash Royell" retired as the working title. |
+| 2026-10-23 | Troop designer: Claude Haiku 5.5 with structured JSON output. |
+| 2026-10-23 | Speech: Cartesia STT `ink-2`, TTS `sonic-3.6`, six voice styles. |
+| 2026-10-23 | Art: fal FLUX.1 schnell 384 px + BiRefNet v2, border-sample key fallback. |
+| 2026-10-23 | Combat runs fully on SpacetimeDB (TypeScript, 20 Hz). Rooms are built first. |
+| 2026-10-23 | Controls: knuckle aim, thumb + middle pinch or speech to lock, drag-off cancel. Fist gesture dropped. |
+| 2026-10-23 | Pricing draft K = 95 kept; tune from playtests at the event. |
+| 2026-10-24 | Build repo set up, with `meta/` for the spec and this log. |
+
+## Open questions
+
+The full list is in [SPEC.md](SPEC.md#open-questions). Still open now:
+
+- Over-10 troops: reject and show the cost (the spec), or scale health and damage down by 10/cost so it fits, which adds no latency.
+- Where `step()` runs in phases 1–3 (see the recommendation above).
+- What the opponent sees of a pending deploy.
+- Anthropic, SpacetimeDB and Supercell track criteria.
+- Game name, and who presents.
