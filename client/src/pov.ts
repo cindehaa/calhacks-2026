@@ -12,11 +12,13 @@ import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View }
 import { poseFrame } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 
-// Where you stand, in your own view coords (your back line is y = 0): height and resting pitch.
+// Where you stand, in your own view coords (your back line is y = 0): height, resting pitch and
+// vertical field of view.
 export const EYES = {
-  tower: { y: -1, h: 8.5, pitch: -0.66 }, // over your king's shoulder, princess towers out front
-  high: { y: -6, h: 13, pitch: -0.78 },
-  low: { y: -3, h: 2.6, pitch: -0.12 },
+  top: { y: 3.9, h: 11, pitch: -0.76, fov: 64 }, // at the front parapet of your king tower, the whole field below
+  tower: { y: -1, h: 8.5, pitch: -0.66, fov: 62 }, // over your king's shoulder, princess towers out front
+  high: { y: -6, h: 13, pitch: -0.78, fov: 62 },
+  low: { y: -3, h: 2.6, pitch: -0.12, fov: 62 },
 } as const;
 export type Eye = keyof typeof EYES;
 
@@ -93,7 +95,7 @@ void main() {
 
 export class PovBoard {
   readonly fx = new Fx();
-  eye: Eye = 'tower';
+  eye: Eye = 'top';
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private cam = new THREE.PerspectiveCamera(62, 1, 0.05, 250);
@@ -378,6 +380,10 @@ export class PovBoard {
     const [shx, shy] = this.fx.shake();
     this.cam.position.set(Math.sin(now * 0.7) * 0.05 + shx * 0.01, e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01, MID_Y - e.y);
     this.cam.rotation.set(e.pitch + this.pitch, this.yaw, 0);
+    if (this.cam.fov !== e.fov) {
+      this.cam.fov = e.fov;
+      this.cam.updateProjectionMatrix();
+    }
     this.cam.updateMatrixWorld();
   }
 
@@ -412,9 +418,12 @@ export class PovBoard {
       t.mat.emissive.set(col);
       t.mat.emissiveIntensity = (sleeping(tw, v.towers) ? 0.08 : 0.35) + this.fx.towerFlash(key) * 1.5;
       const r = towerRadius(tw.lane ?? 0);
-      t.grp.scale.set(r, king ? 1.3 : 1, r);
-      // Your own king sits right under the camera: ghost it so it doesn't hide the board.
-      const ghost = king && mine;
+      // From the top eye your king is a lookout tall enough to stand on at eye height.
+      const lookout = king && mine && this.eye === 'top';
+      t.grp.scale.set(r, lookout ? (EYES.top.h - 1.4) / 2.2 : king ? 1.3 : 1, r);
+      // Your own king sits right under the camera: ghost it so it doesn't hide the board. From the
+      // top eye you stand on it, so it stays solid and its rim frames the bottom of the view.
+      const ghost = king && mine && !lookout;
       for (const m of [t.base.material as THREE.MeshStandardMaterial, t.mat]) {
         m.transparent = ghost;
         m.opacity = ghost ? 0.28 : 1;
@@ -423,7 +432,7 @@ export class PovBoard {
       t.base.castShadow = !ghost;
       this.at(tw.x, tw.y, 0, t.grp.position);
       const alive = tw.hp > 0;
-      t.crown.visible = t.gem.visible = alive;
+      t.crown.visible = t.gem.visible = alive && !lookout;
       t.base.scale.y = alive ? 1 : 0.25;
       t.base.position.y = alive ? 1.1 : 0.28;
       t.gem.rotation.y += 0.02;

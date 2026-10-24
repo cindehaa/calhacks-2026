@@ -21,26 +21,29 @@ const pov = new PovBoard($<HTMLCanvasElement>('board3d'), flat.canvas);
 if (import.meta.env.DEV) Object.assign(window, { pov }); // poke at the 3D view from the console
 
 // V (or the 3D button) cycles the top-down board and the POV eyes; remembered per browser.
-const VIEWS = ['flat', 'tower', 'high', 'low'] as const;
+const VIEWS = ['top', 'flat', 'tower', 'high', 'low'] as const;
 type ViewMode = (typeof VIEWS)[number];
-const VIEW_NAMES: Record<ViewMode, string> = { flat: 'top-down', tower: 'POV, behind your towers', high: 'POV, high', low: 'POV, ground level' };
+const VIEW_NAMES: Record<ViewMode, string> = { top: 'on top of your king tower', flat: 'top-down', tower: 'POV, behind your towers', high: 'POV, high', low: 'POV, ground level' };
+const VIEW_BUTTON: Record<ViewMode, string> = { top: 'King tower', flat: 'Top-down', tower: 'Behind towers', high: 'High eye', low: 'Low eye' };
+const VIEW_KEY = 'view2'; // new key so the king-tower default applies once over older saved views
 let viewMode: ViewMode = (() => {
   const asked = new URLSearchParams(location.search).get('view');
-  if (asked === 'pov') return 'tower';
+  if (asked === 'pov') return 'top';
+  if (asked && VIEWS.includes(asked as ViewMode)) return asked as ViewMode;
   try {
-    const saved = localStorage.getItem('view') as ViewMode | null;
+    const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null;
     if (saved && VIEWS.includes(saved)) return saved;
   } catch { /* storage blocked */ }
-  return 'flat';
+  return 'top';
 })();
 function setView(mode: ViewMode) {
   viewMode = mode;
   pov.show(mode !== 'flat');
   if (mode !== 'flat') pov.eye = mode as Eye;
-  try { localStorage.setItem('view', mode); } catch { /* storage blocked */ }
+  try { localStorage.setItem(VIEW_KEY, mode); } catch { /* storage blocked */ }
   // The button names where it takes you next.
   const next = VIEWS[(VIEWS.indexOf(mode) + 1) % VIEWS.length];
-  $('viewBtn').innerHTML = `${next === 'flat' ? 'Top-down' : mode === 'flat' ? '3D view' : next === 'high' ? 'High eye' : 'Low eye'} <kbd>V</kbd>`;
+  $('viewBtn').innerHTML = `${VIEW_BUTTON[next]} <kbd>V</kbd>`;
 }
 setView(viewMode);
 
