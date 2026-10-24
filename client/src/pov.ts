@@ -29,6 +29,13 @@ export const EYES = {
 } as const;
 export type Eye = keyof typeof EYES;
 
+// The home screen looks at this same arena from high behind your side, drifting slowly and leaning
+// toward the cursor; starting a match flies the camera down to your eye.
+const HOME = { d: 30, h: 29, look: 1.5, fov: 40, sway: 0.1, lean: 0.12 };
+const FLY_S = 1.6; // seconds from the home view to your eye
+interface Pose { x: number; y: number; z: number; pitch: number; yaw: number; fov: number }
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
 const C = {
   bg: '#0a0c1a',
   myHalf: '#141b3b',
@@ -120,6 +127,11 @@ export class PovBoard {
   private yaw = 0;
   private pitch = 0;
   private mouse: [number, number] | null = null;
+  private home = 1; // 1 on the home screen, 0 in a match, between while the camera flies
+  private homeMode = true;
+  private homeBack = 0; // how much further from the arena the home view stands than a match's eye
+  private flyAt = -10;
+  private flyFrom: Pose | null = null;
   private last = performance.now();
   private frame = 0;
   private layout = new THREE.Group();
@@ -274,7 +286,11 @@ export class PovBoard {
     this.syncCursor(v, now);
     this.scenery.update(dt, now);
     this.renderer.render(this.scene, this.cam);
-    this.drawOverlay(v, now, real);
+    if (v.status === 'lobby') {
+      const dpr = devicePixelRatio || 1;
+      this.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.g.clearRect(0, 0, this.w, this.h);
+    } else this.drawOverlay(v, now, real);
   }
 
   // ---------- coordinates ----------
@@ -400,19 +416,69 @@ export class PovBoard {
     const p = v.input?.cursor ? [v.input.cursor.x, v.input.cursor.y] : this.mouse;
     const nx = p ? (p[0] / this.w) * 2 - 1 : 0, ny = p ? -(p[1] / this.h) * 2 + 1 : 0;
     const k = 1 - Math.exp(-dt * 2.5);
-    this.yaw += (-nx * 0.22 - this.yaw) * k;
-    this.pitch += (ny * 0.1 - this.pitch) * k;
-    const e = EYES[this.eye];
-    const [shx, shy] = this.fx.shake();
-    const [jx, jy, roll] = this.juice.shake(real);
-    this.cam.position.set(Math.sin(now * 0.7) * 0.05 + shx * 0.01 + jx, e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01 + jy, MID_Y - e.y);
-    this.cam.rotation.set(e.pitch + this.pitch + this.juice.pitchNudge(real), this.yaw, roll);
-    const fov = e.fov + this.juice.fovKick(real);
-    if (this.cam.fov !== fov) {
-      this.cam.fov = fov;
+    const homeMode = v.status === 'lobby';
+    if (homeMode !== this.homeMode) {
+      // Leaving home (or coming back) flies from wherever the camera is now.
+      this.homeMode = homeMode;
+      this.flyFrom = this.pose();
+      this.flyAt = still() ? -10 : real;
+    }
+    this.yaw += ((homeMode ? nx * HOME.lean : -nx * 0.22) - this.yaw) * k;
+    this.pitch += ((homeMode ? ny * 0.03 : ny * 0.1) - this.pitch) * k;
+    const target = homeMode ? this.homePose(real) : this.eyePose(now, real);
+    const t = this.flyFrom ? Math.min(1, (real - this.flyAt) / FLY_S) : 1;
+    if (t >= 1) this.flyFrom = null;
+    const f = this.flyFrom, e = ease(t);
+    const mix = (a: number, b: number) => (f ? a + (b - a) * e : b);
+    const pose = f ? {
+      x: mix(f.x, target.x), y: mix(f.y, target.y), z: mix(f.z, target.z),
+      pitch: mix(f.pitch, target.pitch), yaw: mix(f.yaw, target.yaw), fov: mix(f.fov, target.fov),
+    } : target;
+    this.home = homeMode ? (f ? e : 1) : (f ? 1 - e : 0);
+    // The fog is set for a match's eye; home pushes it back by however much further away it stands.
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = 30 + this.home * this.homeBack;
+    fog.far = 125 + this.home * this.homeBack;
+    const [, , roll] = homeMode ? [0, 0, 0] : this.juice.shake(real);
+    this.cam.position.set(pose.x, pose.y, pose.z);
+    this.cam.rotation.set(pose.pitch, pose.yaw, roll);
+    if (this.cam.fov !== pose.fov) {
+      this.cam.fov = pose.fov;
       this.cam.updateProjectionMatrix();
     }
     this.cam.updateMatrixWorld();
+  }
+
+  private pose(): Pose {
+    const c = this.cam;
+    return { x: c.position.x, y: c.position.y, z: c.position.z, pitch: c.rotation.x, yaw: c.rotation.y, fov: c.fov };
+  }
+
+  private eyePose(now: number, real: number): Pose {
+    const e = EYES[this.eye];
+    const [shx, shy] = this.fx.shake();
+    const [jx, jy] = this.juice.shake(real);
+    return {
+      x: Math.sin(now * 0.7) * 0.05 + shx * 0.01 + jx, y: e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01 + jy, z: MID_Y - e.y,
+      pitch: e.pitch + this.pitch + this.juice.pitchNudge(real), yaw: this.yaw, fov: e.fov + this.juice.fovKick(real),
+    };
+  }
+
+  // High behind your side, orbiting the middle of the arena: a slow idle sway plus the cursor lean.
+  // Narrow screens widen the lens, then stand further back, so both banks still fit across.
+  private homePose(real: number): Pose {
+    const aspect = this.w / Math.max(1, this.h);
+    const need = Math.max(1, 1.15 / aspect), half = (HOME.fov / 2) * (Math.PI / 180);
+    const lens = Math.min(need, Math.tan(Math.PI * 35 / 180) / Math.tan(half));
+    const back = need / lens;
+    const d = HOME.d * back, h = HOME.h * back;
+    this.homeBack = Math.max(0, Math.hypot(d, h) - 20);
+    const a = (still() ? 0 : Math.sin(real * 0.09) * HOME.sway) + this.yaw;
+    const look = HOME.look;
+    return {
+      x: Math.sin(a) * d, y: h, z: look + Math.cos(a) * d,
+      pitch: -Math.atan2(h, d) + this.pitch, yaw: a, fov: (2 * Math.atan(Math.tan(half) * lens) * 180) / Math.PI,
+    };
   }
 
   private syncTowers(v: View, dt: number): void {
@@ -457,11 +523,13 @@ export class PovBoard {
       t.mat.emissiveIntensity = (sleeping(tw, v.towers) ? 0.08 : 0.35) * chill + this.fx.towerFlash(key) * 1.5;
       const r = towerRadius(tw.lane ?? 0);
       // From the top eye your king is a lookout tall enough to stand on at eye height.
-      const lookout = king && mine && this.eye === 'top';
-      t.grp.scale.set(r, lookout ? (EYES.top.h - 1.4) / 2.2 : king ? 1.3 : 1, r);
+      // On the home screen it's an ordinary king; it rises into the lookout as the camera flies down.
+      const lookout = king && mine && this.eye === 'top' && this.home < 0.5;
+      const tall = king && mine && this.eye === 'top' ? (EYES.top.h - 1.4) / 2.2 : king ? 1.3 : 1;
+      t.grp.scale.set(r, king ? 1.3 + (tall - 1.3) * (1 - this.home) : 1, r);
       // Your own king sits right under the camera: ghost it so it doesn't hide the board. From the
       // top eye you stand on it, so it stays solid and its rim frames the bottom of the view.
-      const ghost = king && mine && !lookout;
+      const ghost = king && mine && !lookout && this.home < 0.5;
       for (const m of [t.base.material as THREE.MeshStandardMaterial, t.mat]) {
         m.transparent = ghost;
         m.opacity = ghost ? 0.28 : 1;
