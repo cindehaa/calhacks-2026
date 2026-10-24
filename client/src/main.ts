@@ -1,5 +1,5 @@
 import { ANCHORS } from '../../shared/anchors';
-import { ELIXIR_MAX, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR_MAX, KING_LANE, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
@@ -33,10 +33,16 @@ connect(
     net = n;
     online = new OnlineMatch(n);
     attachLogs(n);
-    $('netStatus').textContent = '';
+    netMsg('');
+    const name = savedName();
+    if (name) call(n.conn.reducers.setName({ name }));
   },
-  s => ($('netStatus').textContent = s)
+  netMsg
 );
+function netMsg(s: string) {
+  $('netStatus').textContent = s;
+  $('hubNet').textContent = s ? `${s} · Practice works offline` : 'Online';
+}
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
 
@@ -55,13 +61,72 @@ function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
   });
 }
 
-// ---------- lobby ----------
+// ---------- title and hub ----------
+
+// The title screen's press also unlocks audio, so the menu music can start.
+let entered = false;
+function enter() {
+  if (entered) return;
+  entered = true;
+  $('title').hidden = true;
+  sfx.unlock();
+  if (setupDone()) showTutorialOnce();
+  else setup.open();
+}
+$('title').addEventListener('pointerdown', enter);
+addEventListener('keydown', e => {
+  if (entered) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  enter();
+}, true);
+
+const NAME_KEY = 'arena.name';
+const LEVEL_KEY = 'arena.botLevel';
+function savedName(): string {
+  try { return localStorage.getItem(NAME_KEY) ?? '' } catch { return '' }
+}
+function remember(key: string, v: string) {
+  try { localStorage.setItem(key, v) } catch { /* private mode */ }
+}
+const myName = () => me()?.name || savedName() || 'You';
+const initial = (name: string) => [...name.trim()][0]?.toUpperCase() ?? '?';
+
+$<HTMLInputElement>('nameInput').value = savedName();
+$<HTMLInputElement>('nameInput').onchange = e => {
+  const name = (e.target as HTMLInputElement).value.trim();
+  if (!name) return;
+  remember(NAME_KEY, name);
+  call(net?.conn.reducers.setName({ name }));
+};
+$('nameInput').onkeydown = e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() };
+
+let botLevel = ((): BotLevel => {
+  try { return (localStorage.getItem(LEVEL_KEY) as BotLevel) || 'normal' } catch { return 'normal' }
+})();
+function renderLevel() {
+  for (const b of $('botLevel').querySelectorAll<HTMLButtonElement>('button')) b.setAttribute('aria-checked', String(b.dataset.level === botLevel));
+}
+renderLevel();
+$('botLevel').onclick = e => {
+  const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+  if (!b?.dataset.level) return;
+  botLevel = b.dataset.level as BotLevel;
+  remember(LEVEL_KEY, botLevel);
+  renderLevel();
+};
+
+// Every menu button ticks.
+for (const id of ['lobby', 'pause', 'forfeitAsk', 'result']) {
+  $(id).addEventListener('click', e => { if ((e.target as HTMLElement).closest('button')) sfx.play('click') });
+}
 
 $('createBtn').onclick = () => call(net?.conn.reducers.createRoom({}));
 $('demoBtn').onclick = () => call(net?.conn.reducers.joinRoom({ code: 'DEMO' }));
 $<HTMLFormElement>('joinForm').onsubmit = e => {
   e.preventDefault();
-  call(net?.conn.reducers.joinRoom({ code: $<HTMLInputElement>('codeInput').value }));
+  const code = $<HTMLInputElement>('codeInput').value.trim();
+  if (code) call(net?.conn.reducers.joinRoom({ code }));
 };
 $('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}));
 $('rematchBtn').onclick = () => {
@@ -72,11 +137,23 @@ $('leaveBtn').onclick = $('lobbyBtn').onclick = () => {
   if (local?.status === 'playing') botEnded('left');
   call(match()?.leave());
 };
-$('botBtn').onclick = () => {
-  lock = null;
-  local = new LocalMatch($<HTMLSelectElement>('botLevel').value as BotLevel, () => (local = null));
-  botStarted(local.level);
+$('botBtn').onclick = () => startBot(botLevel);
+$('roomCode').onclick = () => {
+  const code = myRoom()?.code;
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(() => {
+    $('roomCode').title = 'Copied';
+    $('lobbyError').textContent = '';
+  }, () => {});
 };
+$('hubHelp').onclick = () => $('helpBtn').click();
+$('hubSetup').onclick = () => setup.open();
+
+function startBot(level: BotLevel) {
+  lock = null;
+  local = new LocalMatch(level, () => (local = null));
+  botStarted(level);
+}
 
 // Bot rounds never reach the server, so they're reported from here.
 let botOpen = false; // a bot round logged as started and not yet as ended
@@ -89,28 +166,51 @@ function botEnded(reason: 'over' | 'left') {
   botOpen = false;
   logBotEnd(local.report(), reason);
 }
-$<HTMLInputElement>('nameInput').onchange = e => {
-  const name = (e.target as HTMLInputElement).value;
-  if (name.trim()) call(net?.conn.reducers.setName({ name }));
-};
+
+let restarting = false; // between the old bot match and its restart
+let hadGuest = false;
 
 function renderLobby() {
   const p = me(), r = myRoom();
-  const playing = r?.status === 'playing';
-  $('lobby').hidden = !!local || playing || r?.status === 'done';
+  const inMatch = !!local || restarting || r?.status === 'playing' || r?.status === 'done';
+  $('lobby').hidden = !entered || inMatch;
+  document.body.classList.toggle('inHub', !inMatch);
   $('lobbyOut').hidden = !!r;
   $('lobbyIn').hidden = !r;
+  for (const id of ['createBtn', 'demoBtn']) $<HTMLButtonElement>(id).disabled = !net;
+  $('joinForm').querySelector('button')!.disabled = !net;
   if (p && document.activeElement !== $('nameInput')) $<HTMLInputElement>('nameInput').value = p.name;
+  $('avatar').textContent = initial($<HTMLInputElement>('nameInput').value || '?');
+  if (!!r?.guest !== hadGuest) {
+    hadGuest = !!r?.guest;
+    if (hadGuest && r?.status === 'lobby') sfx.play('joined');
+  }
   if (!r || !net) return;
   $('roomCode').textContent = r.code;
-  const who = (id: typeof r.host | undefined, label: string) => {
-    if (!id) return `<li class="sub">${label}: waiting…</li>`;
+  const slot = (id: typeof r.host | undefined, label: string, red: boolean) => {
+    if (!id) return `<span class="avatar empty"></span><b class="sub">Waiting for a player…</b><span class="sub">${label}</span>`;
     const pl = net!.conn.db.player.identity.find(id);
-    const you = id.isEqual(net!.identity) ? ' (you)' : '';
-    return `<li>${label}: ${escapeHtml(pl?.name ?? '?')}${you}${pl && !pl.online ? ' · offline' : ''}</li>`;
+    const name = pl?.name ?? '?';
+    const you = id.isEqual(net!.identity) ? ' · you' : '';
+    return `<span class="avatar${red ? ' red' : ''}">${escapeHtml(initial(name))}</span><b>${escapeHtml(name)}</b><span class="sub">${label}${you}${pl && !pl.online ? ' · offline' : ''}</span>`;
   };
-  $('players').innerHTML = who(r.host, 'Blue') + who(r.guest, 'Red');
+  setHtml('slot0', slot(r.host, 'Blue', false));
+  setHtml('slot1', slot(r.guest, 'Red', true));
   $<HTMLButtonElement>('startBtn').disabled = !r.guest;
+  $('startBtn').textContent = r.guest ? 'Start match' : 'Waiting for opponent…';
+}
+
+// innerHTML only when it changes, so hover and focus survive the per-frame render.
+function setHtml(id: string, html: string) {
+  const el = $(id);
+  if (el.dataset.html !== html) el.innerHTML = el.dataset.html = html;
+}
+
+// Won by the clock or a king tower, or handed over by a forfeit?
+let iForfeited = false;
+function byForfeit(m: MatchSource) {
+  const kingsUp = m.towers().filter(t => t.lane === KING_LANE).every(t => t.hp > 0);
+  return m.winner !== -1 && m.winner !== null && kingsUp && m.time < MATCH_SECONDS - 0.01;
 }
 
 function renderResult() {
@@ -119,11 +219,102 @@ function renderResult() {
   $('result').hidden = !done;
   if (!done || !m) return;
   const side = m.side;
-  $('resultText').textContent = m.winner === -1 ? 'Draw' : m.winner === side ? 'You win' : 'You lose';
-  $('lobbyBtn').textContent = local ? 'Leave' : 'Leave room';
+  const won = m.winner === side, forfeit = byForfeit(m);
+  $('resultText').textContent = m.winner === -1 ? 'Draw' : won ? 'You win' : forfeit && iForfeited ? 'You forfeited' : 'You lose';
+  $('resultText').className = m.winner === -1 ? '' : won ? 'win' : 'lose';
   const towers = m.towers();
   const lost = (s: number) => towers.filter(t => t.side === s && t.hp <= 0).length;
-  $('resultDetail').textContent = `Towers destroyed: you ${lost(1 - side)}, them ${lost(side)}`;
+  $('resultDetail').textContent = forfeit && won ? 'Your opponent forfeited.' : `Towers destroyed: you ${lost(1 - side)}, them ${lost(side)}`;
+  $<HTMLButtonElement>('rematchBtn').disabled = !local && !myRoom()?.guest;
+}
+
+// ---------- versus card, pause and forfeit ----------
+
+let vsShown = false;
+function renderVersus(m: MatchSource | null) {
+  const t = m?.time ?? 0;
+  const show = !!m && m.status === 'playing' && t < -COUNTDOWN;
+  if (show && !vsShown) {
+    iForfeited = false;
+    const me = myName();
+    let them = 'Opponent', tag = 'Opponent';
+    if (local) {
+      them = 'Bot';
+      tag = `${local.level} bot`;
+    } else {
+      const r = myRoom(), id = m!.side === 0 ? r?.guest : r?.host;
+      them = (id && net?.conn.db.player.identity.find(id)?.name) || them;
+    }
+    $('vsMe').textContent = me;
+    $('vsMeAvatar').textContent = initial(me);
+    $('vsThem').textContent = them;
+    $('vsThemAvatar').textContent = initial(them);
+    $('vsThemAvatar').classList.add('red');
+    $('vsThemTag').textContent = tag;
+    sfx.play('versus');
+  }
+  vsShown = show;
+  $('versus').hidden = !show;
+  $('versus').classList.toggle('leaving', show && t > -COUNTDOWN - 0.35);
+}
+
+function clockText(m: MatchSource) {
+  const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
+  return `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+}
+
+// Bot matches only: the clock, the bot and the music all wait.
+function setPaused(p: boolean) {
+  p &&= !!local && local.status === 'playing' && local.time >= 0;
+  if (local) local.paused = p;
+  sfx.holdMusic(p);
+  $('pause').hidden = !p;
+  if (p && local) $('pauseDetail').textContent = `${local.label} · ${clockText(local)} left`;
+}
+$('pauseBtn').onclick = e => {
+  setPaused(true);
+  (e.currentTarget as HTMLElement).blur();
+};
+$('resumeBtn').onclick = () => setPaused(false);
+$('quitBtn').onclick = () => {
+  setPaused(false);
+  botEnded('left');
+  call(local?.leave());
+};
+$('restartBtn').onclick = () => {
+  if (!local) return;
+  const level = local.level;
+  setPaused(false);
+  botEnded('left');
+  call(local.leave());
+  // One frame with no match in between, so the board and its sounds start over cleanly.
+  restarting = true;
+  setTimeout(() => {
+    restarting = false;
+    startBot(level);
+  }, 80);
+};
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true) });
+
+// Online matches only: hand the win to the other side.
+$('forfeitBtn').onclick = e => {
+  $('forfeitAsk').hidden = false;
+  (e.currentTarget as HTMLElement).blur();
+};
+$('keepBtn').onclick = () => ($('forfeitAsk').hidden = true);
+$('forfeitYes').onclick = () => {
+  $('forfeitAsk').hidden = true;
+  iForfeited = true;
+  sfx.play('forfeit');
+  call(online?.forfeit(), msg => status(msg, true));
+};
+
+function renderTools(m: MatchSource | null) {
+  const live = m?.status === 'playing';
+  $('pauseBtn').hidden = !(local && live);
+  $<HTMLButtonElement>('pauseBtn').disabled = !local || local.time < 0;
+  $('forfeitBtn').hidden = !(!local && live);
+  if (!live || local) $('forfeitAsk').hidden = true;
 }
 
 // ---------- deploying ----------
@@ -260,10 +451,8 @@ function flagMismatch() {
   status(a ? `noted: ${a.design?.name ?? 'that troop'} wasn't what you asked for` : 'noted');
 }
 
-// First visit: camera and mic, then the how-to card.
+// First visit (after the title screen): camera and mic, then the how-to card.
 const setup = initSetup(input, showTutorialOnce);
-if (setupDone()) showTutorialOnce();
-else setup.open();
 
 $<HTMLFormElement>('describe').onsubmit = e => {
   e.preventDefault();
@@ -287,6 +476,11 @@ addEventListener('keydown', e => {
     if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
     return;
   }
+  if (local?.paused) {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') setPaused(false);
+    return;
+  }
+  if ((e.key === 'p' || e.key === 'P') && local) return setPaused(true);
   if (/^[0-9]$/.test(e.key)) {
     if (input.mouseKeys) deployAnchor((Number(e.key) + 9) % 10);
   }
@@ -317,6 +511,8 @@ function frame() {
   renderLobby();
   renderResult();
   const m = match();
+  renderVersus(m);
+  renderTools(m);
   if (!m) {
     $('roomInfo').textContent = '';
     board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' });
@@ -329,7 +525,7 @@ function frame() {
     warmDesigner();
   }
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
-  $('clock').textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+  $('clock').textContent = clockText(m);
   $('roomInfo').textContent = `${m.label}${left <= 30 && m.status === 'playing' ? ' · double elixir' : ''}`;
   const elixir = m.elixir;
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;

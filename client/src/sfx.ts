@@ -5,7 +5,8 @@
 
 export type SfxName =
   | 'deploy' | 'incoming' | 'land' | 'hit' | 'attack' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
-  | 'count' | 'fight' | 'double' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw';
+  | 'count' | 'fight' | 'double' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw'
+  | 'click' | 'versus' | 'joined' | 'forfeit';
 
 // The pack's troop families; each has spawn, attack_1/2, hit_1/2 and death.
 export const SOUND_KINDS = ['beast', 'blade', 'heavy', 'magic', 'mech', 'ranged', 'swarm'] as const;
@@ -13,7 +14,7 @@ export type SoundKind = (typeof SOUND_KINDS)[number];
 export type MusicTrack = 'menu' | 'battle' | 'overtime';
 
 const AUDIO = '/audio/';
-const GAME = ['deploy_land', 'deploy_pending', 'double_elixir', 'match_start', 'tower_destroyed', 'tower_hit_1', 'tower_hit_2', 'victory', 'defeat'];
+const GAME = ['deploy_land', 'deploy_pending', 'double_elixir', 'match_end', 'match_start', 'tower_destroyed', 'tower_hit_1', 'tower_hit_2', 'victory', 'defeat'];
 const VOICE = ['double_elixir', 'draw', 'last_ten', 'match_start', 'too_expensive', 'tower_down'];
 const UNIT = ['spawn', 'attack_1', 'attack_2', 'hit_1', 'hit_2', 'death'];
 const SAMPLES = [
@@ -41,6 +42,9 @@ function samplesFor(name: SfxName, kind?: SoundKind): { pick: string[]; voice?: 
     case 'win': return { pick: ['sfx/game/victory'], gain: 1 };
     case 'lose': return { pick: ['sfx/game/defeat'], gain: 1 };
     case 'draw': return { pick: ['sfx/game/defeat'], voice: 'draw', gain: 0.8 };
+    case 'versus': return { pick: ['sfx/game/deploy_land'], gain: 1 };
+    case 'joined': return { pick: ['sfx/game/double_elixir'], gain: 0.5 };
+    case 'forfeit': return { pick: ['sfx/game/match_end'], gain: 0.9 };
     default: return { pick: [], gain: 1 };
   }
 }
@@ -73,7 +77,7 @@ const VOLUME = 0.35;
 
 // Minimum gap between two plays of the same sound, in seconds. Keeps swarms from roaring.
 const GAP: Partial<Record<SfxName, number>> = {
-  hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
+  click: 0.05, hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
 };
 
 function readMuted(): boolean {
@@ -95,6 +99,7 @@ class Sfx {
   private musicGain: GainNode | null = null;
   private wanted: MusicTrack | null = null; // set before the context exists, applied on unlock
   private playing: MusicTrack | null = null;
+  private held = false; // music paused in place (the pause menu), not switched off
   private listeners = new Set<(muted: boolean) => void>();
 
   constructor() {
@@ -174,6 +179,7 @@ class Sfx {
     if (this.wanted === 'battle' || this.wanted === 'overtime') want.add('sfx/game/arena_ambience');
     for (const [key, el] of this.music) if (!want.has(key)) el.pause();
     for (const key of want) {
+      if (this.held) break;
       let el = this.music.get(key);
       if (!el) {
         el = new Audio(`${AUDIO}${key}.mp3`);
@@ -188,6 +194,18 @@ class Sfx {
       el.play().catch(() => { /* blocked or missing: silence is fine */ });
     }
     this.playing = this.wanted;
+  }
+
+  // Freeze the current music where it is, and pick it up from the same spot.
+  holdMusic(held: boolean): void {
+    if (held === this.held) return;
+    this.held = held;
+    const want = this.playing;
+    for (const [key, el] of this.music) {
+      const on = !!want && (key === `music/${want}` || (key === 'sfx/game/arena_ambience' && want !== 'menu'));
+      if (held || !on) el.pause();
+      else el.play().catch(() => {});
+    }
   }
 
   setMuted(m: boolean): void {
@@ -263,6 +281,20 @@ class Sfx {
       case 'buzz': // not enough elixir / rejected
         this.tone(ac, out, t, 'sawtooth', 120, 110, 0.11, 0.22, 900);
         this.tone(ac, out, t + 0.14, 'sawtooth', 120, 100, 0.13, 0.22, 900);
+        break;
+      case 'click': // menu tick
+        this.tone(ac, out, t, 'triangle', 880, 660, 0.05, 0.18);
+        break;
+      case 'joined':
+        this.tone(ac, out, t, 'triangle', 660, 660, 0.12, 0.25);
+        this.tone(ac, out, t + 0.1, 'triangle', 990, 990, 0.2, 0.25);
+        break;
+      case 'versus': // the two cards slam together
+        this.tone(ac, out, t, 'sine', 120, 40, 0.4, 1);
+        this.noiseHit(ac, out, t, 0.3, 0.6, 'lowpass', 2400, 200, 0.7);
+        break;
+      case 'forfeit':
+        this.tone(ac, out, t, 'sine', 196, 98, 0.9, 0.5);
         break;
       case 'count':
       case 'lastTen':

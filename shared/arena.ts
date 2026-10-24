@@ -12,7 +12,9 @@ export const BRIDGE_X = [3.5, 14.5];
 export const BRIDGE_HALF = 1.25; // bridges are 2.5 tiles wide
 
 export const MATCH_SECONDS = 90;
-export const COUNTDOWN = 3; // "3-2-1, Fight!": matches start at time −3, with no deploys or elixir until 0
+export const COUNTDOWN = 3; // "3-2-1, Fight!" runs from time −3, with no deploys or elixir until 0
+export const INTRO = 2.5; // the "you vs them" card before the countdown
+export const MATCH_START = -(INTRO + COUNTDOWN); // the clock a new match starts at
 export const DOUBLE_ELIXIR_AT = 60; // last 30 s
 export const ELIXIR_MAX = 10;
 export const ELIXIR_START = 5;

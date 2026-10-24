@@ -2,7 +2,7 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, ELIXIR_MAX, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { ELIXIR_MAX, MATCH_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, step, type SimState } from '../../shared/sim';
@@ -25,6 +25,7 @@ export class LocalMatch implements MatchSource {
   readonly label: string;
   status: MatchStatus = 'playing';
   winner: Side | -1 | null = null;
+  paused = false; // the pause menu: the clock, the bot and your deploys all wait
 
   private s!: SimState;
   private locks: Lock[] = [];
@@ -116,6 +117,7 @@ export class LocalMatch implements MatchSource {
 
   private loop = (now: number) => {
     this.raf = requestAnimationFrame(this.loop);
+    if (this.paused) return void (this.last = now);
     // Cap the catch-up so a backgrounded tab pauses the match instead of fast-forwarding it.
     if (this.last) this.acc += Math.min(0.25, (now - this.last) / 1000);
     this.last = now;
@@ -124,7 +126,7 @@ export class LocalMatch implements MatchSource {
 
   private reset() {
     this.s = newMatch();
-    this.s.time = -COUNTDOWN;
+    this.s.time = MATCH_START;
     this.locks = [];
     this.troopRows.clear();
     this.unitTroop.clear();
@@ -134,6 +136,7 @@ export class LocalMatch implements MatchSource {
     this.botMove = null;
     this.status = 'playing';
     this.winner = null;
+    this.paused = false;
   }
 
   // The bot goes through the same lock → deploy path as you, so its drop is telegraphed.
@@ -165,6 +168,7 @@ export class LocalMatch implements MatchSource {
 
   private mustPlay() {
     if (this.status !== 'playing') throw new Error('match not running');
+    if (this.paused) throw new Error('paused');
     if (this.s.time < 0) throw new Error('match starting');
   }
 

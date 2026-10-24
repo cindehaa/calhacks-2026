@@ -15,6 +15,8 @@
   </div>
 
   <div id="tools">
+    <button id="pauseBtn" class="round" aria-label="Pause" title="Pause (P)" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></button>
+    <button id="forfeitBtn" class="round" aria-label="Forfeit" title="Forfeit" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 0h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
     <button id="muteBtn" class="round" aria-label="Sound"></button>
     <button id="helpBtn" class="round" aria-label="How to play" title="How to play">?</button>
   </div>
@@ -28,46 +30,109 @@
     <div id="hand"></div>
   </div>
 
-  <div id="lobby" class="overlay">
-    <div class="panel">
-      <h1>Arena</h1>
-      <p class="sub">An arena battler where your deck is whatever you can describe.</p>
-      <div id="lobbyOut">
-        <label>Name <input id="nameInput" maxlength="20"></label>
-        <div class="row">
-          <button id="createBtn">Create room</button>
-          <button id="demoBtn">Join DEMO</button>
+  <div id="title" class="screen">
+    <div class="titleInner">
+      <div class="logo"><span>Arena</span></div>
+      <p class="tagline">An arena battler where your deck is whatever you can describe.</p>
+      <button id="enterBtn" class="pressStart">Press any key</button>
+    </div>
+  </div>
+
+  <div id="lobby" class="screen hub" hidden>
+    <header class="hubTop">
+      <div class="brand">Arena</div>
+      <label class="nameChip" title="Your name">
+        <span class="avatar" id="avatar">?</span>
+        <input id="nameInput" maxlength="20" placeholder="Your name" spellcheck="false">
+      </label>
+    </header>
+
+    <section id="lobbyOut" class="modes">
+      <article class="mode mBot">
+        <div class="modeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13" r="1.4"/><circle cx="14.5" cy="13" r="1.4"/><path d="M12 8V5M10 19v2m4-2v2"/><circle cx="12" cy="4" r="1"/></svg></div>
+        <h2>Practice</h2>
+        <p>Fight the bot. Runs right here, no server needed.</p>
+        <div class="seg" id="botLevel" role="radiogroup" aria-label="Bot difficulty">
+          <button type="button" role="radio" data-level="easy">Easy</button>
+          <button type="button" role="radio" data-level="normal">Normal</button>
+          <button type="button" role="radio" data-level="hard">Hard</button>
         </div>
-        <form id="joinForm" class="row"><input id="codeInput" placeholder="CODE" maxlength="4"><button>Join</button></form>
-        <div class="row">
-          <button id="botBtn">Play vs Bot</button>
-          <select id="botLevel" aria-label="Bot difficulty">
-            <option value="easy">Easy</option>
-            <option value="normal" selected>Normal</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
+        <button id="botBtn" class="cta">Play vs Bot</button>
+      </article>
+
+      <article class="mode mFriend">
+        <div class="modeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2.5 19c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5M10.5 19c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5"/></svg></div>
+        <h2>Play a friend</h2>
+        <p>Open a room and share the code, or join theirs.</p>
+        <form id="joinForm" class="codeRow" autocomplete="off">
+          <input id="codeInput" placeholder="CODE" maxlength="4" aria-label="Room code" spellcheck="false">
+          <button class="joinBtn">Join</button>
+        </form>
+        <button id="createBtn" class="cta">Create room</button>
+      </article>
+
+      <article class="mode mQuick">
+        <div class="modeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div>
+        <h2>Quick match</h2>
+        <p>Jump into the open room and take on whoever’s there.</p>
+        <button id="demoBtn" class="cta">Find a match</button>
+      </article>
+    </section>
+
+    <section id="lobbyIn" class="room" hidden>
+      <p class="roomLabel">Room code · click to copy</p>
+      <button id="roomCode" class="roomCode" type="button"></button>
+      <div class="slots">
+        <div class="slot sBlue" id="slot0"></div>
+        <div class="slotVs">VS</div>
+        <div class="slot sRed" id="slot1"></div>
       </div>
-      <div id="lobbyIn" hidden>
-        <p>Room <b id="roomCode"></b></p>
-        <ul id="players"></ul>
-        <div class="row">
-          <button id="startBtn">Start match</button>
-          <button id="leaveBtn" class="ghost">Leave</button>
-        </div>
+      <div class="roomActions">
+        <button id="leaveBtn" class="ghost">Leave</button>
+        <button id="startBtn" class="cta">Start match</button>
       </div>
-      <p id="lobbyError" class="error"></p>
+    </section>
+
+    <p id="lobbyError" class="error"></p>
+
+    <footer class="hubFoot">
+      <span id="hubNet" class="hubNet"></span>
+      <button id="hubHelp" class="link">How to play</button>
+      <button id="hubSetup" class="link">Camera and mic</button>
+    </footer>
+  </div>
+
+  <div id="versus" hidden aria-live="polite">
+    <div class="vsSide vsMe"><span class="avatar big" id="vsMeAvatar"></span><span class="vsName" id="vsMe"></span><span class="vsTag">You</span></div>
+    <div class="vsMid">VS</div>
+    <div class="vsSide vsThem"><span class="avatar big" id="vsThemAvatar"></span><span class="vsName" id="vsThem"></span><span class="vsTag" id="vsThemTag">Opponent</span></div>
+  </div>
+
+  <div id="pause" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <div class="panel menuPanel">
+      <h1 id="pauseTitle">Paused</h1>
+      <p class="sub" id="pauseDetail"></p>
+      <button id="resumeBtn" class="cta">Resume</button>
+      <button id="restartBtn">Restart match</button>
+      <button id="quitBtn" class="ghost">Quit to menu</button>
+    </div>
+  </div>
+
+  <div id="forfeitAsk" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="forfeitTitle">
+    <div class="panel menuPanel">
+      <h1 id="forfeitTitle">Forfeit?</h1>
+      <p class="sub">Your opponent wins right away. The match keeps running while you decide.</p>
+      <button id="keepBtn" class="cta">Keep fighting</button>
+      <button id="forfeitYes" class="danger">Forfeit match</button>
     </div>
   </div>
 
   <div id="result" class="overlay" hidden>
-    <div class="panel">
+    <div class="panel menuPanel">
       <h1 id="resultText"></h1>
       <p id="resultDetail" class="sub"></p>
-      <div class="row">
-        <button id="rematchBtn">Rematch</button>
-        <button id="lobbyBtn" class="ghost">Leave room</button>
-      </div>
+      <button id="rematchBtn" class="cta">Play again</button>
+      <button id="lobbyBtn" class="ghost">Back to menu</button>
     </div>
   </div>
 

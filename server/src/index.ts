@@ -2,7 +2,7 @@
 // Combat itself lives in shared/sim.ts; this file only moves rows in and out of it.
 import { ScheduleAt, type Identity } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import { COUNTDOWN, ELIXIR_MAX, ELIXIR_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import { newTally, tallyStep, troopsHit, type TroopTally } from '../../shared/tally';
@@ -331,7 +331,7 @@ export const startMatch = spacetimedb.reducer(ctx => {
   ctx.db.room.code.update({
     ...r,
     status: 'playing',
-    time: -COUNTDOWN,
+    time: MATCH_START,
     elixir0: ELIXIR_START,
     elixir1: ELIXIR_START,
     winner: NO_WINNER,
@@ -343,6 +343,17 @@ export const startMatch = spacetimedb.reducer(ctx => {
   setRoomMatch(ctx, r.code, m.id);
   setPlayerMatch(ctx, r.host, m.id);
   setPlayerMatch(ctx, r.guest, m.id);
+});
+
+// Give up a running online match: the other side wins on the spot.
+export const forfeit = spacetimedb.reducer(ctx => {
+  const r = myRoom(ctx);
+  if (r.status !== 'playing') throw new SenderError('match not running');
+  const winner = r.host.equals(ctx.sender) ? 1 : 0;
+  for (const tm of [...ctx.db.matchTimer.iter()]) if (tm.roomCode === r.code) ctx.db.matchTimer.scheduledId.delete(tm.scheduledId);
+  for (const p of [...ctx.db.pending.roomCode.filter(r.code)]) ctx.db.pending.id.delete(p.id);
+  ctx.db.room.code.update({ ...r, status: 'done', winner });
+  closeMatch(ctx, r.code, 'forfeit', winner, [...ctx.db.tower.roomCode.filter(r.code)]);
 });
 
 // ---------- deploys ----------

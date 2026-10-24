@@ -38,6 +38,7 @@ import BeginDeployReducer from "./begin_deploy_reducer";
 import CancelDeployReducer from "./cancel_deploy_reducer";
 import CreateRoomReducer from "./create_room_reducer";
 import DeployTroopReducer from "./deploy_troop_reducer";
+import ForfeitReducer from "./forfeit_reducer";
 import JoinRoomReducer from "./join_room_reducer";
 import LeaveRoomReducer from "./leave_room_reducer";
 import LogBotEndReducer from "./log_bot_end_reducer";
@@ -153,6 +154,7 @@ const reducersSchema = __reducers(
   __reducerSchema("cancel_deploy", CancelDeployReducer),
   __reducerSchema("create_room", CreateRoomReducer),
   __reducerSchema("deploy_troop", DeployTroopReducer),
+  __reducerSchema("forfeit", ForfeitReducer),
   __reducerSchema("join_room", JoinRoomReducer),
   __reducerSchema("leave_room", LeaveRoomReducer),
   __reducerSchema("log_bot_end", LogBotEndReducer),

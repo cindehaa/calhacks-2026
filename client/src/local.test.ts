@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, DEPLOY_DELAY, MATCH_SECONDS, TICK_HZ } from '../../shared/arena';
+import { DEPLOY_DELAY, MATCH_START, MATCH_SECONDS, TICK_HZ } from '../../shared/arena';
 import { LocalMatch } from './local';
 
 const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
@@ -12,7 +12,7 @@ const run = (m: LocalMatch, seconds: number) => {
 test('player deploys follow the server rules', async () => {
   const m = new LocalMatch('normal', undefined, false);
   await assert.rejects(m.beginDeploy(9, 4, 6), /match starting/);
-  run(m, COUNTDOWN);
+  run(m, -MATCH_START);
   await assert.rejects(m.deployTroop(1, 9, 5, '', golem), new RegExp(`not enough elixir: ${golem.cost}`));
   await assert.rejects(m.deployTroop(1, 9, 5, '', { ...golem, damage: 600, count: 4 }), /too expensive: \d+/);
   await assert.rejects(m.beginDeploy(2, 9, 20), /own half/);
@@ -30,7 +30,7 @@ test('player deploys follow the server rules', async () => {
 test('the bot plays a full match against an idle player and wins', async () => {
   const m = new LocalMatch('normal', undefined, false);
   let bot = 0, sawLock = false;
-  for (let i = 0; i < (COUNTDOWN + MATCH_SECONDS + 1) * TICK_HZ && m.status === 'playing'; i++) {
+  for (let i = 0; i < (MATCH_SECONDS - MATCH_START + 1) * TICK_HZ && m.status === 'playing'; i++) {
     m.tick();
     sawLock ||= m.pendings().some(p => p.side === 1);
     bot = Math.max(bot, m.units().filter(u => u.side === 1).length);
@@ -41,6 +41,6 @@ test('the bot plays a full match against an idle player and wins', async () => {
   assert.equal(m.winner, 1);
   await m.rematch();
   assert.equal(m.status, 'playing');
-  assert.equal(m.time, -COUNTDOWN);
+  assert.equal(m.time, MATCH_START);
   assert.equal(m.units().length, 0);
 });

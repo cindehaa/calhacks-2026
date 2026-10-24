@@ -162,4 +162,8 @@ export class OnlineMatch implements MatchSource {
   leave() {
     return this.net.conn.reducers.leaveRoom({});
   }
+
+  forfeit() {
+    return this.net.conn.reducers.forfeit({});
+  }
 }

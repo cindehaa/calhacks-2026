@@ -131,6 +131,10 @@ export class Fx {
         this.countdownAt = -10;
       }
       this.status = v.status;
+    } else if (v.status === 'playing' && this.prevTime < -COUNTDOWN && time >= -COUNTDOWN && time < 0.5) {
+      // New matches open on the versus card; the countdown starts as the clock passes −COUNTDOWN.
+      this.countdownAt = now - (time + COUNTDOWN);
+      this.countStep = -1;
     }
     // 3, 2, 1, FIGHT!
     const step = Math.floor((now - this.countdownAt) / COUNT_STEP);
