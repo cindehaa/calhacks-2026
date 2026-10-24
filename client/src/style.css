@@ -566,8 +566,6 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .result.draw::before { background: radial-gradient(ellipse 52% 60% at 50% 45%, #0a0c18d9, #0a0c1873 100%); }
 .result #resultFrost { display: none !important; } /* the freeze layer's frost carries on underneath */
 /* result tapestries: smaller, with the result tags */
-.tapestry.small { width: min(14vw, 27vh, 220px); bottom: 0; aspect-ratio: auto; } /* hangs the full height */
-.tapestry.small .bannerBody { top: 53cqw; gap: 3.4cqw; } /* 23% of a 260 × 600 cloth, so it stays put as the cloth grows */
 .tapestry.small .bLine { font: 600 8cqw/1.3 var(--chakra); color: #fff; padding: 0 4cqw; }
 .tapestry.small .bTag { font: 700 5.6cqw var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: #f3d58ab3; }
 .result .tapestry.left { animation: lower 1s .15s cubic-bezier(.2, .8, .2, 1) both; }
@@ -602,3 +600,14 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .vsName { text-shadow: 0 3px 0 rgba(0, 0, 0, .45), 0 0 24px rgba(0, 0, 0, .35); }
 .vsTag { color: #f3d58a; opacity: 1; }
 .vsSide::after { mix-blend-mode: soft-light; filter: grayscale(1) brightness(1.5); opacity: .75; } /* etched tone-on-tone into the cloth */
+
+/* result screens: the same banners as home, and a narrow middle column (title, crowns, XP, damage,
+   most creative troop, buttons) stacked vertically so the banners have room on both sides */
+.resultCol { top: 6vh; gap: clamp(10px, 1.7vh, 18px); }
+.resultCol h1 { font-size: clamp(56px, 7vw, 104px); }
+.spoils { flex-direction: column; gap: clamp(8px, 1.2vh, 12px); }
+.crowns svg { width: 52px; height: auto; }
+.spoils .emberReward { width: 340px; }
+.spoils .emberReward .face { height: 68px; padding: 0 22px 0 20px; }
+.spoils .emberReward .erDelta b { font-size: 34px; }
+.result .mvpCard > .gFace { width: min(560px, calc(100vw - 2 * (min(18vw, 31vh, 260px) + 4.3vw + 24px))); }
