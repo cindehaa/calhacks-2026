@@ -1,0 +1,499 @@
+{
+  "music/battle": {
+    "file": "music/battle.mp3",
+    "kind": "music",
+    "model": "fal-ai/elevenlabs/music",
+    "prompt": "energetic orchestral battle theme, driving drums, brass stabs, 120 BPM, instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable",
+    "duration": 60,
+    "loop": true
+  },
+  "music/menu": {
+    "file": "music/menu.mp3",
+    "kind": "music",
+    "model": "fal-ai/elevenlabs/music",
+    "prompt": "playful medieval fantasy lobby theme, plucked strings and light percussion, relaxed, 100 BPM, instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable",
+    "duration": 60,
+    "loop": true
+  },
+  "music/overtime": {
+    "file": "music/overtime.mp3",
+    "kind": "music",
+    "model": "fal-ai/elevenlabs/music",
+    "prompt": "intense climax version of an orchestral battle theme, faster drums, urgent strings, 140 BPM, instrumental, mobile strategy game soundtrack, bright and punchy, sits under dialogue, no vocals, loopable",
+    "duration": 30,
+    "loop": true
+  },
+  "sfx/beast/attack_1": {
+    "file": "sfx/beast/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "claw swipe and snapping jaws, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/beast/attack_2": {
+    "file": "sfx/beast/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "claw swipe and snapping jaws, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/beast/death": {
+    "file": "sfx/beast/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "creature whimpering and thudding to the ground, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/beast/hit_1": {
+    "file": "sfx/beast/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "blunt thump on a furry body, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/beast/hit_2": {
+    "file": "sfx/beast/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "blunt thump on a furry body, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/beast/spawn": {
+    "file": "sfx/beast/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "fierce monster growl and paws landing, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1,
+    "loop": false
+  },
+  "sfx/blade/attack_1": {
+    "file": "sfx/blade/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "quick sword swing whoosh, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/blade/attack_2": {
+    "file": "sfx/blade/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "quick sword swing whoosh, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/blade/death": {
+    "file": "sfx/blade/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "armoured warrior collapsing, metal clatter on stone, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/blade/hit_1": {
+    "file": "sfx/blade/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "sword striking a shield, metallic clang, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/blade/hit_2": {
+    "file": "sfx/blade/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "sword striking a shield, metallic clang, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/blade/spawn": {
+    "file": "sfx/blade/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "armour clanking as a warrior lands and draws a sword, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1,
+    "loop": false
+  },
+  "sfx/game/arena_ambience": {
+    "file": "sfx/game/arena_ambience.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "distant battle arena crowd murmur with soft wind, game background ambience, quiet and even, no music, no speech",
+    "duration": 15,
+    "loop": true
+  },
+  "sfx/game/defeat": {
+    "file": "sfx/game/defeat.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "short sad descending trombone, defeat jingle, stylised mobile game jingle, punchy and clean",
+    "duration": 3,
+    "loop": false
+  },
+  "sfx/game/deploy_land": {
+    "file": "sfx/game/deploy_land.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "troop arriving on the battlefield, punchy impact and dust, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.8,
+    "loop": false
+  },
+  "sfx/game/deploy_pending": {
+    "file": "sfx/game/deploy_pending.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "rising magical charge-up whoosh building tension, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 2.5,
+    "loop": false
+  },
+  "sfx/game/double_elixir": {
+    "file": "sfx/game/double_elixir.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "bright magical gong with a rising shimmer, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.5,
+    "loop": false
+  },
+  "sfx/game/match_end": {
+    "file": "sfx/game/match_end.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "final whistle and a deep gong, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 2,
+    "loop": false
+  },
+  "sfx/game/match_start": {
+    "file": "sfx/game/match_start.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "war horn blast signalling the battle start, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 2,
+    "loop": false
+  },
+  "sfx/game/tower_destroyed": {
+    "file": "sfx/game/tower_destroyed.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "stone tower collapsing with a big explosion and falling rubble, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 2.5,
+    "loop": false
+  },
+  "sfx/game/tower_hit_1": {
+    "file": "sfx/game/tower_hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "projectile hitting a stone tower, chunky impact, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/game/tower_hit_2": {
+    "file": "sfx/game/tower_hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "projectile hitting a stone tower, chunky impact, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/game/victory": {
+    "file": "sfx/game/victory.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "short triumphant brass fanfare, victory jingle, stylised mobile game jingle, punchy and clean",
+    "duration": 4,
+    "loop": false
+  },
+  "sfx/heavy/attack_1": {
+    "file": "sfx/heavy/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "massive fist slamming the ground, deep boom, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.8,
+    "loop": false
+  },
+  "sfx/heavy/attack_2": {
+    "file": "sfx/heavy/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "massive fist slamming the ground, deep boom, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.8,
+    "loop": false
+  },
+  "sfx/heavy/death": {
+    "file": "sfx/heavy/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "stone giant crumbling into rubble, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.5,
+    "loop": false
+  },
+  "sfx/heavy/hit_1": {
+    "file": "sfx/heavy/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "heavy blow cracking rock, deep crunch, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/heavy/hit_2": {
+    "file": "sfx/heavy/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "heavy blow cracking rock, deep crunch, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/heavy/spawn": {
+    "file": "sfx/heavy/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "huge stone golem landing with a ground-shaking thud, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/magic/attack_1": {
+    "file": "sfx/magic/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "arcane fireball launching with a crackle, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.7,
+    "loop": false
+  },
+  "sfx/magic/attack_2": {
+    "file": "sfx/magic/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "arcane fireball launching with a crackle, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.7,
+    "loop": false
+  },
+  "sfx/magic/death": {
+    "file": "sfx/magic/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "magical energy dissipating into a fading shimmer, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/magic/hit_1": {
+    "file": "sfx/magic/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "magic spell bursting on impact, fizzing sparks, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/magic/hit_2": {
+    "file": "sfx/magic/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "magic spell bursting on impact, fizzing sparks, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/magic/spawn": {
+    "file": "sfx/magic/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "magical shimmer and sparkle as a wizard teleports in, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1,
+    "loop": false
+  },
+  "sfx/mech/attack_1": {
+    "file": "sfx/mech/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "sci-fi laser blast zap, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/mech/attack_2": {
+    "file": "sfx/mech/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "sci-fi laser blast zap, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/mech/death": {
+    "file": "sfx/mech/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "robot short-circuiting and exploding, sparks and clatter, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/mech/hit_1": {
+    "file": "sfx/mech/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "electric zap hitting metal, sparks, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/mech/hit_2": {
+    "file": "sfx/mech/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "electric zap hitting metal, sparks, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/mech/spawn": {
+    "file": "sfx/mech/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "robot powering up, servo whirr and a metallic stomp, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1,
+    "loop": false
+  },
+  "sfx/ranged/attack_1": {
+    "file": "sfx/ranged/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "bowstring twang with an arrow whooshing away, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/ranged/attack_2": {
+    "file": "sfx/ranged/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "bowstring twang with an arrow whooshing away, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/ranged/death": {
+    "file": "sfx/ranged/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "bow dropping onto stone and a body falling, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/ranged/hit_1": {
+    "file": "sfx/ranged/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "arrow thunking into wood, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/ranged/hit_2": {
+    "file": "sfx/ranged/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "arrow thunking into wood, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/ranged/spawn": {
+    "file": "sfx/ranged/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "quiver rattle and a bow being drawn tight, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1,
+    "loop": false
+  },
+  "sfx/swarm/attack_1": {
+    "file": "sfx/swarm/attack_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "flurry of tiny bites and stings, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/swarm/attack_2": {
+    "file": "sfx/swarm/attack_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "flurry of tiny bites and stings, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.6,
+    "loop": false
+  },
+  "sfx/swarm/death": {
+    "file": "sfx/swarm/death.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "swarm scattering, buzzing fading away, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1.2,
+    "loop": false
+  },
+  "sfx/swarm/hit_1": {
+    "file": "sfx/swarm/hit_1.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "small wet splat, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/swarm/hit_2": {
+    "file": "sfx/swarm/hit_2.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "small wet splat, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 0.5,
+    "loop": false
+  },
+  "sfx/swarm/spawn": {
+    "file": "sfx/swarm/spawn.mp3",
+    "kind": "sfx",
+    "model": "fal-ai/elevenlabs/sound-effects/v2",
+    "prompt": "angry swarm of insects rushing in, dense buzzing, stylised mobile strategy game sound effect, punchy and clean, close and dry, no reverb tail, no music, no speech",
+    "duration": 1,
+    "loop": false
+  },
+  "voice/announcer/double_elixir": {
+    "file": "voice/announcer/double_elixir.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "Double elixir!",
+    "loop": false
+  },
+  "voice/announcer/draw": {
+    "file": "voice/announcer/draw.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "It's a draw!",
+    "loop": false
+  },
+  "voice/announcer/last_ten": {
+    "file": "voice/announcer/last_ten.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "Ten seconds left!",
+    "loop": false
+  },
+  "voice/announcer/match_end": {
+    "file": "voice/announcer/match_end.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "Time! The battle is over!",
+    "loop": false
+  },
+  "voice/announcer/match_start": {
+    "file": "voice/announcer/match_start.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "Let the battle begin!",
+    "loop": false
+  },
+  "voice/announcer/too_expensive": {
+    "file": "voice/announcer/too_expensive.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "Not enough elixir!",
+    "loop": false
+  },
+  "voice/announcer/tower_down": {
+    "file": "voice/announcer/tower_down.mp3",
+    "kind": "voice",
+    "model": "cartesia/sonic-3.6",
+    "prompt": "A tower has fallen!",
+    "loop": false
+  }
+}
