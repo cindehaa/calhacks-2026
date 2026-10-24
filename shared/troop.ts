@@ -177,7 +177,9 @@ export function sanitizeLook(raw: Partial<TroopLook>): TroopLook {
 }
 
 // JSON schema for Claude's structured output. Clamps are enforced in code (clampStats),
-// since structured outputs don't support numeric min/max.
+// since structured outputs don't support numeric min/max. battle_cry and voice_style aren't asked
+// for: nothing has used them since the battle cries were cut, and every output token is latency.
+// sanitizeDesign fills them in.
 export const TROOP_SCHEMA = {
   type: 'object',
   properties: {
@@ -188,8 +190,6 @@ export const TROOP_SCHEMA = {
     move_speed: { type: 'number' },
     range: { type: 'integer' },
     count: { type: 'integer' },
-    battle_cry: { type: 'string' },
-    voice_style: { type: 'string', enum: [...VOICE_STYLES] },
     attack: { type: 'string', enum: [...ATTACKS] },
     targets: { type: 'string', enum: [...TARGETS] },
     on_hit: { type: 'string', enum: [...ON_HITS] },
@@ -200,7 +200,7 @@ export const TROOP_SCHEMA = {
     flavor: { type: 'string' },
   },
   required: [
-    'name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count', 'battle_cry', 'voice_style',
+    'name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count',
     'attack', 'targets', 'on_hit', 'windup', 'trait', 'motion', 'element', 'flavor',
   ],
   additionalProperties: false,
