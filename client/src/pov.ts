@@ -1179,8 +1179,19 @@ export class PovBoard {
     const quiet = noticeActive() || !!v.input?.flashes.some(f => f.kind === 'miss' && performance.now() - f.t < MISS_MS);
     this.react.drawOverlay(g, id => this.headOf(v, id), (x, y, h) => this.project(x, y, h), FONT, quiet);
     if (this.hurt > 0) this.drawHurt();
-    this.fx.drawBanners(g, this.w / 2, this.h * 0.38, Math.min(this.w, 720));
+    this.fx.drawBanners(g, this.w / 2, this.h * 0.38, Math.min(this.w, 720), w => this.clearTop(this.w / 2 - w / 2, this.w / 2 + w / 2));
     if (v.input) drawInput(g, v.input);
+  }
+
+  // The highest y a ribbon spanning left..right can take at the top without covering the clock,
+  // the tool buttons or the dev panel: on a wide screen they sit off to the sides, on a phone not.
+  private clearTop(left: number, right: number): number {
+    let top = 10;
+    for (const id of ['hudTop', 'tools', 'inputPanel']) {
+      const r = document.getElementById(id)?.getBoundingClientRect();
+      if (r && r.width && r.left < right && r.right > left) top = Math.max(top, r.bottom + 8);
+    }
+    return top;
   }
 
   // Screen px of a scene point, and how many px a tile spans there. Null behind the camera.

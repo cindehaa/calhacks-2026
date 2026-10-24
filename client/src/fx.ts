@@ -821,8 +821,10 @@ export class Fx {
 
   // ---------- drawing ----------
 
-  // Centre-screen announcements: 3-2-1-FIGHT, DOUBLE EMBERS, OVERTIME and TIEBREAKER.
-  drawBanners(g: CanvasRenderingContext2D, cx: number, cy: number, width: number): void {
+  // Announcements: 3-2-1-FIGHT in the centre (nothing's on the board yet), and DOUBLE EMBERS,
+  // OVERTIME and TIEBREAKER as a compact ribbon at the top, mid-match, so the river and bridges stay
+  // clear. `top(w)` is the highest y a ribbon w px wide (centred on cx) can sit without covering HUD.
+  drawBanners(g: CanvasRenderingContext2D, cx: number, cy: number, width: number, top: (w: number) => number): void {
     const now = this.now;
     const ct = now - this.countdownAt;
     if (ct >= 0 && ct < COUNT_STEP * 3 + 0.8) {
@@ -837,21 +839,25 @@ export class Fx {
     const dt = now - this.banner.at;
     if (dt >= 0 && dt < 2.4) {
       const inn = Math.min(1, dt / 0.18), out = dt > 1.9 ? (2.4 - dt) / 0.5 : 1;
-      const size = Math.min(width * 0.1, 40) * (0.8 + 0.2 * inn);
+      const size = Math.min(width * 0.075, 28);
+      g.font = `900 ${Math.round(size)}px 'Cinzel', Georgia, serif`;
+      const titleW = g.measureText(this.banner.title).width;
+      g.font = `700 ${Math.round(size * 0.46)}px 'Alegreya Sans', system-ui, sans-serif`;
+      const w = Math.min(width * 0.94, Math.max(titleW, g.measureText(this.banner.sub).width) + size * 1.8), h = size * 1.9;
+      const y = top(w) - (1 - inn) * (h * 0.6); // drops in from just above its spot
       g.globalAlpha = Math.min(inn, out);
-      const w = Math.min(width * 0.9, size * 9), h = size * 2.2;
       g.fillStyle = 'rgba(34,14,6,0.84)';
-      roundRect(g, cx - w / 2, cy - h / 2, w, h, h / 2);
+      roundRect(g, cx - w / 2, y, w, h, h / 2);
       g.fill();
       g.strokeStyle = COLORS.elixir;
       g.lineWidth = 2;
       g.stroke();
       g.globalAlpha = 1;
-      this.bigText(g, this.banner.title, cx, cy - size * 0.12, size, '#ffc58a', Math.min(inn, out));
-      g.font = `700 ${Math.round(size * 0.36)}px 'Alegreya Sans', system-ui, sans-serif`;
+      this.bigText(g, this.banner.title, cx, y + size * 0.68, size, '#ffc58a', Math.min(inn, out));
+      g.font = `700 ${Math.round(size * 0.46)}px 'Alegreya Sans', system-ui, sans-serif`;
       g.fillStyle = '#e8b892';
       g.globalAlpha = Math.min(inn, out);
-      g.fillText(this.banner.sub, cx, cy + size * 0.62);
+      g.fillText(this.banner.sub, cx, y + size * 1.48);
       g.globalAlpha = 1;
     }
   }
