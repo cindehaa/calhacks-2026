@@ -9,6 +9,7 @@ import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
+import { burnSticks, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
@@ -24,6 +25,7 @@ import { MvpTracker, renderMvp } from './mvp';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
+initKindling($('elixir'));
 if (import.meta.env.DEV) Object.assign(window, { board }); // poke at the 3D view from the console
 
 let net: Net | null = null;
@@ -568,11 +570,14 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     settle(nonce, 'no match');
     return false;
   }
+  const had = m.elixir; // for the burnt sticks, before the payment shows
   try {
     await m.deployTroop(nonce, x, y, description, d, spriteUrl);
     settle(nonce, 'deployed');
     round.deploys++;
     round.elixirSpent += price(d);
+    const to = board.toScreen(x, y);
+    if (to) burnSticks(had - price(d), price(d), to[0], to[1]);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
@@ -794,6 +799,7 @@ function frame() {
   const elixir = m.elixir;
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
+  updateKindling($('elixirRow'), elixir, ELIXIR_MAX);
 
   showTimings();
   const units = m.units();

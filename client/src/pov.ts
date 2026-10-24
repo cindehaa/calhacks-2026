@@ -283,6 +283,14 @@ export class PovBoard {
     return [((p.x + 1) / 2) * this.w, ((1 - p.y) / 2) * this.h];
   }
 
+  // Board coords → page (client) px, for DOM effects over the board; null behind the camera.
+  toScreen(x: number, y: number, h = 0): [number, number] | null {
+    const p = this.project(x, y, h);
+    if (!p) return null;
+    const r = this.canvas.getBoundingClientRect();
+    return [r.left + p[0] * (r.width / (this.w || r.width)), r.top + p[1] * (r.height / (this.h || r.height))];
+  }
+
   // ---------- scene ----------
 
   // The banks and river channel under the board; everything around it is in scenery.ts.
