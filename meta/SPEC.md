@@ -63,14 +63,12 @@ Two players on different browsers join a room and fight a 90-second match; destr
 
 ## Controls
 
-Two actions, aim and fire, with the mic always listening. Whatever you said since the last fire is the troop. Placement is free, with no tile snapping. (Changed on Oct 24 from knuckle aim + pinch to lock + drag-off cancel, which playtesters found unintuitive.)
+Point, pinch, fist, with the mic always listening. Whatever you said since the last fire is the troop. Placement is free, with no tile snapping. This is the only control scheme: no picker, no A/B. (Changed on Oct 24 from knuckle aim + pinch to lock + drag-off cancel, then from a wrist flick to fire, which was unreliable.)
 
 1. **Say:** the mic listens the whole time it's on; the words so far show above the cursor.
 2. **Aim:** a cursor follows the index fingertip, whatever the rest of the hand is doing. Place anywhere on your half, or in a pocket you've opened.
-3. **Fire:** flick the wrist down (fingertips snap down while the wrist stays put). The troop goes where the finger pointed just before the flick, so the flick itself doesn't skew the aim. Fallbacks: Space, or a click with words waiting.
-4. **Clear:** close the hand into a fist (held about 120 ms), press Esc or say "cancel" to throw the words away.
-
-A flick only counts with the fingers straight and not within 400 ms of a fist, because curling into a fist snaps the fingertips down just like a flick.
+3. **Fire:** touch the thumb to the middle finger. The troop goes where the index pointed about 100 ms before the pinch closed. Only the middle finger counts: a thumb nearer the index reads as open. On menus a pinch clicks the button under the fingertip. Fallbacks: Space, or a click with words waiting.
+4. **Cancel:** close the hand into a fist (held about 120 ms), press Esc or say "cancel". It takes back a troop still being summoned (refunded), or else throws the words away.
 
 **Known issues:**
 - Voice "cancel" can lose the race with the quiet timer (raise it to about 700 ms).

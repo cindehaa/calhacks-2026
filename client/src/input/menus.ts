@@ -1,7 +1,7 @@
 // The hand cursor works the menus: hovering a button with the fingertip lights it like the mouse
-// does (snapping to the nearest button within a small radius), and the fire action (a wrist flick,
-// or Space) clicks it, with the same squish and sound. Resting on a button for a second clicks it
-// too, since flicks are unreliable; turn that off with MENU_DWELL.
+// does (snapping to the nearest button within a small radius), and the fire action (a pinch, or
+// Space) clicks it, with the same squish and sound. MENU_DWELL turns on clicking by resting on a
+// button for a second; off, since a pinch is the one way to click.
 //
 // Everything that clicks a menu goes through activateUi(), so a future fire gesture only has to
 // call that. In a match, only the corner tools (pause, sound, help) take the hand; the deploy
@@ -10,7 +10,7 @@ import { blip } from '../react';
 import { boxDistance, Dwell, nearestBox, SNAP_PX, type Box } from './menupick';
 import type { Pt } from './trail';
 
-export const MENU_DWELL = true; // false turns off dwell-to-click
+export const MENU_DWELL = false; // true turns on dwell-to-click
 export const DWELL_MS = 1000;
 
 const TARGETS = 'button:not(:disabled), input[type=checkbox]:not(:disabled)';
@@ -120,7 +120,7 @@ class MenuPointer {
     return this.dwellOn ? this.dwell.progress(now) : 0;
   }
 
-  // A flick or Space clicked the hovered button: don't dwell-click it as well.
+  // A pinch or Space clicked the hovered button: don't dwell-click it as well.
   spend(): void {
     this.dwell.spend();
   }

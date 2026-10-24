@@ -153,7 +153,7 @@ export class Juice {
     return -5 * k;
   }
 
-  // A small dip of the head toward the board when you fire (flick, click or Space), in radians.
+  // A small dip of the head toward the board when you fire (pinch, click or Space), in radians.
   pitchNudge(real: number): number {
     const s = real - this.nudgeAt;
     if (this.reduced || s < 0 || s > 0.35) return 0;

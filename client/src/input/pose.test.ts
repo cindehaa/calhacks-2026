@@ -44,19 +44,6 @@ test('fist: a hand passing through a fist briefly does not count', () => {
   assert.ok(!seq.some(Boolean));
 });
 
-test('flicks are only trusted with straight fingers, and not just after a fist', () => {
-  const f = new FistDetector();
-  f.update(0, world(0));
-  assert.ok(f.allowsFlick(0));
-  f.update(33, world(0.6)); // half curled
-  assert.ok(!f.allowsFlick(33));
-  f.update(66, world(1));
-  f.update(100, world(0));
-  assert.ok(!f.allowsFlick(100), 'opening out of a fist');
-  f.update(600, world(0));
-  assert.ok(f.allowsFlick(600));
-});
-
 test('hysteresis: on below, off above, steady in between', () => {
   const h = new Hysteresis(0.45, 0.65);
   const seq = [0.9, 0.5, 0.44, 0.5, 0.6, 0.64, 0.66, 0.5, 0.46];
@@ -75,12 +62,12 @@ test('cursor history returns the latest sample at or before t', () => {
   assert.equal(h.at(15)?.x, 3, 'old samples are trimmed');
 });
 
-test('pinch: fires once per pinch, with hysteresis, on either finger', async () => {
+test('pinch: fires once per pinch, with hysteresis, thumb to the middle finger only', async () => {
   const { PinchDetector, pinchMetric } = await import('./pose');
   const d = new PinchDetector();
   const fires = [0.9, 0.6, 0.44, 0.3, 0.5, 0.6, 0.44, 0.3, 0.7, 0.4].map(r => d.push(r));
   assert.deepEqual(fires.map((f, i) => (f ? i : -1)).filter(i => i >= 0), [2, 9]);
-  // An upright hand; the thumb tip on the middle finger's pad, then on the index's.
+  // An upright hand; the thumb tip on the middle finger's pad, then on the index's, then away.
   const hand = (thumb: [number, number]) => {
     const px: [number, number][] = Array.from({ length: 21 }, () => [320, 300]);
     px[0] = [320, 400]; px[5] = [280, 300]; px[9] = [320, 300]; px[17] = [380, 300];
@@ -88,6 +75,6 @@ test('pinch: fires once per pinch, with hysteresis, on either finger', async () 
     return px.map(([x, y]) => ({ x: x / 640, y: y / 480, z: 0 }));
   };
   assert.ok(pinchMetric(hand([322, 222]), 640, 480) < 0.45);
-  assert.ok(pinchMetric(hand([281, 232]), 640, 480) < 0.45);
+  assert.ok(pinchMetric(hand([281, 232]), 640, 480) > 0.65, 'the index is for pointing');
   assert.ok(pinchMetric(hand([200, 330]), 640, 480) > 0.65);
 });

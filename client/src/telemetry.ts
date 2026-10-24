@@ -170,16 +170,3 @@ export function logBotEnd(r: BotRoundLog, reason: 'over' | 'left'): void {
   const { winner, towersLost0, towersLost1, cappedSecs0, cappedSecs1 } = r;
   send(n => n.conn.reducers.logBotEnd({ winner, towersLost0, towersLost1, cappedSecs0, cappedSecs1, reason }));
 }
-
-// ---------- control scheme (A/B) ----------
-
-// Which control scheme this player is on. The server keeps it per player and stamps it on their
-// match_log side and on every generation row from then on.
-export function logScheme(scheme: string): void {
-  send(n => n.conn.reducers.logScheme({ scheme }));
-}
-
-// The post-match "Controls felt: 👍 / 👎", and how it was answered (click, dwell, voice).
-export function logControlsFeedback(scheme: string, good: boolean, how: string): void {
-  logEvent('controls:feedback', `${good ? 'up' : 'down'} ${scheme} ${how}`);
-}

@@ -55,7 +55,7 @@ export class Dwell<T> {
     return Math.min(1, Math.max(0, (now - this.since) / this.ms));
   }
 
-  // Something else clicked the target (a flick, Space): don't also dwell-click it.
+  // Something else clicked the target (a pinch, Space): don't also dwell-click it.
   spend(): void {
     this.spent = true;
   }

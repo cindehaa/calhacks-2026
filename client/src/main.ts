@@ -15,8 +15,7 @@ import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
-import { initControlsFeedback } from './feedback';
-import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logScheme, logUtterance } from './telemetry';
+import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
 import { crownSvg, shieldSvg } from './art';
 import { clock } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
@@ -455,7 +454,6 @@ function renderResult() {
   $<HTMLButtonElement>('rematchBtn').disabled = !local && !myRoom()?.guest;
   if (round.shown) return;
   round.shown = true;
-  feedback.ask();
   const side = m.side;
   const outcome: Outcome = m.winner === -1 ? 'draw' : m.winner === side ? 'win' : 'lose';
   const before = embers;
@@ -807,7 +805,6 @@ const input = new InputController(board.canvas, {
   heard: (text, nonce) => logUtterance(text, nonce),
   mismatch: flagMismatch,
   event: (kind, detail, nonce) => logEvent(kind, detail, nonce),
-  schemeChanged: id => logScheme(id),
 });
 
 // "That's wrong" (or X): the last troop isn't what the player asked for. The best signal the
@@ -823,7 +820,6 @@ function flagMismatch() {
 
 // First visit (after the title screen): camera and mic, then the how-to card.
 const setup = initSetup(input, showTutorialOnce);
-const feedback = initControlsFeedback(input);
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('lab')) void import('./lab').then(m => m.openLab(input));
 
 $<HTMLFormElement>('describe').onsubmit = e => {

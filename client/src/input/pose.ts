@@ -37,17 +37,14 @@ export interface FistOptions {
   on: number; // extension below this closes the fist
   off: number; // and above this opens it again
   holdMs: number; // closed this long before it counts, so a hand passing through doesn't
-  straight: number; // a flick only counts with fingers straighter than this
-  afterMs: number; // nor this soon after a fist (opening the hand again)
 }
-export const FIST_DEFAULTS: FistOptions = { on: 1.15, off: 1.4, holdMs: 120, straight: 1.5, afterMs: 400 };
+export const FIST_DEFAULTS: FistOptions = { on: 1.15, off: 1.4, holdMs: 120 };
 
 export class FistDetector {
   ext = 2; // the last extension seen
   private hyst: Hysteresis;
   private closedAt: number | null = null;
   private fired = false;
-  private lastFist = -Infinity;
   constructor(readonly o: FistOptions = FIST_DEFAULTS) {
     this.hyst = new Hysteresis(o.on, o.off);
   }
@@ -65,16 +62,9 @@ export class FistDetector {
       return false;
     }
     this.closedAt ??= t;
-    this.lastFist = t;
     if (this.fired || t - this.closedAt < this.o.holdMs) return false;
     this.fired = true;
     return true;
-  }
-
-  // Whether a flick now can be trusted: fingers straight, and not just out of a fist. Curling the
-  // fingers into a fist snaps the tips down just like a flick.
-  allowsFlick(t: number): boolean {
-    return this.ext > this.o.straight && !this.hyst.on && t - this.lastFist > this.o.afterMs;
   }
 
   reset(): void {
@@ -85,12 +75,12 @@ export class FistDetector {
 }
 
 // ---------- pinch ----------
-// Thumb tip against a finger's last segment, in hand sizes (the measure and thresholds from the
-// earlier pinch controls). Either the index or the middle finger counts, whichever is closer, so
-// a pinch that drifts between them still reads.
+// Thumb tip against the middle finger's last segment, in hand sizes (the measure and thresholds
+// from the earlier pinch controls). Only the middle finger counts: the index is pointing, so a
+// thumb nearer the index than the middle reads as open.
 export const PINCH_DEFAULTS = { on: 0.45, off: 0.65 };
 const THUMB_TIP = 4;
-const PINCH_SEGMENTS: [number, number][] = [[7, 8], [11, 12]]; // index, middle: DIP → TIP
+const INDEX: [number, number] = [7, 8], MIDDLE: [number, number] = [11, 12]; // DIP → TIP
 
 // Distance from p to the segment ab. The thumb meets the pad of the finger, not its tip landmark.
 export function segDist(p: number[], a: number[], b: number[]): number {
@@ -103,7 +93,9 @@ export function segDist(p: number[], a: number[], b: number[]): number {
 export function pinchMetric(lm: Landmark[], vw: number, vh: number): number {
   const P = (i: number) => [lm[i].x * vw, lm[i].y * vh];
   const s = handSize(lm, vw, vh);
-  return Math.min(...PINCH_SEGMENTS.map(([a, b]) => segDist(P(THUMB_TIP), P(a), P(b)))) / s;
+  const d = ([a, b]: [number, number]) => segDist(P(THUMB_TIP), P(a), P(b)) / s;
+  const mid = d(MIDDLE);
+  return d(INDEX) < mid ? Math.max(mid, 1) : mid;
 }
 
 // True once per pinch, on the frame it closes; it has to open past `off` before the next.

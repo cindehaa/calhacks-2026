@@ -47,7 +47,7 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
   g.restore();
 }
 
-// The hand cursor: a soft glow, a ring, a filled centre just after a flick, amber while a fist.
+// The hand cursor: a soft glow, a ring, a filled centre just after a pinch, amber while a fist.
 export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, state: CursorState): void {
   const glow = g.createRadialGradient(x, y, 0, x, y, 42);
   glow.addColorStop(0, state === 'fist' ? 'rgba(251,191,36,0.5)' : 'rgba(74,163,255,0.5)');

@@ -7,8 +7,6 @@
 //                                    any mismatch flag and how the troop fought: input for tuning
 //   npm run logs -- --wishes         what the designer wished the lists had, by players, and
 //                                    mismatch flags per on_hit, trait and element: input for `npm run learn`
-//   npm run logs -- --by-scheme      control schemes side by side (A/B): attempts, deploys, cancels,
-//                                    "didn't catch that", mismatch flags, timings, 👍 rate
 //   npm run logs -- --server maincloud --db <name>
 import { execFileSync } from 'node:child_process';
 
@@ -124,57 +122,6 @@ if (args.includes('--wishes')) {
     const line = [...per].sort((a, b) => b[1].flagged - a[1].flagged || b[1].n - a[1].n)
       .map(([v, e]) => `${v} ${e.flagged}/${e.n}`).join(' · ');
     console.log(`  ${key.padEnd(8)} ${line || '-'}`);
-  }
-  process.exit(0);
-}
-
-// ---------- control schemes side by side ----------
-
-if (args.includes('--by-scheme')) {
-  const pctS = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : '-');
-  const med = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : NaN);
-  const ms = (v: number) => (Number.isFinite(v) ? `${Math.round(v)} ms` : '-');
-  const count = <T,>(xs: T[], f: (r: T) => string) => {
-    const m = new Map<string, number>();
-    for (const x of xs) m.set(f(x), (m.get(f(x)) ?? 0) + 1);
-    return [...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ');
-  };
-  const fb = events.filter(e => e.kind === 'controls:feedback').map(e => {
-    const [vote, scheme, how] = String(e.detail).split(' ');
-    return { up: vote === 'up', scheme: scheme || '?', how: how || '' };
-  });
-  const tries = gens.filter(g => g.input !== 'anchor');
-  const schemeOfGen = (g: Row) => String(g.scheme || '(none)');
-  const ids = [...new Set([...tries.map(schemeOfGen), ...fb.map(f => f.scheme)])].sort();
-  const roundsBy = (id: string) => matches.filter(m => m.scheme0 === id || m.scheme1 === id).length;
-  console.log(`━━ control schemes: ${tries.length} deploy attempts (anchors left out), ${fb.length} feedback answers`);
-  for (const id of ids) {
-    const gs = tries.filter(g => schemeOfGen(g) === id);
-    const deployedN = gs.filter(g => g.outcome === 'deployed').length;
-    const missed = gs.filter(g => String(g.outcome) === 'cancelled: no description heard').length;
-    const cancels = gs.filter(g => String(g.outcome).startsWith('cancel') && g.outcome !== 'cancelled: no description heard');
-    const reasons = new Map<string, number>();
-    for (const g of cancels) {
-      const r = String(g.outcome).match(/\((.*)\)/)?.[1] ?? String(g.outcome);
-      reasons.set(r, (reasons.get(r) ?? 0) + 1);
-    }
-    // A cancel within a second of the commit: probably a commit the player didn't mean.
-    const accidental = cancels.filter(g => n(g.loggedAt) - n(g.lockedAt) < 1000).length;
-    const flags = gs.filter(g => joined(g).flagged).length;
-    const toStats = gs.filter(g => n(g.releasedAt) && n(g.designedAt)).map(g => n(g.designedAt) - n(g.releasedAt));
-    const toWords = gs.filter(g => n(g.releasedAt) && n(g.lockedAt)).map(g => n(g.releasedAt) - n(g.lockedAt));
-    const f = fb.filter(x => x.scheme === id);
-    const ups = f.filter(x => x.up).length;
-    const by = count(gs, g => String(g.lockedBy));
-    console.log(`\n  ${id}  · ${roundsBy(id)} rounds · fired by ${by || '-'}`);
-    console.log(`    attempts         ${gs.length}`);
-    console.log(`    deployed         ${deployedN} (${pctS(deployedN, gs.length)})`);
-    console.log(`    didn't catch it  ${missed} (${pctS(missed, gs.length)})`);
-    console.log(`    cancels          ${cancels.length} (${pctS(cancels.length, gs.length)})${reasons.size ? ': ' + [...reasons].map(([k, v]) => `${k} ${v}`).join(', ') : ''}`);
-    console.log(`    accidental?      ${accidental} cancelled within 1 s of the commit`);
-    console.log(`    mismatch flags   ${flags} (${pctS(flags, deployedN)} of deploys)`);
-    console.log(`    commit → words   p50 ${ms(med(toWords))} · words → stats p50 ${ms(med(toStats))}`);
-    console.log(`    controls felt    ${f.length ? `👍 ${ups} / 👎 ${f.length - ups} (${pctS(ups, f.length)} 👍)` : '-'}${f.length ? ' · by ' + count(f, x => x.how) : ''}`);
   }
   process.exit(0);
 }

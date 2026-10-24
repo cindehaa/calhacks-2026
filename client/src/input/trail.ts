@@ -1,5 +1,5 @@
 // Short timestamped cursor trail, so a fire can aim from where the pointer was a moment ago,
-// before the flick itself moved it.
+// before the pinch itself moved it.
 
 export interface Pt { x: number; y: number }
 

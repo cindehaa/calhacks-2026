@@ -1,39 +1,32 @@
-// Pinch to summon. The mic always listens; the index knuckle aims (it barely moves when the
-// fingers close), and the pinch itself fires the moment it starts, aimed from ~100 ms before.
-// Thumb against the index or the middle finger, whichever is closer. A flick or a fist while the
-// troop is still being summoned takes it back, refunded; "cancel" or Esc too.
+// The controls. The mic always listens; the index fingertip aims, and touching the thumb to the
+// middle finger fires whatever was said, aimed from ~100 ms before the pinch closed (the index
+// barely moves when the middle finger does). A fist takes back a troop still being summoned,
+// refunded, or else clears the words; "cancel" or Esc too. On menus a pinch clicks.
 import { keysAndMouse, Pending } from './common';
 import type { Pt, Scheme } from './types';
 
 export const pinch: Scheme = {
   id: 'pinch',
   name: 'Pinch',
-  howTo: 'Point, say it, pinch to summon. Fist to cancel.',
-  needs: ['hand', 'pinch', 'fist', 'flick', 'words', 'deploy', 'key', 'mouse'],
+  howTo: 'Point with your index finger, say the troop, pinch thumb and middle finger to send it. Fist to cancel.',
+  needs: ['hand', 'pinch', 'fist', 'words', 'deploy', 'key', 'mouse'],
   create(emit, ctx) {
     const pending = new Pending();
-    let knuckle: Pt | null = null;
-    const takeBack = (why: string) => {
-      if (pending.any) emit({ kind: 'cancel', why });
-      else if (why === 'fist') emit({ kind: 'clear', why });
-    };
+    let tip: Pt | null = null;
     return {
       on(s) {
         pending.on(s);
-        if (s.kind === 'hand') {
-          knuckle = s.visible ? s.knuckle : null;
-          emit({ kind: 'aim', at: knuckle });
-        } else if (s.kind === 'pinch') {
+        if (s.kind === 'hand') tip = s.visible ? s.cursor : null;
+        else if (s.kind === 'pinch') {
           if (ctx.menus()) emit({ kind: 'uiActivate', at: s.aim });
           else emit({ kind: 'commit', t: s.t, by: 'pinch', at: s.aim });
         } else if (s.kind === 'fist') {
-          if (s.closed) takeBack('fist');
-        } else if (s.kind === 'flick') {
-          if (ctx.menus()) emit({ kind: 'uiActivate', at: knuckle });
-          else takeBack('flick');
+          if (!s.closed) return;
+          if (pending.any) emit({ kind: 'cancel', why: 'fist' });
+          else emit({ kind: 'clear', why: 'fist' });
         } else if (s.kind === 'words') {
           if (s.cancel && pending.any) emit({ kind: 'cancel', why: 'said' });
-        } else keysAndMouse(s, emit, ctx, { menuAt: () => knuckle });
+        } else keysAndMouse(s, emit, ctx, { menuAt: () => tip });
       },
       state: () => (pending.any ? 'summoning' : 'ready'),
     };

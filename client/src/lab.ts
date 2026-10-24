@@ -1,13 +1,13 @@
 // Workshop page (dev builds, ?lab): the live input signals on a scrolling timeline (hand, gesture
-// scores, voice activity, transcript words) and the intents the active scheme emits, with a scheme
-// switcher. For designing and tuning schemes, not for players.
+// scores, voice activity, transcript words) and the intents the control scheme emits. For tuning
+// the controls, not for players.
 import type { InputController } from './input/controller';
 import type { Intent, Signal } from './input/schemes/types';
 
 const SPAN_MS = 10_000;
 const ROWS = ['hand', 'fist', 'pinch', 'point', 'voice', 'words', 'gesture', 'intent'] as const;
 const INTENT_COLOR: Record<Intent['kind'], string> = {
-  aim: '#64748b', lock: '#fbbf24', commit: '#4ade80', cancel: '#f87171', clear: '#fb923c', uiActivate: '#a78bfa',
+  commit: '#4ade80', cancel: '#f87171', clear: '#fb923c', uiActivate: '#a78bfa',
 };
 
 export function openLab(input: InputController): void {
@@ -15,7 +15,7 @@ export function openLab(input: InputController): void {
   el.id = 'lab';
   el.innerHTML = `
     <div class="labBar"><b>Workshop</b>
-      <select></select><span class="labHow"></span><span class="labState"></span>
+      <span class="labHow"></span><span class="labState"></span>
       <button data-act="min">–</button></div>
     <canvas></canvas>`;
   const style = document.createElement('style');
@@ -29,10 +29,6 @@ export function openLab(input: InputController): void {
     #lab canvas { flex: 1; width: 100%; }`;
   document.head.appendChild(style);
   document.body.appendChild(el);
-  const sel = el.querySelector('select')!;
-  sel.innerHTML = input.schemes.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-  sel.value = input.scheme.id;
-  sel.onchange = () => input.setScheme(sel.value);
   el.querySelector<HTMLButtonElement>('[data-act="min"]')!.onclick = () => el.classList.toggle('min');
 
   type Mark = { t: number; row: (typeof ROWS)[number]; color: string; label?: string; v?: number; until?: number };
@@ -52,13 +48,12 @@ export function openLab(input: InputController): void {
         voiceOn = null;
       }
     } else if (s.kind === 'words') marks.push({ t: s.t, row: 'words', color: s.final ? '#e2e8f0' : '#64748b', label: s.cancel ? `✕ ${s.text}` : s.text });
-    else if (s.kind === 'flick' || s.kind === 'fist' || s.kind === 'pinch') marks.push({ t: s.t, row: 'gesture', color: '#38bdf8', label: s.kind });
+    else if (s.kind === 'fist' || s.kind === 'pinch') marks.push({ t: s.t, row: 'gesture', color: '#38bdf8', label: s.kind });
     else if (s.kind === 'deploy') marks.push({ t: s.t, row: 'gesture', color: '#94a3b8', label: `deploy ${s.phase}` });
     else if (s.kind === 'key') marks.push({ t: s.t, row: 'gesture', color: '#cbd5e1', label: s.key });
   });
   input.listeners.intent.push((i: Intent, ok: boolean) => {
-    if (i.kind === 'aim') return; // every frame for some schemes
-    const label = i.kind === 'commit' ? `commit ${i.by}${i.from !== undefined ? ' (from lock)' : ''}` : i.kind === 'cancel' || i.kind === 'clear' ? `${i.kind} ${i.why}` : i.kind;
+    const label = i.kind === 'commit' ? `commit ${i.by}` : i.kind === 'cancel' || i.kind === 'clear' ? `${i.kind} ${i.why}` : i.kind;
     marks.push({ t: performance.now(), row: 'intent', color: INTENT_COLOR[i.kind], label: ok ? label : `${label} ✗` });
   });
 
@@ -115,7 +110,6 @@ export function openLab(input: InputController): void {
     }
     el.querySelector('.labHow')!.textContent = input.scheme.howTo;
     el.querySelector('.labState')!.textContent = input.schemeState();
-    if (sel.value !== input.scheme.id) sel.value = input.scheme.id;
   };
   requestAnimationFrame(draw);
 }
