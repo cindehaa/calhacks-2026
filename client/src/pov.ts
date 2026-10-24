@@ -44,15 +44,19 @@ const C = {
   bg: '#0a0c1a',
   myHalf: '#141b3b',
   theirHalf: '#1d162b',
-  mine: '#4aa3ff',
-  theirs: '#ff5d6c',
-  mineDark: '#1d4a82',
-  theirsDark: '#7d2431',
-  mineLight: '#cfe6ff',
-  theirsLight: '#ffd0d5',
+  blue: '#4aa3ff',
+  red: '#ff5d6c',
+  blueDark: '#1d4a82',
+  redDark: '#7d2431',
+  blueLight: '#cfe6ff',
+  redLight: '#ffd0d5',
   text: '#e8ebf5',
   elixir: '#ff8a3d', // embers: warm amber, a proposal for Cindy (meta/aesthetics.md)
 };
+// Team colours go by side, the same on both screens: side 0 is blue, side 1 red. The view still
+// puts your side at the bottom.
+const TEAM = [{ main: C.blue, dark: C.blueDark, light: C.blueLight }, { main: C.red, dark: C.redDark, light: C.redLight }];
+const team = (side: number) => TEAM[side === 1 ? 1 : 0];
 const FONT = "'Cinzel', Georgia, serif"; // the menus' title face; its figures are lining, unlike Alegreya Sans's
 const DROP_HEIGHT = 3; // tiles; troops hang here until the last 0.3 s of the deploy delay
 const FLY_HEIGHT = 1; // tiles; flying units' feet hover this high
@@ -158,6 +162,7 @@ export class PovBoard {
   private trailObjs = new Map<Trail, { obj: THREE.Object3D; mats: THREE.MeshBasicMaterial[]; seen: number }>();
   private parts: Points;
   private flyers: number[] = []; // x, y of each flying unit this frame, so effects at one start up there
+  private rim: THREE.PointLight; // the far end glows in the other side's colour
   private aimRing: THREE.Mesh;
   private lockRing: THREE.Mesh;
   private beam: THREE.Mesh;
@@ -180,8 +185,7 @@ export class PovBoard {
   private thinRingGeo = new THREE.RingGeometry(0.9, 1, 48);
   private dashGeo = dashedRing(0.82, 0.92, 16);
   private footGeo = new THREE.RingGeometry(0.8, 0.95, 32);
-  private footMine = new THREE.MeshBasicMaterial({ color: C.mine, transparent: true, opacity: 0.7, depthWrite: false });
-  private footTheirs = new THREE.MeshBasicMaterial({ color: C.theirs, transparent: true, opacity: 0.7, depthWrite: false });
+  private foot = TEAM.map(t => new THREE.MeshBasicMaterial({ color: t.main, transparent: true, opacity: 0.7, depthWrite: false }));
   private coneGeo = new THREE.CircleGeometry(1, 12, -Math.PI / 6, Math.PI / 3);
   private ballGeo = new THREE.SphereGeometry(1, 10, 8);
   private stickGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).translate(0, 0.5, 0);
@@ -207,9 +211,9 @@ export class PovBoard {
     sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 24, bottom: -24, near: 1, far: 80 });
     s.add(sun);
-    const rim = new THREE.PointLight(C.theirs, 40, 30);
-    rim.position.set(0, 6, -MID_Y - 1);
-    s.add(rim);
+    this.rim = new THREE.PointLight(C.red, 40, 30);
+    this.rim.position.set(0, 6, -MID_Y - 1);
+    s.add(this.rim);
     s.add(this.layout, this.pockets);
     this.addSurroundings();
     this.scenery = new Scenery(s);
@@ -221,7 +225,7 @@ export class PovBoard {
     const ring = (inner: number, outer: number, opacity: number) => {
       const m = new THREE.Mesh(
         new THREE.RingGeometry(inner, outer, 48),
-        new THREE.MeshBasicMaterial({ color: C.mine, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide })
+        new THREE.MeshBasicMaterial({ color: C.blue, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide })
       );
       m.rotation.x = -Math.PI / 2;
       m.visible = false;
@@ -232,7 +236,7 @@ export class PovBoard {
     this.lockRing = ring(0.9, 1.15, 1);
     this.beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.08, 0.08, 8, 8, 1, true),
-      new THREE.MeshBasicMaterial({ color: C.mine, transparent: true, opacity: 0.35, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: C.blue, transparent: true, opacity: 0.35, depthWrite: false })
     );
     this.beam.visible = false;
     s.add(this.beam);
@@ -274,7 +278,7 @@ export class PovBoard {
     const real = performance.now() / 1000;
     // Effects run on juice's clock, which slows for a moment when a tower falls (visual only).
     const now = this.juice.clock(real);
-    this.side = v.mySide;
+    if (v.mySide !== this.side) this.recolor(v.mySide);
     this.fx.observe(v, now);
     this.juice.observe(v, now, real, this.fx);
     this.lastView = v;
@@ -404,14 +408,22 @@ export class PovBoard {
     }
   }
 
+  // Your aim, lock and drop markers wear your side's colour; the far end glows in the other's.
+  private recolor(side: Side): void {
+    this.side = side;
+    for (const m of [this.aimRing, this.lockRing, this.beam]) (m.material as THREE.MeshBasicMaterial).color.set(team(side).main);
+    this.rim.color.set(team(1 - side).main);
+    this.scenery.foe(1 - side);
+  }
+
   // Taking an enemy princess tower opens that side of their half for your drops: tint it.
   private syncPockets(towers: DrawTower[]): void {
     const zones = deployZones(this.side, towers.map(t => ({ side: t.side, lane: t.lane ?? -1, hp: t.hp }))).slice(1);
-    const key = zones.map(z => [z.x0, z.x1, z.y0, z.y1].join(',')).join(';');
+    const key = this.side + ':' + zones.map(z => [z.x0, z.x1, z.y0, z.y1].join(',')).join(';');
     if (key === this.pocketKey) return;
     this.pocketKey = key;
     clearGroup(this.pockets);
-    const mat = new THREE.MeshBasicMaterial({ color: C.mine, transparent: true, opacity: 0.12, depthWrite: false });
+    const mat = new THREE.MeshBasicMaterial({ color: team(this.side).main, transparent: true, opacity: 0.12, depthWrite: false });
     for (const z of zones) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(z.x1 - z.x0, z.y1 - z.y0), mat);
       m.rotation.x = -Math.PI / 2;
@@ -523,7 +535,7 @@ export class PovBoard {
       // Your king tower losing health reddens the edges of the screen.
       if (king && mine && tw.hp < t.hp && v.status === 'playing') this.hurt = Math.min(1, this.hurt + 0.6);
       t.hp = tw.hp;
-      const col = mine ? C.mine : C.theirs;
+      const col = team(tw.side).main;
       t.mat.color.set(col);
       t.mat.emissive.set(col);
       // Frost climbs toward its line (damage, or overtime's creep) rather than jumping.
@@ -591,7 +603,6 @@ export class PovBoard {
     this.flyers.length = 0;
     for (const u of v.units) {
       const troop = v.troops.get(u.troopId);
-      const mine = u.side === v.mySide;
       const q = quirks(u);
       let m = this.units.get(u.id);
       if (!m) {
@@ -602,14 +613,14 @@ export class PovBoard {
         const glow = new THREE.Sprite(glowMat);
         const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
         shadow.rotation.x = -Math.PI / 2;
-        const ring = new THREE.Mesh(this.footGeo, mine ? this.footMine : this.footTheirs);
+        const ring = new THREE.Mesh(this.footGeo, this.foot[u.side === 1 ? 1 : 0]);
         ring.rotation.x = -Math.PI / 2;
         this.scene.add(sprite, glow, shadow, ring);
         m = { sprite, mat, glow, glowMat, ghosts: null, shadow, ring, seen: 0, h: 1, top: 1 };
         this.units.set(u.id, m);
       }
       m.seen = this.frame;
-      m.ring.material = mine ? this.footMine : this.footTheirs;
+      m.ring.material = this.foot[u.side === 1 ? 1 : 0];
 
       const r = UNIT_RADIUS * sizeScale(u.maxHp);
       const a = this.fx.anim(u.id, r * BODY);
@@ -635,7 +646,7 @@ export class PovBoard {
       } else {
         w = h = r * 2.6 * BODY;
         const glyph = troopGlyph(troop?.name ?? '?', troop?.description);
-        m.mat.map = spriteFailed(troop?.description) ? this.sketchTexture(glyph, mine) : this.tokenTexture(glyph, mine);
+        m.mat.map = spriteFailed(troop?.description) ? this.sketchTexture(glyph, u.side) : this.tokenTexture(glyph, u.side);
       }
       m.h = h;
       const mat = m.mat;
@@ -718,14 +729,14 @@ export class PovBoard {
   }
 
   // The placeholder token: a team disc with the troop's glyph, one per (glyph, team).
-  private tokenTexture(glyph: string, mine: boolean): THREE.CanvasTexture {
-    const key = glyph + '|' + (mine ? 1 : 0);
+  private tokenTexture(glyph: string, side: number): THREE.CanvasTexture {
+    const key = glyph + '|' + side;
     let t = this.textures.get(key);
     if (t) return t;
     const c = document.createElement('canvas');
     const g = c.getContext('2d')!;
     c.width = c.height = 128;
-    g.fillStyle = mine ? C.mineDark : C.theirsDark;
+    g.fillStyle = team(side).dark;
     g.beginPath();
     g.arc(64, 64, 56, 0, Math.PI * 2);
     g.fill();
@@ -734,7 +745,7 @@ export class PovBoard {
     g.arc(52, 50, 40, 0, Math.PI * 2);
     g.fill();
     g.lineWidth = 8;
-    g.strokeStyle = mine ? C.mine : C.theirs;
+    g.strokeStyle = team(side).main;
     g.beginPath();
     g.arc(64, 64, 56, 0, Math.PI * 2);
     g.stroke();
@@ -747,8 +758,8 @@ export class PovBoard {
 
   // No art coming: the token redrawn as an ink sketch on frost paper. Cross-hatching, a doubled
   // hand-drawn rim in the team colour and the glyph inked in greys, like a study for a card.
-  private sketchTexture(glyph: string, mine: boolean): THREE.CanvasTexture {
-    const key = 'sketch|' + glyph + '|' + (mine ? 1 : 0);
+  private sketchTexture(glyph: string, side: number): THREE.CanvasTexture {
+    const key = 'sketch|' + glyph + '|' + side;
     let t = this.textures.get(key);
     if (t) return t;
     const c = document.createElement('canvas');
@@ -766,7 +777,7 @@ export class PovBoard {
     g.strokeStyle = 'rgba(23,27,46,0.12)';
     for (let i = -128; i < 128; i += 13) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 128, 128); g.stroke() }
     g.restore();
-    g.strokeStyle = mine ? C.mine : C.theirs;
+    g.strokeStyle = team(side).main;
     g.lineCap = 'round';
     for (const [dx, dy, w, a0] of [[0, 0, 6, 0.1], [1.5, -1, 2.5, 2.2]] as const) {
       g.lineWidth = w;
@@ -800,7 +811,7 @@ export class PovBoard {
         this.pendings.push(m);
       }
       const frac = Math.max(0, Math.min(1, p.age / DEPLOY_DELAY));
-      const col = p.side === v.mySide ? C.mine : C.theirs;
+      const col = team(p.side).main;
       const closing = m.closing.material as THREE.MeshBasicMaterial, target = m.target.material as THREE.MeshBasicMaterial;
       closing.color.set(col);
       closing.opacity = 0.3 + 0.6 * frac;
@@ -832,6 +843,7 @@ export class PovBoard {
       }
       const pulse = 0.5 + 0.5 * Math.sin(now * 6);
       s.visible = d.phase !== 'refused';
+      s.material.color.set(team(this.side).light);
       s.material.opacity = 0.35 + 0.3 * pulse;
       s.scale.setScalar(1.3 + 0.1 * pulse);
       this.at(d.x, d.y, 0.05, s.position);
@@ -1148,7 +1160,7 @@ export class PovBoard {
       const p = this.project(tw.x, tw.y, tw.lane === KING_LANE ? 4.9 : 3.9);
       if (!p) return;
       const s = this.scaleAt(tw.x, tw.y);
-      const col = tw.side === v.mySide ? C.mine : C.theirs;
+      const col = team(tw.side).main;
       this.bar(p[0] - 30 * s, p[1], 60 * s, Math.max(3, 5 * s), tw.hp / tw.maxHp, col);
       this.outlined(String(Math.ceil(tw.hp)), p[0], p[1] - 5 * s, Math.max(9, Math.round(12 * s)), C.text);
     });
@@ -1158,8 +1170,8 @@ export class PovBoard {
       if (!q) continue;
       const mine = p.side === v.mySide;
       const left = DEPLOY_DELAY - p.age;
-      this.outlined(left > 0.05 ? left.toFixed(1) : '…', q[0], q[1] + 4, 13, mine ? C.text : C.theirsLight);
-      if (!mine) this.pill('INCOMING', q[0], q[1] - 24, 10, C.theirsDark, C.theirs, '#ffffff');
+      this.outlined(left > 0.05 ? left.toFixed(1) : '…', q[0], q[1] + 4, 13, mine ? C.text : team(p.side).light);
+      if (!mine) this.pill('INCOMING', q[0], q[1] - 24, 10, team(p.side).dark, team(p.side).main, '#ffffff');
     }
     // Your drops waiting on words or stats: what you said, and "designing…" then the name.
     for (const d of v.drops ?? []) {
@@ -1167,8 +1179,8 @@ export class PovBoard {
       if (!q) continue;
       const refused = d.phase === 'refused';
       g.globalAlpha = refused ? Math.max(0, 1 - d.age / 1400) : 1;
-      this.pill(d.text, q[0], q[1], 11, 'rgba(13,16,32,0.9)', refused ? C.theirs : C.mine, refused ? C.theirsLight : C.text);
-      if (d.sub) this.outlined(d.sub, q[0], q[1] - 14, 11, refused ? C.theirsLight : d.phase === 'designing' && d.sub !== 'designing…' ? C.mineLight : C.text);
+      this.pill(d.text, q[0], q[1], 11, 'rgba(13,16,32,0.9)', refused ? C.red : team(this.side).main, refused ? C.redLight : C.text);
+      if (d.sub) this.outlined(d.sub, q[0], q[1] - 14, 11, refused ? C.redLight : d.phase === 'designing' && d.sub !== 'designing…' ? team(this.side).light : C.text);
       g.globalAlpha = 1;
     }
 
@@ -1252,7 +1264,7 @@ export class PovBoard {
       }
       if (hurt) {
         const bw = Math.max(18, Math.min(70, r * 1.5));
-        this.bar(x - bw / 2, topY - Math.max(4, r * 0.2), bw, Math.max(3, r * 0.14), u.hp / u.maxHp, u.side === v.mySide ? C.mine : C.theirs);
+        this.bar(x - bw / 2, topY - Math.max(4, r * 0.2), bw, Math.max(3, r * 0.14), u.hp / u.maxHp, team(u.side).main);
       }
     }
   }
@@ -1326,7 +1338,7 @@ export class PovBoard {
       let name = troop.name;
       if (name.length > 16) name = name.slice(0, 15) + '…';
       const size = Math.round(13 * s);
-      const ink = mine ? C.mineLight : C.theirsLight;
+      const ink = team(u.side).light;
       const buildings = quirks(u).targets === 'buildings';
       g.font = `700 ${size}px ${FONT}`;
       const icon = buildings ? 13 * s : 0;
@@ -1350,7 +1362,7 @@ export class PovBoard {
       g.globalAlpha = fade;
       // The cost stays hidden until the troop lands, then rolls like a slot reel (juice.ts).
       const cost = u.delay > 0 ? null : this.juice.costLabel(u.troopId, now);
-      if (u.delay > 0) this.pill(u.delay.toFixed(1), x, py, 11 * s, 'rgba(13,16,32,0.9)', mine ? C.mine : C.theirs, C.text);
+      if (u.delay > 0) this.pill(u.delay.toFixed(1), x, py, 11 * s, 'rgba(13,16,32,0.9)', team(u.side).main, C.text);
       else if (cost) {
         if (cost.glow) { g.shadowColor = cost.glow; g.shadowBlur = 14 }
         this.pill(cost.text, x, py, 11 * s * cost.scale, cost.fill, cost.stroke, cost.ink, EMBER);
@@ -1587,7 +1599,7 @@ function silhouetteTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;
-  g.fillStyle = C.mineLight;
+  g.fillStyle = '#ffffff'; // tinted with your side's colour where it's drawn
   g.beginPath();
   g.arc(32, 20, 11, 0, Math.PI * 2);
   g.fill();

@@ -39,8 +39,7 @@ void main() {
   gl_FragColor = vec4(col, alpha * uAlpha);
 }`;
 
-const MINE = new THREE.Color('#4aa3ff');
-const THEIRS = new THREE.Color('#ff5d6c');
+const TEAM = [new THREE.Color('#4aa3ff'), new THREE.Color('#ff5d6c')]; // by side: blue, red
 const RADIUS = 1.3; // tiles
 
 type At = (x: number, y: number, h: number, out: THREE.Vector3) => THREE.Vector3;
@@ -53,12 +52,12 @@ export class SummonCircles {
 
   sync(v: View, air: readonly Airborne[], now: number): void {
     let i = 0;
-    for (const p of v.pendings) this.place(i++, p.side === v.mySide, p.x, p.y, Math.max(0, Math.min(1, p.age / DEPLOY_DELAY)), now);
-    for (const a of air) this.place(i++, a.side === v.mySide, a.x, a.y, a.frac, now);
+    for (const p of v.pendings) this.place(i++, p.side, p.x, p.y, Math.max(0, Math.min(1, p.age / DEPLOY_DELAY)), now);
+    for (const a of air) this.place(i++, a.side, a.x, a.y, a.frac, now);
     for (let k = i; k < this.pool.length; k++) this.pool[k].visible = false;
   }
 
-  private place(i: number, mine: boolean, x: number, y: number, frac: number, now: number): void {
+  private place(i: number, side: number, x: number, y: number, frac: number, now: number): void {
     let m = this.pool[i];
     if (!m) {
       const mat = new THREE.ShaderMaterial({
@@ -74,7 +73,7 @@ export class SummonCircles {
     const u = m.material.uniforms;
     u.uFrac.value = frac;
     u.uTime.value = now;
-    (u.uColor.value as THREE.Color).copy(mine ? MINE : THEIRS);
+    (u.uColor.value as THREE.Color).copy(TEAM[side === 1 ? 1 : 0]);
     u.uAlpha.value = Math.min(1, 0.75 + frac);
     m.scale.setScalar(1 + 0.06 * Math.sin(now * 5) * frac);
     this.at(x, y, 0.045, m.position);

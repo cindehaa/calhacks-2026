@@ -192,14 +192,14 @@ export class BoardReactions {
   // Once a frame, before the units and towers are placed.
   step(now: number, hover: BoardHit | null): void {
     this.now = now;
-    for (const q of this.queued.splice(0)) this.apply(q.hit, q.reaction, q.x, q.y, now);
+    for (const q of this.queued.splice(0)) this.apply(q.hit, q.reaction, q.x, q.y, q.side, now);
     const id = hover?.kind === 'unit' ? hover.unit.id : null;
     if (id !== null && id !== this.hoverId) blip('hover');
     this.hoverId = id;
     this.pops = this.pops.filter(p => now - p.t0 < 1.1);
   }
 
-  private apply(hit: BoardHit | null, reaction: Reaction, x: number, y: number, now: number): void {
+  private apply(hit: BoardHit | null, reaction: Reaction, x: number, y: number, side: number, now: number): void {
     const few = reduced();
     if (reaction === 'hop' && hit?.kind === 'unit') {
       this.jolts.set(hit.unit.id, { kind: 'hop', t0: now });
@@ -236,8 +236,8 @@ export class BoardReactions {
         const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 1.2;
         this.fx.particle(x, y, 0.05, Math.cos(a) * s, Math.sin(a) * s, 0.5 + Math.random() * 0.8, 0.5 + Math.random() * 0.3, 0.14 + Math.random() * 0.12, i % 2 ? '#e6efff' : '#c8d6f0', 0);
       }
-      // The red side's ground smoulders: a few embers rise with the snow.
-      for (let i = 0; i < (few ? 2 : 6); i++) {
+      // The red side's ground smoulders: a few embers rise with the snow (puffs land on the other half).
+      if (side === 0) for (let i = 0; i < (few ? 2 : 6); i++) {
         const a = Math.random() * Math.PI * 2;
         this.fx.particle(x, y, 0.1, Math.cos(a) * 0.4, Math.sin(a) * 0.4, 1.2 + Math.random() * 1.2, 0.8 + Math.random() * 0.5, 0.05 + Math.random() * 0.04, i % 2 ? '#ffb02e' : '#ff7a3d', 2);
       }

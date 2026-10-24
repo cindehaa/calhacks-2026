@@ -114,7 +114,7 @@
           <button id="copyBtn" class="slab stone"><span class="face"><i class="ico" data-icon="copy" data-tone="gold" data-size="20"></i><b>Copy</b></span></button></div>
       </div>
       <div class="houses">
-        <div class="houseMe" id="slotMe"></div><span class="vs">VS</span><div class="houseFoe" id="slotFoe"></div>
+        <div class="houseBlue" id="slotBlue"></div><span class="vs">VS</span><div class="houseRed" id="slotRed"></div>
       </div>
       <button id="startBtn" data-primary class="slab amber wide" disabled><span class="face"><i class="ico" data-icon="swords" data-tone="carved" data-size="34"></i><span class="bLabel"><b>Start match</b><small id="startSub">Waiting for your friend to join</small></span></span></button>
       <div class="gDivider"><i></i><span class="gLabel muted">Or join a friend’s room</span><i></i></div>
@@ -128,9 +128,9 @@
   </div>
 
   <div id="versus" hidden aria-live="polite">
-    <div class="vsSide vsMe"><span class="vsShield" id="vsMeShield"></span><span class="vsName" id="vsMe"></span><span class="vsTag">Blue side</span></div>
+    <div class="vsSide vsBlue"><span class="vsShield" id="vsBlueShield"></span><span class="vsName" id="vsBlue"></span><span class="vsTag" id="vsBlueTag">Blue side</span></div>
     <div class="vsMid">VS</div>
-    <div class="vsSide vsThem"><span class="vsShield" id="vsThemShield"></span><span class="vsName" id="vsThem"></span><span class="vsTag" id="vsThemTag">Red side</span></div>
+    <div class="vsSide vsRed"><span class="vsShield" id="vsRedShield"></span><span class="vsName" id="vsRed"></span><span class="vsTag" id="vsRedTag">Red side</span></div>
   </div>
 
   <div id="practice" class="overlay gOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="practiceTitle">
@@ -184,12 +184,12 @@
     <div id="resultFrost"><img class="frostCorner tl" src="/ui/frost-heavy-tl.svg" alt=""><img class="frostCorner tr" src="/ui/frost-heavy-tr.svg" alt=""><img class="frostCorner bl" src="/ui/frost-heavy-bl.svg" alt=""><img class="frostCorner br" src="/ui/frost-heavy-br.svg" alt=""></div>
     <div class="tapestry left small" id="resBanMe">
       <svg class="cloth" aria-hidden="true"></svg>
-      <div class="bannerBody"><span class="bHouse">Blue side</span><span class="bName">You</span><span class="bRule"></span>
+      <div class="bannerBody"><span class="bHouse" id="resMeSide">Blue side</span><span class="bName">You</span><span class="bRule"></span>
         <span class="bLine" id="resMeName"></span><span class="bTag" id="resMeTag"></span></div>
     </div>
     <div class="tapestry right small" id="resBanFoe">
       <svg class="cloth" aria-hidden="true"></svg>
-      <div class="bannerBody"><span class="bHouse">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
+      <div class="bannerBody"><span class="bHouse" id="resFoeSide">Red side</span><span class="bName">Opponent</span><span class="bRule"></span>
         <span class="bLine" id="resFoeName"></span><span class="bTag" id="resFoeTag"></span></div>
     </div>
     <div class="resultCol">

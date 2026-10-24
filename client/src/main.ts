@@ -19,7 +19,7 @@ import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
-import { crownSvg, shieldSvg } from './art';
+import { crownSvg, shieldSvg, type House } from './art';
 import { clock } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
 import { hubFx, resultFx } from './hubfx';
@@ -133,6 +133,9 @@ const myRoom = () => online?.room();
 const match = (): MatchSource | null => local ?? (myRoom() ? online : null);
 const mySide = (): Side => match()?.side ?? 0;
 const canDeployAt = (x: number, y: number) => canDeploy(mySide(), x, y, match()?.towers() ?? []);
+// Colours go by side on both screens: side 0 (the host, or you against the bot) is blue, side 1 red.
+const SIDE_NAME = ['Blue side', 'Red side'];
+const houseOf = (side: Side): House => (side === 0 ? 'raven' : 'sun');
 
 function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
   p?.catch((e: Error) => {
@@ -388,6 +391,13 @@ $<HTMLFormElement>('joinForm').onsubmit = e => {
 };
 $('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}), ravenErr);
 
+// A player's slot in the room pop-up: shield on the outside edge, blue on the left and red on the right.
+function houseSlot(side: Side, name: string, sub: string, waiting = false) {
+  const text = `<div><span class="hName${waiting ? ' waiting' : ''}">${escapeHtml(name)}</span><span class="hHouse">${sub}</span></div>`;
+  const shield = shieldSvg(houseOf(side), waiting ? '' : initial(name), 50, waiting);
+  return side === 0 ? shield + text : text + shield;
+}
+
 function renderRaven() {
   const r = myRoom();
   // The host closing the room clears the guest's room too; say so instead of showing blank code slabs.
@@ -412,17 +422,20 @@ function renderRaven() {
     : r && !hosting ? 'You joined their room. Either of you can start the match.'
     : 'Send this code to a friend. They enter it under Join a room.';
   setHtml('codeSlabs', (r?.code ?? '····').split('').map(c => `<span class="code">${escapeHtml(c)}</span>`).join(''));
-  const meName = myName();
-  setHtml('slotMe', `${shieldSvg('raven', initial(meName), 50)}<div><span class="hName">${escapeHtml(meName)}</span><span class="hHouse">Blue side</span></div>`);
+  // The host plays the blue side and the guest the red one: blue's slot is on the left.
+  const meName = myName(), mine: Side = r && !hosting ? 1 : 0;
+  const [mySlot, foeSlot] = mine === 0 ? ['slotBlue', 'slotRed'] : ['slotRed', 'slotBlue'];
+  setHtml(mySlot, houseSlot(mine, meName, `${SIDE_NAME[mine]} · You`));
   const foeId = r ? (hosting ? r.guest : r.host) : undefined;
   const foe = foeId && net ? net.conn.db.player.identity.find(foeId) : undefined;
   const foeAway = !!foe && !foe.online;
   if (foe && foeAway !== hadAway) notice(foeAway ? `${foe.name} disconnected` : `${foe.name} is back`, { tone: foeAway ? 'warn' : 'good', key: 'foeAway' });
   hadAway = foeAway;
-  $('slotFoe').classList.toggle('away', foeAway);
-  setHtml('slotFoe', foe
-    ? `<div><span class="hName">${escapeHtml(foe.name)}</span><span class="hHouse">${foeAway ? 'Disconnected' : 'Red side'}</span></div>${shieldSvg('sun', initial(foe.name), 50)}`
-    : `<div><span class="hName waiting">Waiting for a friend…</span><span class="hHouse">Red side</span></div>${shieldSvg('sun', '', 50, true)}`);
+  $(mySlot).classList.remove('away');
+  $(foeSlot).classList.toggle('away', foeAway);
+  setHtml(foeSlot, foe
+    ? houseSlot(1 - mine as Side, foe.name, foeAway ? 'Disconnected' : SIDE_NAME[1 - mine])
+    : houseSlot(1 - mine as Side, 'Waiting for a friend…', SIDE_NAME[1 - mine], true));
   $<HTMLButtonElement>('startBtn').disabled = !r?.guest || foeAway;
   $('startSub').textContent = foeAway ? 'Your friend disconnected. Waiting for them to come back'
     : r?.guest ? 'Both players are here' : 'Waiting for your friend to join';
@@ -528,9 +541,11 @@ function renderResult() {
   const rk = rankOf(embers);
   $('erRank').textContent = rk.name;
   countUp(before, embers);
-  // The loser's tapestry freezes over.
-  resultBanners.me.set({ frozen: outcome === 'lose' });
-  resultBanners.foe.set({ frozen: outcome === 'win' });
+  // Each tapestry in its player's side colour; the loser's freezes over.
+  resultBanners.me.set({ house: houseOf(side), frozen: outcome === 'lose' });
+  resultBanners.foe.set({ house: houseOf(1 - side as Side), frozen: outcome === 'win' });
+  $('resMeSide').textContent = SIDE_NAME[side];
+  $('resFoeSide').textContent = SIDE_NAME[1 - side];
   $('resMeName').textContent = myName();
   $('resFoeName').textContent = foeName(m);
   const tag = (won: boolean) => outcome === 'draw' ? 'Draw' : won ? 'Winner' : 'Defeated';
@@ -589,12 +604,15 @@ function renderVersus(m: MatchSource | null) {
   if (show && !vsShown) {
     iForfeited = false;
     round = newRound();
+    // Blue on the left, red on the right, whichever you are.
     const me = myName(), them = foeName(m!);
-    $('vsMe').textContent = me;
-    $('vsMeShield').innerHTML = shieldSvg('raven', initial(me), 92);
-    $('vsThem').textContent = them;
-    $('vsThemShield').innerHTML = shieldSvg('sun', initial(them), 92);
-    $('vsThemTag').textContent = 'Red side';
+    const [blue, red] = m!.side === 0 ? [me, them] : [them, me];
+    $('vsBlue').textContent = blue;
+    $('vsBlueShield').innerHTML = shieldSvg('raven', initial(blue), 92);
+    $('vsBlueTag').textContent = m!.side === 0 ? 'Blue side · You' : 'Blue side';
+    $('vsRed').textContent = red;
+    $('vsRedShield').innerHTML = shieldSvg('sun', initial(red), 92);
+    $('vsRedTag').textContent = m!.side === 1 ? 'Red side · You' : 'Red side';
     sfx.play('versus');
   }
   vsShown = show;

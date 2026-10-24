@@ -1,6 +1,6 @@
 // The world around the arena, in the warmth-and-frost theme (meta/aesthetics.md): snowy faceted
 // ground, snow-capped crags up both sides of a valley, pine woods and rocks beside the board, braziers whose
-// firelight pools on the snow, red standards beside the enemy's half, and snow falling over it all.
+// firelight pools on the snow, standards in the enemy's colour beside their half, and snow falling over it all.
 // Scene coords as in pov.ts: the board spans x ±ARENA_W/2 and z ±MID_Y, you look toward −z.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -38,6 +38,7 @@ const tone = (hex: string, rand: () => number, spread = 0.06) => new THREE.Color
 export class Scenery {
   private fires: { flame: THREE.Mesh; core: THREE.Mesh; light: THREE.PointLight; phase: number }[] = [];
   private flags: { mesh: THREE.Mesh; base: Float32Array; phase: number }[] = [];
+  private cloth = new THREE.MeshStandardMaterial({ color: '#a3303e', roughness: 0.9, side: THREE.DoubleSide, flatShading: true });
   private snow: THREE.Points;
   private embers: THREE.Points;
   private emberLife: Float32Array;
@@ -174,11 +175,16 @@ export class Scenery {
     });
   }
 
-  // Red standards beside the enemy's half (near the camera, poles foreshorten to sticks, so none on yours).
+  // The enemy's standards are red, or blue when you play the red side.
+  foe(side: number): void {
+    this.cloth.color.set(side === 0 ? '#2c50a0' : '#a3303e');
+  }
+
+  // Standards beside the enemy's half (near the camera, poles foreshorten to sticks, so none on yours).
   private banners(): void {
     const pole = new THREE.MeshStandardMaterial({ color: '#1d1b26', roughness: 0.6, metalness: 0.4 });
     const trim = new THREE.MeshStandardMaterial({ color: '#f3d58a', roughness: 0.6, emissive: '#5a4310', emissiveIntensity: 0.4 });
-    const cloth = new THREE.MeshStandardMaterial({ color: '#a3303e', roughness: 0.9, side: THREE.DoubleSide, flatShading: true });
+    const cloth = this.cloth;
     const z = -MID_Y + 7.5;
     for (const side of [-1, 1]) {
       const g = new THREE.Group();

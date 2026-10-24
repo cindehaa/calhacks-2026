@@ -21,8 +21,8 @@ What the client uses today (`client/src/style.css`, `client/src/pov.ts`). Deep n
 | Background | `#0d1020` / `#0a0c1a` (3D) | Frozen night; also the fog colour |
 | Panels, lines | `#171b2e`, `#2a3050` | Cold slate |
 | Text, muted text | `#e8ebf5`, `#8e96b3` | Frost white, cold grey |
-| Your side | `#4aa3ff` | Ice blue |
-| Their side | `#ff5d6c` | Warm red |
+| Blue side (side 0) | `#4aa3ff` | Ice blue |
+| Red side (side 1) | `#ff5d6c` | Warm red |
 | Embers (the resource; `elixir` in code) | `#ff8a3d` | Warm amber, between the enemy red and the gold. **Proposal for Cindy** |
 | Gold accents | `#ffd27a`, `#ffb02e` | Firelight; the wordmark and the one main action |
 | Frost on towers | `#f4fbff` `#e3f7f5` `#c6f2ee` `#9de6e3` `#78d2d6` `#8cc0e0` `#6f9fcf` `#557fc0` `#3f62ad` `#33489a` `#3f3a86` `#523d7a` | Thin to thick and lit to shadow, after a low-poly iceberg: frost white, mint, aqua, sky, steel, cobalt, violet |
@@ -75,7 +75,7 @@ The board sits in a snowy valley at night (`client/src/scenery.ts`), all low-pol
 - **Crags:** snow-capped rock up both sides of the valley and a row of peaks far behind the enemy. The camera looks down too steeply to see a horizon, so the mountains stand at the sides where the view reaches.
 - **Woods:** snow-laden pines (each tier's top band white) with rocks between them, kept 5 tiles clear of the board so play reads cleanly.
 - **Warmth:** four stone braziers along the banks, by the river and at the far corners, with flickering flames, a glow, rising embers and orange light pooling on the snow.
-- **Red standards:** swallowtail flags beside the enemy's half, rippling. There are none on your side: near the camera the poles foreshorten into sticks.
+- **Standards:** swallowtail flags beside the enemy's half in the enemy's colour (red, or blue when you play red), rippling. There are none on your side: near the camera the poles foreshorten into sticks.
 - Text drawn on the board uses Cinzel.
 
 ## Tower frost
@@ -93,7 +93,7 @@ Designed in Paper ("Arena — UI design systems", page "Tower frost"; picked dir
 Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones-style heraldry inspires the look.
 
 - **Words are plain.** Heraldry and fantasy are visual inspiration only. Game text says what things are: Practice, Play online, Join a room, Blue side and Red side, XP and ranks Bronze to Diamond, Embers for the match resource, Forfeit this match?, Rematch. No "houses", "ravens" or "foes" in the text.
-- **Sides:** you are always the blue side, the opponent the red side. The banners and shields keep a raven and a sun sigil as pictures.
+- **Sides:** colour follows the side, the same on both screens: the host (and you against the bot) is the blue side, the guest the red side. Each player still sees their own side at the bottom of the board. Towers, troops, team rings, health bars, drop markers, the opponent's speech bubble, the standards and the result tapestries all take the side's colour; your aim and drop markers wear your own. The room pop-up and the versus card always put blue on the left and red on the right, marking yours "· You". The banners and shields keep a raven and a sun sigil as pictures.
 - **Shapes:** chamfered slabs split into a lit and a shadow facet, each sitting on a solid darker side face so it pops, with a 1 px lit top edge. No gradients beyond the facet split; no gilding, parchment or ornament.
 - **Heraldry:** a faceted gold raven displayed (wings spread) for blue and a radiant sun for red (`client/src/heraldry.ts`), each over a tone-on-tone damask of small birds or small suns on a diamond lattice. Embroidered on every tapestry (home and result; the long result cloth repeats a smaller emblem below) and etched into the halves of the versus card. They replace the old octagon sigil badges.
 - **One 3D language:** everything is a faceted piece with a lit facet, a shadowed facet and an extruded side, lit from the upper left. That covers slabs, panels, crowns, shields and icons. Icons (`client/src/icons.ts`) are built the same way: raised gold on stone, carved into amber buttons (dark faces with a light lip below), pale on the tool buttons, ice on a loss. No flat line icons; the Join a room icon is the raven emblem itself.
@@ -153,3 +153,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** Joining a room is hands free: the hand can pinch a code box to focus it, then saying the letters ("A B C D", "bee see", "alpha bravo") fills them in and the fourth letter joins. "Clear" or "cancel" empties the boxes. With the mic on, "Say the four letters" shows under the boxes while one is focused.
 - **2026-10-24:** Tab icon (`client/public/favicon.svg`): a faceted amber flame, an ember, lit from the upper left with a pale hot core and a dark extruded side, on a rounded night-slate tile so it reads on light and dark tabs.
 - **2026-10-24:** Playtest: the DOUBLE EMBERS banner sat over the river mid-match and got in the way. It (and OVERTIME and TIEBREAKER, which share it) is now a smaller ribbon at the top centre of the screen, dropped below the clock and tools when they would overlap it (phones). On a wide screen it briefly covers the enemy king tower's health number.
+- **2026-10-24:** Colours follow the side, not the viewer: in an online match the host is blue and the guest red on both screens (before, each player saw themselves blue). The room pop-up and versus card hold blue left and red right with "· You" on yours; the result tapestries take each player's side colour; the enemy's standards and the far rim light take the enemy's colour.

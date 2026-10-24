@@ -12,11 +12,12 @@ const MAX_SHOTS = 96;
 const MAX_FLOATERS = 20;
 const MAX_TRAILS = 48;
 
+// Team colours go by side, the same on both screens: side 0 is blue, side 1 red.
 const COLORS = {
-  mine: '#4aa3ff',
-  theirs: '#ff5d6c',
-  mineLight: '#a8d4ff',
-  theirsLight: '#ffb0b8',
+  blue: '#4aa3ff',
+  red: '#ff5d6c',
+  blueLight: '#a8d4ff',
+  redLight: '#ffb0b8',
   tower: '#ffd27a',
   elixir: '#ff8a3d', // embers amber (proposal)
   dust: '#9aa3c2',
@@ -295,7 +296,7 @@ export class Fx {
 
   private land(t: UTrack, now: number): void {
     t.landedAt = now;
-    const color = t.side === this.mySide ? COLORS.mine : COLORS.theirs;
+    const color = t.side === 0 ? COLORS.blue : COLORS.red;
     this.ring(t.x, t.y, 0.25, 1.5, 0.42, color, 3);
     const n = this.reduced ? 3 : 7;
     for (let i = 0; i < n; i++) {
@@ -308,7 +309,7 @@ export class Fx {
 
   private hurt(id: bigint, t: UTrack, amt: number, mine: boolean, now: number): void {
     t.flashAt = now;
-    this.floater(id, t.x, t.y, amt, mine ? COLORS.theirsLight : '#ffffff', 9);
+    this.floater(id, t.x, t.y, amt, mine ? COLORS.redLight : '#ffffff', 9);
     sfx.play('hit', t.kind);
   }
 
@@ -330,10 +331,10 @@ export class Fx {
     t.interval = hitInterval(t.interval, t.hitAt >= 0 ? now - t.hitAt : 0, q.attackSpeed, (q.slowT ?? 0) > 0);
     t.hitAt = now;
 
-    const mine = u.side === this.mySide;
+    const blue = u.side === 0;
     const el = elementColors(t.element);
-    const main = el?.[0] ?? (mine ? COLORS.mine : COLORS.theirs);
-    const light = el?.[1] ?? (mine ? COLORS.mineLight : COLORS.theirsLight);
+    const main = el?.[0] ?? (blue ? COLORS.blue : COLORS.red);
+    const light = el?.[1] ?? (blue ? COLORS.blueLight : COLORS.redLight);
     const attack = q.attack ?? 'single';
     const splash = attack === 'splash' ? 1 : 0;
     const ang = Math.atan2(dy, dx);
@@ -471,7 +472,7 @@ export class Fx {
   // A spawner's minion appears: a puff of smoke and a small ring.
   private spawnPuff(t: UTrack, now: number): void {
     t.landedAt = now; // gets the landing squash
-    const color = t.side === this.mySide ? COLORS.mineLight : COLORS.theirsLight;
+    const color = t.side === 0 ? COLORS.blueLight : COLORS.redLight;
     this.ring(t.x, t.y, 0.15, 0.75, 0.3, color, 2);
     const n = this.reduced ? 3 : 8;
     for (let i = 0; i < n; i++) {
@@ -503,7 +504,7 @@ export class Fx {
   }
 
   private poof(t: UTrack): void {
-    const color = t.side === this.mySide ? COLORS.mineLight : COLORS.theirsLight;
+    const color = t.side === 0 ? COLORS.blueLight : COLORS.redLight;
     const n = this.reduced ? 4 : 9;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 1.4;
@@ -522,7 +523,7 @@ export class Fx {
 
   private crumble(t: TTrack, now: number): void {
     t.downAt = now;
-    const color = t.side === this.mySide ? '#24508a' : '#8a2a36';
+    const color = t.side === 0 ? '#24508a' : '#8a2a36';
     const n = this.reduced ? 10 : 26;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 3;

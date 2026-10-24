@@ -84,7 +84,6 @@ export class Juice {
   private groups = new Map<bigint, { n: number; sx: number; sy: number; hp: number; minDelay: number; side: number }>();
   private frame = 0;
   private reduced = reducedMotion();
-  private mySide = 0;
   // Clocks: real seconds in, effect seconds out (slower during slow motion).
   private lastReal = -1;
   private virt = 0;
@@ -175,7 +174,6 @@ export class Juice {
 
   observe(v: View, t: number, real: number, fx: Fx): void {
     this.frame++;
-    this.mySide = v.mySide;
     for (const f of v.input?.flashes ?? []) {
       if (f.kind === 'deploy' && f.t > this.lastFire) { this.lastFire = f.t; this.nudgeAt = real }
     }
@@ -279,10 +277,10 @@ export class Juice {
   }
 
   private impact(tr: Track, fx: Fx): void {
-    const k = tr.size, mine = tr.side === this.mySide;
+    const k = tr.size;
     this.kick(0.012 + 0.3 * k * k, 7 - 3 * k);
     fx.ring(tr.x, tr.y, 0.3, 0.9 + 3 * k, 0.32 + 0.3 * k, 'rgba(225,238,255,0.95)', Math.min(3.9, 3 + 2 * k)); // under 4: pov.ts flashes rings of 4+ as explosions
-    if (k > 0.25) fx.ring(tr.x, tr.y, 0.2, 0.6 + 2 * k, 0.5 + 0.3 * k, mine ? 'rgba(74,163,255,0.8)' : 'rgba(255,93,108,0.8)', 2);
+    if (k > 0.25) fx.ring(tr.x, tr.y, 0.2, 0.6 + 2 * k, 0.5 + 0.3 * k, tr.side === 0 ? 'rgba(74,163,255,0.8)' : 'rgba(255,93,108,0.8)', 2);
     const n = Math.round((this.reduced ? 2 : 4) + (this.reduced ? 8 : 22) * k);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.random() * 0.4, s = (1.4 + Math.random() * 1.6) * (0.7 + k);
@@ -302,7 +300,7 @@ export class Juice {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = 0.3 + Math.random() * 0.8;
       fx.particle(x + Math.cos(a) * 0.3, y + Math.sin(a) * 0.3, 0.3 + Math.random() * 1.2, Math.cos(a) * s, Math.sin(a) * s, 0.8 + Math.random(),
-        0.5 + Math.random() * 0.4, 0.05 + Math.random() * 0.04, i % 2 ? '#fff3c4' : side === this.mySide ? '#cfe6ff' : '#ffd0d5', 2);
+        0.5 + Math.random() * 0.4, 0.05 + Math.random() * 0.04, i % 2 ? '#fff3c4' : side === 0 ? '#cfe6ff' : '#ffd0d5', 2);
     }
   }
 
@@ -417,7 +415,7 @@ export class Juice {
     for (const p of v.pendings) {
       if (p.side === v.mySide) continue;
       const q = project(p.x, p.y, 2.3);
-      if (q) this.bubble(g, q[0], q[1], '', Math.min(1, p.age * 4), t);
+      if (q) this.bubble(g, q[0], q[1], '', Math.min(1, p.age * 4), t, p.side);
     }
     for (const [id, tr] of this.troops) {
       if (tr.side === v.mySide) continue;
@@ -428,11 +426,11 @@ export class Juice {
       const fadeIn = Math.min(1, (t - tr.firstSeen) * 6), fadeOut = since > 2.1 ? 1 - (since - 2.1) / 0.5 : 1;
       const lift = tr.landedAt < 0 ? 5.7 : 4.3; // over the name and the cost pill
       const q = project(tr.x, tr.y, lift);
-      if (q) this.bubble(g, q[0], q[1], words, Math.max(0, Math.min(fadeIn, fadeOut)), t);
+      if (q) this.bubble(g, q[0], q[1], words, Math.max(0, Math.min(fadeIn, fadeOut)), t, tr.side);
     }
   }
 
-  private bubble(g: CanvasRenderingContext2D, x: number, y: number, words: string, alpha: number, t: number): void {
+  private bubble(g: CanvasRenderingContext2D, x: number, y: number, words: string, alpha: number, t: number, side: number): void {
     if (alpha <= 0.01) return;
     g.save();
     g.globalAlpha = alpha;
@@ -454,7 +452,7 @@ export class Juice {
     g.fill();
     g.shadowColor = 'transparent';
     g.lineWidth = 2;
-    g.strokeStyle = '#ff5d6c';
+    g.strokeStyle = side === 0 ? '#4aa3ff' : '#ff5d6c'; // edged in the speaker's side colour
     g.stroke();
     g.fillStyle = '#171b2e';
     g.textAlign = 'center';

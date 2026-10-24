@@ -267,15 +267,15 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .codeIn { padding: 0; text-align: center; text-transform: uppercase; background: linear-gradient(160deg, #0c0f20 0 56%, #0a0d1b 56% 100%); border-bottom-color: #1a2045; caret-color: var(--amber); outline: none; }
 .codeIn:focus { border-bottom-color: var(--amber); }
 .houses { display: flex; align-items: center; gap: 20px; }
-.houseMe, .houseFoe { flex: 1; display: flex; align-items: center; gap: 14px; min-width: 0; }
-.houseFoe { justify-content: flex-end; text-align: right; }
+.houseBlue, .houseRed { flex: 1; display: flex; align-items: center; gap: 14px; min-width: 0; }
+.houseRed { justify-content: flex-end; text-align: right; }
 .houses .vs { font: 700 22px var(--cinzel); letter-spacing: .1em; color: var(--muted); }
 .hName { display: block; font: 700 20px var(--cinzel); letter-spacing: .04em; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hName.waiting { font: 600 17px var(--chakra); color: var(--muted); }
 .hHouse { display: block; font: 700 13px var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: var(--raven); }
-.houseFoe .hHouse { color: var(--sun); }
-.houseFoe.away .hName, .houseFoe.away .hHouse { color: var(--muted); }
-.houseFoe.away .shield { filter: grayscale(1); opacity: .45; }
+.houseRed .hHouse { color: var(--sun); }
+.houses .away .hName, .houses .away .hHouse { color: var(--muted); }
+.houses .away .shield { filter: grayscale(1); opacity: .45; }
 .gDivider { display: flex; align-items: center; gap: 14px; }
 .gDivider i { flex: 1; height: 1px; background: #2a3266; }
 
@@ -283,14 +283,14 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 #versus { position: fixed; inset: 0; z-index: 6; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; pointer-events: none; overflow: hidden; }
 #versus[hidden] { display: none; }
 .vsSide { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; min-width: 0; color: #fff; }
-.vsMe { background: linear-gradient(100deg, #1d4f9e 0 55%, #16418a 55% 100%); clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); animation: vsInL .45s cubic-bezier(.2, .9, .3, 1.2) both; }
-.vsThem { background: linear-gradient(-100deg, #a3263a 0 55%, #7a1c2a 55% 100%); clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%); animation: vsInR .45s cubic-bezier(.2, .9, .3, 1.2) both; }
+.vsBlue { background: linear-gradient(100deg, #1d4f9e 0 55%, #16418a 55% 100%); clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); animation: vsInL .45s cubic-bezier(.2, .9, .3, 1.2) both; }
+.vsRed { background: linear-gradient(-100deg, #a3263a 0 55%, #7a1c2a 55% 100%); clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%); animation: vsInR .45s cubic-bezier(.2, .9, .3, 1.2) both; }
 .vsShield svg { width: 92px; height: auto; filter: drop-shadow(0 5px 0 #00000055); }
 .vsName { font: 800 clamp(24px, 4.2vw, 46px)/1.1 var(--cinzel); letter-spacing: .04em; text-shadow: 0 3px 0 rgba(0, 0, 0, .4); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vsTag { font: 700 13px var(--chakra); letter-spacing: .24em; text-transform: uppercase; opacity: .85; }
 .vsMid { font: 900 clamp(48px, 9vw, 110px) var(--cinzel); color: var(--amber); text-shadow: 0 6px 0 var(--amberSide), 0 10px 0 #000, 0 0 40px rgba(255, 176, 46, .45); margin: 0 -24px; z-index: 1; animation: vsMid .5s .25s cubic-bezier(.2, .9, .3, 1.4) both; }
-#versus.leaving .vsMe { animation: vsOutL .35s ease-in both; }
-#versus.leaving .vsThem { animation: vsOutR .35s ease-in both; }
+#versus.leaving .vsBlue { animation: vsOutL .35s ease-in both; }
+#versus.leaving .vsRed { animation: vsOutR .35s ease-in both; }
 #versus.leaving .vsMid { animation: vsFade .3s ease-in both; }
 @keyframes vsInL { from { transform: translateX(-100%); } }
 @keyframes vsInR { from { transform: translateX(100%); } }
@@ -579,9 +579,9 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .vsSide { position: relative; isolation: isolate; }
 .vsSide::before, .vsSide::after { content: ''; position: absolute; pointer-events: none; z-index: -1; }
 .vsSide::before { inset: 0; background-size: 30px 30px; opacity: .1; }
-.vsMe::before { background-image: var(--damask-raven); } .vsThem::before { background-image: var(--damask-sun); }
+.vsBlue::before { background-image: var(--damask-raven); } .vsRed::before { background-image: var(--damask-sun); }
 .vsSide::after { left: 50%; top: 50%; width: min(70vh, 44vw); aspect-ratio: 1; transform: translate(-50%, -50%); background: center / contain no-repeat; opacity: .5; mix-blend-mode: overlay; } /* etched into the cloth, not pasted on */
-.vsMe::after { background-image: var(--emblem-raven); left: 46%; } .vsThem::after { background-image: var(--emblem-sun); left: 54%; }
+.vsBlue::after { background-image: var(--emblem-raven); left: 46%; } .vsRed::after { background-image: var(--emblem-sun); left: 54%; }
 
 /* faceted 3D icons (icons.ts): lit and shadowed facets on an extruded side, like the slabs */
 .ico { display: inline-flex; line-height: 0; flex: none; }
@@ -594,10 +594,10 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 
 /* versus card: the two halves are dyed cloth, like the tapestries: folds running down, woven grain,
    gold trim along the cut edge and top and bottom, light pooling where the emblem sits */
-.vsMe { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23f3d58a' vector-effect='non-scaling-stroke'%3E%3Cpath d='M99.2 0 L87.2 100' stroke-width='3' stroke-opacity='.75' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M97.4 0 L85.4 100' stroke-width='1' stroke-opacity='.5' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M0 2.2 H99 M0 97.8 H87' stroke-width='1.5' stroke-opacity='.45' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M0 3.4 H99 M0 96.6 H87' stroke-width='.8' stroke-opacity='.3' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E") 0 0 / 160px, repeating-linear-gradient(97deg, #ffffff0a 0 38px, #ffffff00 38px 92px, #00000024 92px 128px, #00000000 128px 211px), repeating-linear-gradient(93deg, #00000000 0 137px, #00000018 137px 181px, #ffffff07 181px 263px), repeating-linear-gradient(99deg, #ffffff06 0 61px, #00000000 61px 149px),
+.vsBlue { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23f3d58a' vector-effect='non-scaling-stroke'%3E%3Cpath d='M99.2 0 L87.2 100' stroke-width='3' stroke-opacity='.75' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M97.4 0 L85.4 100' stroke-width='1' stroke-opacity='.5' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M0 2.2 H99 M0 97.8 H87' stroke-width='1.5' stroke-opacity='.45' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M0 3.4 H99 M0 96.6 H87' stroke-width='.8' stroke-opacity='.3' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E") 0 0 / 160px, repeating-linear-gradient(97deg, #ffffff0a 0 38px, #ffffff00 38px 92px, #00000024 92px 128px, #00000000 128px 211px), repeating-linear-gradient(93deg, #00000000 0 137px, #00000018 137px 181px, #ffffff07 181px 263px), repeating-linear-gradient(99deg, #ffffff06 0 61px, #00000000 61px 149px),
   radial-gradient(ellipse 55% 45% at 44% 50%, #7fb8ff33, transparent 70%), radial-gradient(ellipse at 50% 50%, transparent 55%, #05103080 100%),
   linear-gradient(100deg, #1c58c4 0 55%, #14429c 55% 100%); }
-.vsThem { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23f3d58a' vector-effect='non-scaling-stroke'%3E%3Cpath d='M12.8 0 L0.8 100' stroke-width='3' stroke-opacity='.75' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M14.6 0 L2.6 100' stroke-width='1' stroke-opacity='.5' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M13 2.2 H100 M1 97.8 H100' stroke-width='1.5' stroke-opacity='.45' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M13 3.4 H100 M1 96.6 H100' stroke-width='.8' stroke-opacity='.3' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E") 0 0 / 160px, repeating-linear-gradient(97deg, #ffffff0a 0 38px, #ffffff00 38px 92px, #00000024 92px 128px, #00000000 128px 211px), repeating-linear-gradient(93deg, #00000000 0 137px, #00000018 137px 181px, #ffffff07 181px 263px), repeating-linear-gradient(99deg, #ffffff06 0 61px, #00000000 61px 149px),
+.vsRed { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23f3d58a' vector-effect='non-scaling-stroke'%3E%3Cpath d='M12.8 0 L0.8 100' stroke-width='3' stroke-opacity='.75' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M14.6 0 L2.6 100' stroke-width='1' stroke-opacity='.5' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M13 2.2 H100 M1 97.8 H100' stroke-width='1.5' stroke-opacity='.45' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M13 3.4 H100 M1 96.6 H100' stroke-width='.8' stroke-opacity='.3' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E") 0 0 / 160px, repeating-linear-gradient(97deg, #ffffff0a 0 38px, #ffffff00 38px 92px, #00000024 92px 128px, #00000000 128px 211px), repeating-linear-gradient(93deg, #00000000 0 137px, #00000018 137px 181px, #ffffff07 181px 263px), repeating-linear-gradient(99deg, #ffffff06 0 61px, #00000000 61px 149px),
   radial-gradient(ellipse 55% 45% at 56% 50%, #ffb06a33, transparent 70%), radial-gradient(ellipse at 50% 50%, transparent 55%, #2a050c80 100%),
   linear-gradient(-100deg, #c82424 0 55%, #9a181c 55% 100%); }
 .vsName { text-shadow: 0 3px 0 rgba(0, 0, 0, .45), 0 0 24px rgba(0, 0, 0, .35); }
