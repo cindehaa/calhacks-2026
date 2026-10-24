@@ -405,3 +405,10 @@ body.inHub #inputPanel { display: none; }
 /* a lit top edge on every slab, so the faces read as cut stone rather than flat fills */
 .slab .face, .slabStatic > .face, .gPanel > .gFace { box-shadow: inset 0 1px 0 #ffffff26, inset 0 -1px 0 #0000004d; }
 .slab.amber .face { box-shadow: inset 0 2px 0 #ffffff70, inset 0 -1px 0 #0000004d; }
+.bLast { display: flex; flex-direction: column; align-items: center; gap: 1.4cqw; }
+.bWait[hidden] { display: none; }
+.bLast[hidden] { display: none; }
+.bLastLabel { font: 700 5cqw var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: #ffffff99; }
+.bLastFoe { font: 700 7.4cqw/1.2 var(--chakra); color: #fff; }
+.bLastScore { font: 800 6.6cqw var(--chakra); color: #ffd9b0; }
+.bLastScore.win { color: var(--gold); } .bLastScore.lose { color: var(--ice2); }

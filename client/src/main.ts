@@ -160,6 +160,21 @@ function renderEmbers() {
 }
 renderEmbers();
 
+// The last match, shown on the red banner between matches.
+const LAST_KEY = 'arena.lastMatch';
+interface LastMatch { foe: string; outcome: Outcome; score: string }
+function renderLast() {
+  let last: LastMatch | null = null;
+  try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? 'null') } catch { /* private mode or junk */ }
+  $('lastMatch').hidden = !last;
+  (document.querySelector('#lobby .bWait') as HTMLElement).hidden = !!last;
+  if (!last) return;
+  $('lastFoe').textContent = last.foe;
+  $('lastScore').textContent = `${{ win: 'Won', lose: 'Lost', draw: 'Drew' }[last.outcome]} ${last.score}`;
+  $('lastScore').className = `bLastScore ${last.outcome}`;
+}
+renderLast();
+
 $('botBtn').onclick = () => startBot(botLevel);
 // No matchmaking yet: Play online and Join a room open the same room pop-up; Join starts at the code boxes.
 $('battleBtn').onclick = () => openRaven();
@@ -372,6 +387,8 @@ function renderResult() {
     theirKingFellAt: round.theirKingFellAt, myKingFellAt: round.myKingFellAt, cappedSecs: round.cappedSecs, myBest, theirBest,
   };
 
+  remember(LAST_KEY, JSON.stringify({ foe: foeName(m), outcome, score: `${summary.towersTaken}–${summary.towersLost}` } satisfies LastMatch));
+  renderLast();
   const res = $('result');
   res.className = `screen gScreen result ${outcome}`;
   $<HTMLImageElement>('resultBg').src = `/ui/${outcome === 'win' ? 'gold' : outcome === 'lose' ? 'ice' : 'home'}.svg`;
