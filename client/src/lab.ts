@@ -20,8 +20,9 @@ export function openLab(input: InputController): void {
     <canvas></canvas>`;
   const style = document.createElement('style');
   style.textContent = `
-    #lab { position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; z-index: 9999; background: rgba(8,10,14,.9);
-      color: #e2e8f0; font: 12px/1.3 ui-monospace, monospace; display: flex; flex-direction: column; }
+    #lab { position: fixed; left: 0; right: 0; bottom: 0; height: 34vh; z-index: 9999; background: rgba(8,10,14,.72);
+      color: #e2e8f0; font: 12px/1.3 ui-monospace, monospace; display: flex; flex-direction: column; pointer-events: none; }
+    #lab .labBar { pointer-events: auto; }
     #lab.min { height: 30px; } #lab.min canvas { display: none; }
     #lab .labBar { display: flex; gap: 10px; align-items: center; padding: 4px 8px; }
     #lab .labHow { opacity: .7; } #lab .labState { margin-left: auto; color: #fbbf24; }
