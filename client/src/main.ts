@@ -28,6 +28,9 @@ import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
 import { boardReactions, homeReactions, menuReactions } from './react';
+import { inject as injectAnalytics } from '@vercel/analytics';
+
+injectAnalytics(); // Vercel Web Analytics: page views on the deployed site; dev only logs them to the console
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
