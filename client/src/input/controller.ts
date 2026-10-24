@@ -5,7 +5,9 @@
 // clicking the board with words waiting: the troop goes where you were pointing just before.
 // Close your hand into a fist, press Esc or say "cancel" to throw the words away. Typed text,
 // number keys and click-to-type work as before.
-import { drawCursor, FLASH_MS, type CursorState, type InputView } from './draw';
+import { drawCursor, MISS_MS, type CursorState, type InputView } from './draw';
+import { notice } from '../notice';
+import { sfx } from '../sfx';
 import { OneEuro } from './filter';
 import { FlickDetector } from './flick';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
@@ -85,6 +87,7 @@ export class InputController {
   private camStatus = '';
   private heard = '';
   private heardWords = false; // the recogniser has returned words at least once
+  private hinted = false; // the how-to after a fire with no words shows once
   private flaggedAt = 0; // last mismatch flag: interim words flag it, then the final repeats them
   private lastPanel = 0;
   private clickTaken = false; // the last mouse press fired, so it isn't also a click-to-type
@@ -212,7 +215,7 @@ export class InputController {
       // Close each utterance when the talking stops, so its words are final before the next fire.
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
-    this.flashes = this.flashes.filter(x => now - x.t < FLASH_MS);
+    this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
     else this.renderHint();
@@ -274,8 +277,7 @@ export class InputController {
     if (!p || !this.host.playing() || this.firing) return false;
     const said = this.prompt.text, typed = this.host.typedText().trim();
     if (!said && !typed) {
-      const how = !this.mic.on ? 'type a troop or turn the mic on' : this.speech.available ? 'say a troop first' : 'type a troop first';
-      this.flash(p, 'cancel', how);
+      this.missed(p);
       return true;
     }
     const spot = this.host.toWorld(p.x, p.y);
@@ -304,7 +306,8 @@ export class InputController {
       this.host.deploy(f.nonce, f.spot, d.text, { from: d.from, by: f.by, transcript: f.words.text });
       return;
     }
-    this.flash(f.at, 'cancel', d.reason === 'cancel' ? 'cancelled' : 'no description');
+    if (d.reason === 'cancel') this.flash(f.at, 'cancel', 'cancelled');
+    else this.missed(f.at);
     this.host.cancel(f.nonce, d.reason === 'cancel' ? 'cancelled' : 'cancelled: no description heard', f.words.text);
   }
 
@@ -346,6 +349,19 @@ export class InputController {
     }
   }
 
+  // Fired with nothing (or nothing usable) heard: a wobbling "didn't catch that" at the spot, a
+  // soft "hm?", and the first time only, how to do it.
+  private missed(p: Pt): void {
+    this.flashes = this.flashes.filter(f => f.kind !== 'miss');
+    this.flash(p, 'miss', this.mic.on || this.speech.available ? 'didn’t catch that' : 'nothing to send');
+    sfx.play('miss');
+    if (this.hinted) return;
+    this.hinted = true;
+    const send = this.tracker ? 'flick' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
+    notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
+  }
+
   private flagMismatch(): void {
     const now = performance.now();
     if (now - this.flaggedAt < 3000) return;
@@ -353,7 +369,7 @@ export class InputController {
     this.host.mismatch?.();
   }
 
-  private flash(p: Pt, kind: 'deploy' | 'cancel', label: string, words = ''): void {
+  private flash(p: Pt, kind: 'deploy' | 'cancel' | 'miss', label: string, words = ''): void {
     this.flashes.push({ x: p.x, y: p.y, kind, label, t: performance.now(), words });
   }
 

@@ -9,7 +9,9 @@ export type SfxName =
   | 'click' | 'versus' | 'joined' | 'forfeit' | 'slam' | 'zap' | 'whoosh' | 'boom' | 'puff' | 'stun'
   // Juice (juice.ts): cost roll ticks and the settle chime, the name stamp, a refused troop's coin
   // shattering, the size-scaled landing thud and the shimmer when late art lands. Synth only.
-  | 'tick' | 'chime' | 'stamp' | 'shatter' | 'thud' | 'shimmer';
+  | 'tick' | 'chime' | 'stamp' | 'shatter' | 'thud' | 'shimmer'
+  // Failure moments: a fire with no words ("huh?"), "that's wrong" noted, a soft heads-up.
+  | 'miss' | 'noted' | 'heads';
 
 // The pack's troop families; each has spawn, attack_1/2, hit_1/2 and death.
 export const SOUND_KINDS = ['beast', 'blade', 'heavy', 'magic', 'mech', 'ranged', 'swarm'] as const;
@@ -83,6 +85,7 @@ const GAP: Partial<Record<SfxName, number>> = {
   click: 0.05, hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
   slam: 0.1, zap: 0.1, whoosh: 0.08, boom: 0.12, puff: 0.15, stun: 0.12,
   tick: 0.035, chime: 0.08, stamp: 0.08, shatter: 0.2, thud: 0.06, shimmer: 0.15,
+  miss: 0.4, noted: 0.5, heads: 1,
 };
 
 function readMuted(): boolean {
@@ -280,6 +283,19 @@ class Sfx {
         break;
       case 'shimmer': // art lands on a troop: rising sparkle
         for (const [i, f] of [1568, 2093, 2637, 3136].entries()) this.tone(ac, out, t + i * 0.04, 'sine', f, f, 0.18, 0.07);
+        break;
+      case 'miss': // a fire with nothing heard: a soft questioning two-note "hm?"
+        this.tone(ac, out, t, 'sine', 392, 370, 0.12, 0.16);
+        this.tone(ac, out, t + 0.13, 'sine', 494, 523, 0.16, 0.12);
+        break;
+      case 'noted': // "that's wrong" taken down: a quill scratch and a small warm bell
+        this.noiseHit(ac, out, t, 0.09, 0.12, 'bandpass', 3200, 2200, 3);
+        this.tone(ac, out, t + 0.08, 'sine', 880, 880, 0.35, 0.12);
+        this.tone(ac, out, t + 0.08, 'sine', 1320, 1320, 0.25, 0.05);
+        break;
+      case 'heads': // a gentle heads-up: one low soft bell
+        this.tone(ac, out, t, 'sine', 523, 523, 0.4, 0.1);
+        this.tone(ac, out, t + 0.12, 'sine', 392, 392, 0.45, 0.08);
         break;
       case 'deploy': // rising airy whoosh
         this.noiseHit(ac, out, t, 0.38, 0.5, 'bandpass', 500, 2600, 1.4);

@@ -7,13 +7,15 @@ export type CursorState = 'open' | 'fire' | 'fist';
 export interface InputView {
   cursor: { x: number; y: number; state: CursorState } | null; // hand cursor only; the mouse has its own ring
   prompt: { x: number; y: number; text: string; speaking: boolean } | null; // at the cursor, hand or mouse
-  flashes: { x: number; y: number; kind: 'deploy' | 'cancel'; label: string; t: number; words?: string }[]; // words: what was sent or cleared, for wordfx.ts
+  flashes: { x: number; y: number; kind: 'deploy' | 'cancel' | 'miss'; label: string; t: number; words?: string }[]; // words: what was sent or cleared, for wordfx.ts
   mic?: { x: number; y: number; db: number; speaking: boolean } | null; // mic on: its level, at the cursor
   hint: string;
 }
 
 const C = { mine: '#4aa3ff', voice: '#c56cf0', bad: '#ff5d6c', good: '#4ade80', warn: '#fbbf24', text: '#e8ebf5', muted: '#8e96b3' };
 export const FLASH_MS = 700;
+export const MISS_MS = 1300; // the "didn't catch that" bubble stays a little longer
+const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false } };
 
 export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = performance.now()): void {
   g.save();
@@ -25,6 +27,7 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
     if (p.speaking) circle(g, p.x + 26, p.y - 46, 3.5 * dot, null, 0, C.voice);
   }
   for (const f of v.flashes) {
+    if (f.kind === 'miss') { missBubble(g, f.x, f.y, f.label, (now - f.t) / MISS_MS); continue }
     const a = (now - f.t) / FLASH_MS;
     if (a < 0 || a >= 1) continue;
     if (f.words) wordsFlash(g, f.kind, f.words, f.x, f.y, a); // words into an orb, or crumpled
@@ -92,4 +95,42 @@ function pill(g: CanvasRenderingContext2D, s: string, x: number, y: number, colo
   g.roundRect(x - w / 2, y - 15, w, 22, 11);
   g.fill();
   text(g, s, x, y, 13, color);
+}
+
+// A fire with no words: a small frost bubble at the spot that wobbles in, says so, and floats
+// off. No cross and no red: nothing went wrong, it just didn't hear anything.
+function missBubble(g: CanvasRenderingContext2D, x: number, y: number, label: string, a: number): void {
+  if (a < 0 || a >= 1) return;
+  const still = reduced();
+  const s = a * 1.3; // seconds, roughly
+  const pop = still ? 1 : s < 0.18 ? 0.6 + 0.4 * (s / 0.18) + 0.12 * Math.sin((s / 0.18) * Math.PI) : 1;
+  const wob = still ? 0 : Math.exp(-s * 5) * Math.sin(s * 34) * 0.12;
+  const alpha = a < 0.75 ? 1 : 1 - (a - 0.75) / 0.25;
+  const lift = still ? 0 : a * 14;
+  g.save();
+  g.globalAlpha = alpha;
+  g.translate(x, y - 40 - lift);
+  g.rotate(wob);
+  g.scale(pop, pop);
+  g.font = "italic 700 15px 'Alegreya Sans', system-ui, sans-serif";
+  const w = g.measureText(label).width + 22, h = 28, c = 6;
+  g.beginPath();
+  g.moveTo(-w / 2 + c, -h); g.lineTo(w / 2 - c, -h); g.lineTo(w / 2, -h + c); g.lineTo(w / 2, -c); g.lineTo(w / 2 - c, 0);
+  g.lineTo(7, 0); g.lineTo(0, 9); g.lineTo(-7, 0);
+  g.lineTo(-w / 2 + c, 0); g.lineTo(-w / 2, -c); g.lineTo(-w / 2, -h + c); g.closePath();
+  g.fillStyle = 'rgba(219,233,244,0.96)';
+  g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 8; g.shadowOffsetY = 2;
+  g.fill();
+  g.shadowColor = 'transparent';
+  g.lineWidth = 2; g.strokeStyle = '#9cc3e0'; g.stroke();
+  g.fillStyle = '#171b2e';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(label, 0, -h / 2 + 1);
+  g.restore();
+  // A little puff of frost where the finger was.
+  g.save();
+  g.globalAlpha = alpha * (1 - a);
+  g.strokeStyle = '#9cc3e0'; g.lineWidth = 2; g.setLineDash([3, 5]);
+  g.beginPath(); g.arc(x, y, 10 + a * 14, 0, Math.PI * 2); g.stroke();
+  g.restore();
 }
