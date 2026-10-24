@@ -29,6 +29,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Canvas client: lobby, room codes, board rotated so your side is at the bottom, towers, units, pending drops, elixir bar, clock, result screen, rematch, 20 Hz interpolation.
 - [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
 - [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
+- [x] Bot mode: **Play vs Bot** (easy / normal / hard) runs the whole match in the browser on the same `step()` and deploy rules (`shared/deploy.ts`, now also used by the server), with no SpacetimeDB at all, so it's the demo fallback when the network fails. `client/src/match.ts` gives `main.ts` one `MatchSource` for online rooms and `LocalMatch`. The bot (`shared/bot.ts`) defends real threats near the threatened tower, otherwise pushes your weakest tower's lane, and sometimes saves for a big troop. Its drops show a lock and countdown like a real opponent's.
 
 ## Next up
 

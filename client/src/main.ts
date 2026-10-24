@@ -1,7 +1,10 @@
 import { ANCHORS } from '../../shared/anchors';
-import { ARENA_W, ELIXIR_MAX, MATCH_SECONDS, MID_Y, onOwnHalf, TICK_HZ, type Side } from '../../shared/arena';
+import { ARENA_W, ELIXIR_MAX, MATCH_SECONDS, MID_Y, onOwnHalf, type Side } from '../../shared/arena';
+import type { BotLevel } from '../../shared/bot';
 import type { TroopDesign } from '../../shared/troop';
 import { designTroop, warmDesigner } from './designer';
+import { LocalMatch } from './local';
+import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { Board, type DrawUnit } from './render';
 
@@ -9,6 +12,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const board = new Board($<HTMLCanvasElement>('board'));
 
 let net: Net | null = null;
+let online: OnlineMatch | null = null;
+let local: LocalMatch | null = null; // vs Bot, entirely in this tab
 let aim: [number, number] | null = null; // hover point on your half, world coords
 let lock: [number, number] | null = null; // clicked spot for typed troops
 let warmedFor = '';
@@ -18,22 +23,19 @@ let warmedFor = '';
 connect(
   n => {
     net = n;
+    online = new OnlineMatch(n);
     $('netStatus').textContent = '';
-    hookInterpolation(n);
-    requestAnimationFrame(frame);
   },
   s => ($('netStatus').textContent = s)
 );
+// Start drawing right away: vs Bot works even if the server never answers.
+requestAnimationFrame(frame);
 
-const me = () => (net ? net.conn.db.player.identity.find(net.identity) : undefined);
-const myRoom = () => {
-  const p = me();
-  return p?.roomCode && net ? net.conn.db.room.code.find(p.roomCode) : undefined;
-};
-const mySide = (): Side => {
-  const r = myRoom();
-  return r && net && r.guest && r.guest.isEqual(net.identity) ? 1 : 0;
-};
+const me = () => online?.me();
+const myRoom = () => online?.room();
+// What the HUD and deploys talk to: the bot match if one is open, else the online room.
+const match = (): MatchSource | null => local ?? (myRoom() ? online : null);
+const mySide = (): Side => match()?.side ?? 0;
 
 function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
   p?.catch((e: Error) => {
@@ -52,8 +54,12 @@ $<HTMLFormElement>('joinForm').onsubmit = e => {
   call(net?.conn.reducers.joinRoom({ code: $<HTMLInputElement>('codeInput').value }));
 };
 $('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}));
-$('rematchBtn').onclick = () => call(net?.conn.reducers.startMatch({}));
-$('leaveBtn').onclick = $('lobbyBtn').onclick = () => call(net?.conn.reducers.leaveRoom({}));
+$('rematchBtn').onclick = () => call(match()?.rematch());
+$('leaveBtn').onclick = $('lobbyBtn').onclick = () => call(match()?.leave());
+$('botBtn').onclick = () => {
+  lock = null;
+  local = new LocalMatch($<HTMLSelectElement>('botLevel').value as BotLevel, () => (local = null));
+};
 $<HTMLInputElement>('nameInput').onchange = e => {
   const name = (e.target as HTMLInputElement).value;
   if (name.trim()) call(net?.conn.reducers.setName({ name }));
@@ -62,7 +68,7 @@ $<HTMLInputElement>('nameInput').onchange = e => {
 function renderLobby() {
   const p = me(), r = myRoom();
   const playing = r?.status === 'playing';
-  $('lobby').hidden = playing || r?.status === 'done';
+  $('lobby').hidden = !!local || playing || r?.status === 'done';
   $('lobbyOut').hidden = !!r;
   $('lobbyIn').hidden = !r;
   if (p && document.activeElement !== $('nameInput')) $<HTMLInputElement>('nameInput').value = p.name;
@@ -79,36 +85,16 @@ function renderLobby() {
 }
 
 function renderResult() {
-  const r = myRoom();
-  const done = r?.status === 'done';
+  const m = match();
+  const done = m?.status === 'done';
   $('result').hidden = !done;
-  if (!done || !r) return;
-  const side = mySide();
-  $('resultText').textContent = r.winner === -1 ? 'Draw' : r.winner === side ? 'You win' : 'You lose';
-  const towers = towersFor(r.code);
+  if (!done || !m) return;
+  const side = m.side;
+  $('resultText').textContent = m.winner === -1 ? 'Draw' : m.winner === side ? 'You win' : 'You lose';
+  $('lobbyBtn').textContent = local ? 'Leave' : 'Leave room';
+  const towers = m.towers();
   const lost = (s: number) => towers.filter(t => t.side === s && t.hp <= 0).length;
   $('resultDetail').textContent = `Towers destroyed: you ${lost(1 - side)}, them ${lost(side)}`;
-}
-
-// ---------- interpolation ----------
-// The server ticks at 20 Hz; glide each unit from where it was drawn to its new position.
-
-const glide = new Map<bigint, { fx: number; fy: number; tx: number; ty: number; at: number }>();
-const TICK_MS = 1000 / TICK_HZ;
-
-function hookInterpolation(n: Net) {
-  n.conn.db.unit.onUpdate((_ctx, _old, row) => {
-    const [cx, cy] = drawnPos(row.id, row.x, row.y);
-    glide.set(row.id, { fx: cx, fy: cy, tx: row.x, ty: row.y, at: performance.now() });
-  });
-  n.conn.db.unit.onDelete((_ctx, row) => glide.delete(row.id));
-}
-
-function drawnPos(id: bigint, x: number, y: number): [number, number] {
-  const g = glide.get(id);
-  if (!g) return [x, y];
-  const k = Math.min(1, (performance.now() - g.at) / TICK_MS);
-  return [g.fx + (g.tx - g.fx) * k, g.fy + (g.ty - g.fy) * k];
 }
 
 // ---------- deploying ----------
@@ -128,13 +114,9 @@ function status(msg: string, bad = false) {
 
 function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign) {
   call(
-    net?.conn.reducers.deployTroop({
-      nonce, x, y, description, name: d.name, health: d.health, damage: d.damage, attackSpeed: d.attack_speed,
-      moveSpeed: d.move_speed, range: d.range, count: d.count, battleCry: d.battle_cry, voiceStyle: d.voice_style,
-      spriteUrl: '',
-    }),
+    match()?.deployTroop(nonce, x, y, description, d),
     msg => {
-      call(net?.conn.reducers.cancelDeploy({ nonce }), () => {});
+      call(match()?.cancelDeploy(nonce), () => {});
       const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
       status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
     }
@@ -144,27 +126,27 @@ function sendDeploy(nonce: number, [x, y]: [number, number], description: string
 // Anchors skip Claude: lock and deploy in one go.
 function deployAnchor(i: number) {
   const a = ANCHORS[i];
-  if (!a || myRoom()?.status !== 'playing') return;
+  if (!a || match()?.status !== 'playing') return;
   const spot = spotOrDefault();
   const nonce = ++nonceSeq;
-  call(net?.conn.reducers.beginDeploy({ nonce, x: spot[0], y: spot[1] }), msg => status(msg, true));
+  call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
   sendDeploy(nonce, spot, a.description, a);
   status(`${a.name}`);
 }
 
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
 async function deployDescription(description: string) {
-  if (myRoom()?.status !== 'playing') return;
+  if (match()?.status !== 'playing') return;
   const spot = spotOrDefault();
   const nonce = ++nonceSeq;
-  call(net?.conn.reducers.beginDeploy({ nonce, x: spot[0], y: spot[1] }), msg => status(msg, true));
+  call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
   status(`designing “${description}”…`);
   try {
     const { design, cost, ms } = await designTroop(description);
     status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms`);
     sendDeploy(nonce, spot, description, design);
   } catch (e) {
-    call(net?.conn.reducers.cancelDeploy({ nonce }), () => {});
+    call(match()?.cancelDeploy(nonce), () => {});
     status(`designer failed: ${(e as Error).message}`, true);
   }
 }
@@ -212,54 +194,38 @@ board.canvas.addEventListener('click', () => {
 
 // ---------- frame ----------
 
-function towersFor(code: string) {
-  return net ? [...net.conn.db.tower.iter()].filter(t => t.roomCode === code) : [];
-}
-
 function frame() {
   requestAnimationFrame(frame);
   renderLobby();
   renderResult();
-  const r = myRoom();
-  if (!net || !r) {
+  const m = match();
+  if (!m) {
     $('roomInfo').textContent = '';
     board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null });
     return;
   }
-  const side = mySide();
-  if (r.status === 'playing' && warmedFor !== r.code) {
-    warmedFor = r.code;
+  const side = m.side;
+  if (m.status === 'playing' && warmedFor !== m.key) {
+    warmedFor = m.key;
     warmDesigner();
   }
-  const left = Math.max(0, MATCH_SECONDS - r.time);
+  const left = Math.max(0, MATCH_SECONDS - m.time);
   $('clock').textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
-  $('roomInfo').textContent = `room ${r.code}${left <= 30 && r.status === 'playing' ? ' · double elixir' : ''}`;
-  const elixir = side === 0 ? r.elixir0 : r.elixir1;
+  $('roomInfo').textContent = `${m.label}${left <= 30 && m.status === 'playing' ? ' · double elixir' : ''}`;
+  const elixir = m.elixir;
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
 
-  const units: DrawUnit[] = [];
-  for (const u of net.conn.db.unit.iter()) {
-    if (u.roomCode !== r.code) continue;
-    const [x, y] = drawnPos(u.id, u.x, u.y);
-    units.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay });
-  }
-  const troops = new Map(
-    [...net.conn.db.troop.iter()].filter(t => t.roomCode === r.code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl }])
-  );
-  const nowMicros = BigInt(Date.now()) * 1000n;
-  const pendings = [...net.conn.db.pending.iter()]
-    .filter(p => p.roomCode === r.code)
-    .map(p => ({ side: p.side, x: p.x, y: p.y, age: Number(nowMicros - p.createdAt.microsSinceUnixEpoch) / 1e6 }));
+  const units: DrawUnit[] = m.units();
 
   board.draw({
     mySide: side,
     units,
-    towers: towersFor(r.code),
-    troops,
-    pendings,
-    aim: r.status === 'playing' ? aim : null,
-    lock: r.status === 'playing' ? lock : null,
+    towers: m.towers(),
+    troops: m.troops(),
+    pendings: m.pendings(),
+    aim: m.status === 'playing' ? aim : null,
+    lock: m.status === 'playing' ? lock : null,
   });
 }
 

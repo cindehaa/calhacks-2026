@@ -1,0 +1,153 @@
+// Where a match comes from. main.ts renders and deploys through MatchSource, so the same UI
+// plays an online room (OnlineMatch, SpacetimeDB) or a bot match in this tab (LocalMatch).
+import { TICK_HZ, type Side } from '../../shared/arena';
+import type { TroopDesign } from '../../shared/troop';
+import type { Net } from './net';
+import type { DrawPending, DrawTower, DrawTroop, DrawUnit } from './render';
+
+export type MatchStatus = 'lobby' | 'playing' | 'done';
+
+export interface MatchUnit extends DrawUnit {
+  attackSeq: number; // bumps on every hit
+}
+export interface MatchTower extends DrawTower {
+  attackSeq: number;
+}
+
+export interface MatchSource {
+  readonly key: string; // room code, or 'bot'
+  readonly label: string; // HUD text: 'room ABCD' or 'vs Bot'
+  readonly side: Side;
+  readonly status: MatchStatus;
+  readonly time: number; // match seconds elapsed
+  readonly elixir: number; // yours
+  readonly winner: Side | -1 | null; // -1 draw, null while undecided
+  units(): MatchUnit[]; // positions already smoothed between ticks
+  towers(): MatchTower[];
+  troops(): Map<bigint, DrawTroop>;
+  pendings(): DrawPending[];
+  // Same contract as the server's reducers: errors reject with the reducer's message,
+  // e.g. 'too expensive: 12' or 'not enough elixir: 6'.
+  beginDeploy(nonce: number, x: number, y: number): Promise<void>;
+  deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl?: string): Promise<void>;
+  cancelDeploy(nonce: number): Promise<void>;
+  rematch(): Promise<void>;
+  leave(): Promise<void>;
+}
+
+// The sim ticks at 20 Hz; glide each unit from where it was drawn to its new position.
+const TICK_MS = 1000 / TICK_HZ;
+
+export class Glide {
+  private g = new Map<bigint, { fx: number; fy: number; tx: number; ty: number; at: number }>();
+
+  moved(id: bigint, x: number, y: number): void {
+    const [cx, cy] = this.pos(id, x, y);
+    this.g.set(id, { fx: cx, fy: cy, tx: x, ty: y, at: performance.now() });
+  }
+
+  drop(id: bigint): void {
+    this.g.delete(id);
+  }
+
+  pos(id: bigint, x: number, y: number): [number, number] {
+    const g = this.g.get(id);
+    if (!g) return [x, y];
+    const k = Math.min(1, (performance.now() - g.at) / TICK_MS);
+    return [g.fx + (g.tx - g.fx) * k, g.fy + (g.ty - g.fy) * k];
+  }
+}
+
+// The player's room on the SpacetimeDB connection. A thin view over the subscribed tables.
+export class OnlineMatch implements MatchSource {
+  private glide = new Glide();
+
+  constructor(readonly net: Net) {
+    net.conn.db.unit.onUpdate((_ctx, _old, row) => this.glide.moved(row.id, row.x, row.y));
+    net.conn.db.unit.onDelete((_ctx, row) => this.glide.drop(row.id));
+  }
+
+  me() {
+    return this.net.conn.db.player.identity.find(this.net.identity);
+  }
+
+  room() {
+    const p = this.me();
+    return p?.roomCode ? this.net.conn.db.room.code.find(p.roomCode) : undefined;
+  }
+
+  private get code() {
+    return this.room()?.code ?? '';
+  }
+
+  get key() { return this.code; }
+  get label() { return `room ${this.code}`; }
+  get side(): Side {
+    const r = this.room();
+    return r && r.guest && r.guest.isEqual(this.net.identity) ? 1 : 0;
+  }
+  get status() { return (this.room()?.status ?? 'lobby') as MatchStatus; }
+  get time() { return this.room()?.time ?? 0; }
+  get elixir() {
+    const r = this.room();
+    return !r ? 0 : this.side === 0 ? r.elixir0 : r.elixir1;
+  }
+  get winner() {
+    const r = this.room();
+    return r?.status === 'done' ? (r.winner as Side | -1) : null;
+  }
+
+  units(): MatchUnit[] {
+    const code = this.code, out: MatchUnit[] = [];
+    for (const u of this.net.conn.db.unit.iter()) {
+      if (u.roomCode !== code) continue;
+      const [x, y] = this.glide.pos(u.id, u.x, u.y);
+      out.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq });
+    }
+    return out;
+  }
+
+  towers(): MatchTower[] {
+    const code = this.code;
+    return [...this.net.conn.db.tower.iter()].filter(t => t.roomCode === code);
+  }
+
+  troops(): Map<bigint, DrawTroop> {
+    const code = this.code;
+    return new Map(
+      [...this.net.conn.db.troop.iter()].filter(t => t.roomCode === code).map(t => [t.id, { name: t.name, cost: t.cost, spriteUrl: t.spriteUrl }])
+    );
+  }
+
+  pendings(): DrawPending[] {
+    const code = this.code;
+    const nowMicros = BigInt(Date.now()) * 1000n;
+    return [...this.net.conn.db.pending.iter()]
+      .filter(p => p.roomCode === code)
+      .map(p => ({ side: p.side, x: p.x, y: p.y, age: Number(nowMicros - p.createdAt.microsSinceUnixEpoch) / 1e6 }));
+  }
+
+  beginDeploy(nonce: number, x: number, y: number) {
+    return this.net.conn.reducers.beginDeploy({ nonce, x, y });
+  }
+
+  deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl = '') {
+    return this.net.conn.reducers.deployTroop({
+      nonce, x, y, description, name: d.name, health: d.health, damage: d.damage, attackSpeed: d.attack_speed,
+      moveSpeed: d.move_speed, range: d.range, count: d.count, battleCry: d.battle_cry, voiceStyle: d.voice_style,
+      spriteUrl,
+    });
+  }
+
+  cancelDeploy(nonce: number) {
+    return this.net.conn.reducers.cancelDeploy({ nonce });
+  }
+
+  rematch() {
+    return this.net.conn.reducers.startMatch({});
+  }
+
+  leave() {
+    return this.net.conn.reducers.leaveRoom({});
+  }
+}
