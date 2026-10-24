@@ -28,7 +28,7 @@ import { boardReactions, homeReactions, menuReactions } from './react';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
 initKindling($('elixir'));
-if (import.meta.env.DEV) Object.assign(window, { board }); // poke at the 3D view from the console
+if (import.meta.env.DEV) Object.assign(window, { board, bot: () => local }); // poke at the 3D view and the bot match from the console
 
 let net: Net | null = null;
 let online: OnlineMatch | null = null;
@@ -423,11 +423,28 @@ function foeName(m: MatchSource) {
   return (id && net?.conn.db.player.identity.find(id)?.name) || 'Opponent';
 }
 
+const END_HOLD_MS = 1800;
+let endAt = 0; // when the match ended, for the frozen-board pause before the result screen
+const resultBanners = {
+  me: tapestry(document.querySelector('#resBanMe .cloth')!, document.querySelector('#resBanMe .bannerBody')!, { house: 'raven', rim: 'right' }),
+  foe: tapestry(document.querySelector('#resBanFoe .cloth')!, document.querySelector('#resBanFoe .bannerBody')!, { house: 'sun', rim: 'left', phase: 2.3 }),
+};
+
 function renderResult() {
   const m = match();
   const done = m?.status === 'done';
-  $('result').hidden = !done;
-  if (!done || !m) return;
+  // The match ends on a frozen board: it holds for a moment, then the result screen fades in over it.
+  if (done && !endAt) {
+    endAt = performance.now();
+    document.body.dataset.ending = m.winner === -1 ? 'draw' : m.winner === m.side ? 'win' : 'lose';
+  }
+  if (!done) {
+    endAt = 0;
+    delete document.body.dataset.ending;
+  }
+  const reveal = done && (performance.now() - endAt > END_HOLD_MS || matchMedia('(prefers-reduced-motion: reduce)').matches);
+  $('result').hidden = !reveal;
+  if (!reveal || !m) return;
   $<HTMLButtonElement>('rematchBtn').disabled = !local && !myRoom()?.guest;
   if (round.shown) return;
   round.shown = true;
@@ -479,12 +496,9 @@ function renderResult() {
   const damage = theirs.reduce((n, t) => n + Math.max(0, t.maxHp - Math.max(0, t.hp)), 0);
   $('stats').innerHTML = [[`${summary.towersTaken}–${summary.towersLost}`, 'Towers'], [Math.round(damage).toLocaleString('en-US'), 'Tower damage'],
     [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Embers']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
-  const banner = (id: string, house: 'raven' | 'sun', frosted: boolean) => {
-    $(id).classList.toggle('frosted', frosted);
-    $(id).querySelector('img')!.src = `/ui/banner-${house}${frosted ? '-frosted' : ''}.svg`;
-  };
-  banner('resBanMe', 'raven', outcome === 'lose');
-  banner('resBanFoe', 'sun', outcome === 'win');
+  // The loser's tapestry freezes over.
+  resultBanners.me.set({ frozen: outcome === 'lose' });
+  resultBanners.foe.set({ frozen: outcome === 'win' });
   $('resMeName').textContent = myName();
   $('resFoeName').textContent = foeName(m);
   const tag = (won: boolean) => outcome === 'draw' ? 'Draw' : won ? 'Winner' : 'Defeated';
@@ -869,8 +883,9 @@ function frame() {
   renderVersus(m);
   renderTools(m);
   if (m) trackRound(m);
-  // The title, home and result screens are opaque: no need to draw the board under them.
-  const visible = $('title').hidden && $('lobby').hidden && $('result').hidden;
+  // The title and home screens are opaque (no need to draw the board under them); the result screen
+  // shows the frozen board through it.
+  const visible = $('title').hidden && $('lobby').hidden;
   if (!m) {
     $('roomInfo').textContent = '';
     board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' }, visible);

@@ -190,19 +190,6 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
 @keyframes bob { 50% { transform: translateY(-1.1%); } }
 @keyframes shadowBob { 50% { transform: scale(.94); opacity: .8; } }
-.banner { position: absolute; top: 17vh; width: clamp(150px, 15.5vw, 244px); aspect-ratio: 244 / 392; container-type: inline-size;
-  --side: #0f2650; filter: drop-shadow(0 8px 0 var(--side)) drop-shadow(0 18px 24px #000a); transform-origin: 50% 0; }
-@keyframes sway { 0%, 100% { transform: rotate(.5deg); } 50% { transform: rotate(-.5deg); } }
-.banner.left { left: clamp(16px, 4.6vw, 78px); }
-.banner.right { right: clamp(16px, 4.6vw, 78px); --side: #4a1019; }
-.banner.frosted { --side: #2b4a66; }
-.banner.small { top: 25vh; width: clamp(120px, 11vw, 224px); }
-.banner.small.left { left: clamp(12px, 3vw, 78px); } .banner.small.right { right: clamp(12px, 3vw, 78px); }
-.banner img { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* woven cloth: fine diagonal threads over the dye */
-.banner::after { content: ''; position: absolute; left: 4.9%; right: 4.9%; top: 3.6%; bottom: 1.8%; pointer-events: none; opacity: .5;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 89.5%, 0 100%); mix-blend-mode: overlay;
-  background: repeating-linear-gradient(45deg, #ffffff10 0 1px, transparent 1px 3px), repeating-linear-gradient(-45deg, #00000018 0 1px, transparent 1px 3px); }
 .bannerBody { position: absolute; left: 5%; right: 5%; top: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4.5cqw; padding-top: 16cqw; text-align: center; color: #fff; }
 .sigil { position: relative; width: 38cqw; height: 38cqw; display: grid; place-items: center; color: #fff; background: #ffffff1c; clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); margin-bottom: 2cqw; }
 .sigil::before { content: ''; position: absolute; inset: 3px; clip-path: inherit; background: linear-gradient(160deg, #ffffff14 0 50%, #0000001f 50% 100%); }
@@ -348,7 +335,7 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .result.win .slab.stone { --a: #2a2416; --b: #211c10; --side: #0f0c06; }
 .result.lose .slab.stone { --a: #1d3346; --b: #162839; --side: #0b1824; }
 #resultFrost { display: none; } .result.lose #resultFrost { display: block; }
-@media (max-width: 900px) { .banner { display: none; } .spoils { flex-direction: column; gap: 14px; } .chronicle > .gFace { width: calc(100vw - 32px); flex-direction: column; } }
+@media (max-width: 900px) { .spoils { flex-direction: column; gap: 14px; } .chronicle > .gFace { width: calc(100vw - 32px); flex-direction: column; } }
 
 /* tools: small stone slabs */
 #tools button.round { width: 42px; height: 46px; border-radius: 0; border: 0; border-bottom: 5px solid #0e1230; color: #fff;
@@ -503,17 +490,13 @@ body.inHub #inputPanel { display: none; }
 .result #whyList li:nth-child(1) { animation-delay: 1.3s; } .result #whyList li:nth-child(2) { animation-delay: 1.45s; } .result #whyList li:nth-child(3) { animation-delay: 1.6s; }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } }
 .result .actions { animation: rise .6s 1.5s cubic-bezier(.2, .8, .2, 1) both; }
-.result .banner.left { animation: unfurl .8s .2s cubic-bezier(.2, .8, .2, 1) both, sway 9s 1s ease-in-out infinite; }
-.result .banner.right { animation: unfurl .8s .3s cubic-bezier(.2, .8, .2, 1) both, sway 9s -3.5s ease-in-out infinite; }
-/* the frozen banner stiffens and shivers instead of swaying */
-.result .banner.frosted { animation: unfurl .8s .2s cubic-bezier(.2, .8, .2, 1) both, shiver .4s 1.2s ease-in-out 3 !important; }
 /* frost creeps in from the corners on a defeat */
 .result.lose .frostCorner { animation: creep 2.4s cubic-bezier(.2, .7, .2, 1) both; }
 .result.lose .frostCorner.tl { transform-origin: 0 0; } .result.lose .frostCorner.tr { transform-origin: 100% 0; }
 .result.lose .frostCorner.bl { transform-origin: 0 100%; } .result.lose .frostCorner.br { transform-origin: 100% 100%; }
 @keyframes creep { from { transform: scale(.2); opacity: 0; } }
 .result .slab.battle .face::after { animation: sheen 1s 2s cubic-bezier(.4, 0, .2, 1); }
-@media (prefers-reduced-motion: reduce) { .result *, .result .banner.frosted { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .result * { animation: none !important; } }
 
 /* the virtual hand, bottom right during a match (input/handview.ts) */
 #handView { position: fixed; right: 12px; bottom: 12px; z-index: 5; width: 140px; padding: 6px 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none;
@@ -574,3 +557,35 @@ body.inHub #inputPanel { display: none; }
 #emberFlight { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
 .emberMote { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%;
   background: radial-gradient(circle, #fff3c8 0 25%, #ff8a3d 55%, #ff8a3d00 72%); box-shadow: 0 0 10px 3px #ff8a3d99; }
+
+/* ---------- end of a match: the board freezes, then the result screen fades in over it ---------- */
+#board3d, #board { transition: filter 1.4s ease-out; }
+body[data-ending] #board3d, body[data-ending] #board { filter: saturate(.5) brightness(.8); }
+body[data-ending="lose"] #board3d, body[data-ending="lose"] #board { filter: saturate(.3) brightness(.78) hue-rotate(-12deg); }
+body[data-ending] #dock, body[data-ending] #hud, body[data-ending] #handView, body[data-ending] #inputPanel, body[data-ending] #timings { opacity: 0; transition: opacity .6s; pointer-events: none; }
+#freeze { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity 1s; }
+body[data-ending] #freeze { opacity: 1; }
+#freeze .fzWash { position: absolute; inset: 0; }
+body[data-ending="win"] #freeze .fzWash { background: radial-gradient(ellipse 70% 60% at 50% 45%, #f3d58a22, transparent 70%), radial-gradient(ellipse at 50% 50%, transparent 55%, #1f170acc 100%); }
+body[data-ending="lose"] #freeze .fzWash { background: radial-gradient(ellipse at 50% 50%, #9cc3e014 30%, #0b1828d9 100%); }
+body[data-ending="draw"] #freeze .fzWash { background: radial-gradient(ellipse at 50% 50%, transparent 50%, #05060ccc 100%); }
+#freeze .frostCorner { display: none; }
+body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep 2.6s cubic-bezier(.2, .7, .2, 1) both; }
+#freeze .frostCorner.tl { transform-origin: 0 0; } #freeze .frostCorner.tr { transform-origin: 100% 0; }
+#freeze .frostCorner.bl { transform-origin: 0 100%; } #freeze .frostCorner.br { transform-origin: 100% 100%; }
+/* the result screen is see-through: the frozen board stays behind it, dimmed */
+.result { background: none; animation: fadeIn .6s ease-out both; }
+.result .gBg { display: none; }
+.result::before { content: ''; position: absolute; inset: 0; backdrop-filter: blur(1.5px); }
+.result.win::before { background: radial-gradient(ellipse 52% 60% at 50% 45%, #140f08d9, #140f0873 100%); }
+.result.lose::before { background: radial-gradient(ellipse 52% 60% at 50% 45%, #08121ed9, #08121e73 100%); }
+.result.draw::before { background: radial-gradient(ellipse 52% 60% at 50% 45%, #0a0c18d9, #0a0c1873 100%); }
+.result #resultFrost { display: none !important; } /* the freeze layer's frost carries on underneath */
+/* result tapestries: smaller, with the result tags */
+.tapestry.small { width: min(14vw, 27vh, 220px); }
+.tapestry.small .bannerBody { top: 23%; gap: 3.4cqw; }
+.tapestry.small .bLine { font: 600 8cqw/1.3 var(--chakra); color: #fff; padding: 0 4cqw; }
+.tapestry.small .bTag { font: 700 5.6cqw var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: #f3d58ab3; }
+.result .tapestry.left { animation: lower 1s .15s cubic-bezier(.2, .8, .2, 1) both; }
+.result .tapestry.right { animation: lower 1s .3s cubic-bezier(.2, .8, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { #freeze .frostCorner, .result { animation: none !important; } }
