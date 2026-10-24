@@ -57,6 +57,18 @@ export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, st
   circle(g, x, y, 3, null, 0, '#fff');
 }
 
+// The dwell ring: fills clockwise round the cursor while it rests on a menu button, then clicks.
+export function drawDwell(g: CanvasRenderingContext2D, x: number, y: number, k: number): void {
+  circle(g, x, y, 22, 'rgba(255,255,255,0.18)', 4);
+  g.beginPath();
+  g.arc(x, y, 22, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
+  g.strokeStyle = '#ffd27a';
+  g.lineWidth = 4;
+  g.lineCap = 'round';
+  g.stroke();
+  g.lineCap = 'butt';
+}
+
 const clip = (s: string, n: number) => (s.length > n ? '…' + s.slice(-n) : s);
 
 function circle(g: CanvasRenderingContext2D, x: number, y: number, r: number, stroke: string | null, width: number, fill?: string | CanvasGradient): void {
