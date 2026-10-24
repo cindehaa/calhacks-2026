@@ -1,5 +1,6 @@
 // Canvas drawing. World units are tiles; the board is rotated so your side is at the bottom.
 import { ARENA_H, ARENA_W, DEPLOY_DELAY, LANE_X, MID_Y, TOWER_RADIUS, UNIT_RADIUS, type Side } from '../../shared/arena';
+import { drawInput, type InputView } from './input/draw';
 
 export interface DrawUnit {
   id: bigint;
@@ -23,6 +24,7 @@ export interface View {
   pendings: DrawPending[];
   aim: [number, number] | null; // world coords, own half only
   lock: [number, number] | null;
+  input?: InputView; // hand cursor, pinch / voice lock and transcript, in screen px
 }
 
 const C = {
@@ -146,6 +148,7 @@ export class Board {
     // Aim cursor and locked spot.
     if (v.lock) this.ring(v.lock, C.mine, 2);
     if (v.aim) this.ring(v.aim, 'rgba(255,255,255,0.5)', 1);
+    if (v.input) drawInput(g, v.input);
   }
 
   private drawTower(tw: DrawTower, mine: boolean): void {

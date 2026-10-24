@@ -30,6 +30,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Troop designer in `api/`: Claude Haiku 5.5, structured JSON, prompt built from the anchors and clamps in `shared/`.
 - [x] Checked end to end with two headless browsers on a local server: rooms, deploys, elixir rejection, the designer's error path, a full match and rematch.
 - [x] Offline designer (`shared/offline_designer.ts`, `designOffline(description)`): keyword archetype to anchor stats, deterministic; hash varies only the name epithet and cry. Group size comes from the creature (small swarmers 8, medium groups 3-5, big 2-3), numbers are ignored, junk or profanity gives the weak 150 hp troop. `/api/troop` returns `{ design, cost, ms, source }` and uses it with no key or when Claude fails or takes over 4.5 s; the browser falls back to it after 7 s or an api error. `SHOW=1 npm test` prints a table of 45 sample descriptions.
+- [x] Input: camera hand tracking (MediaPipe, index-knuckle cursor, One Euro smoothing, 4-point calibration, thumb + middle pinch with optional pinch calibration), pinch to lock, release to deploy, drag off the 150 px ring or lose the hand to cancel. Mic: loudness starts a voice lock, 700 ms quiet deploys, saying "cancel" cancels; the browser's speech recognition stands in for Cartesia behind a swappable interface. Camera and mic are opt-in from a top-left panel; mouse, keys and the text box still work. 34 tests on the pure parts; smoke-tested with a fake camera and mic, not yet with a real webcam.
 
 ## Next up
 

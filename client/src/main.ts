@@ -2,6 +2,7 @@ import { ANCHORS } from '../../shared/anchors';
 import { ARENA_W, ELIXIR_MAX, MATCH_SECONDS, MID_Y, onOwnHalf, TICK_HZ, type Side } from '../../shared/arena';
 import type { TroopDesign } from '../../shared/troop';
 import { designTroop, warmDesigner } from './designer';
+import { InputController } from './input/controller';
 import { connect, type Net } from './net';
 import { Board, type DrawUnit } from './render';
 
@@ -153,21 +154,47 @@ function deployAnchor(i: number) {
 }
 
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
-async function deployDescription(description: string) {
-  if (myRoom()?.status !== 'playing') return;
-  const spot = spotOrDefault();
+function beginAt(spot: [number, number]): number | null {
+  if (myRoom()?.status !== 'playing') return null;
   const nonce = ++nonceSeq;
   call(net?.conn.reducers.beginDeploy({ nonce, x: spot[0], y: spot[1] }), msg => status(msg, true));
+  return nonce;
+}
+
+function cancelAt(nonce: number, msg: string) {
+  call(net?.conn.reducers.cancelDeploy({ nonce }), () => {});
+  status(msg, true);
+}
+
+async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
   try {
     const { design, cost, ms } = await designTroop(description);
     status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms`);
     sendDeploy(nonce, spot, description, design);
   } catch (e) {
-    call(net?.conn.reducers.cancelDeploy({ nonce }), () => {});
-    status(`designer failed: ${(e as Error).message}`, true);
+    cancelAt(nonce, `designer failed: ${(e as Error).message}`);
   }
 }
+
+async function deployDescription(description: string) {
+  const spot = spotOrDefault();
+  const nonce = beginAt(spot);
+  if (nonce !== null) await designAt(nonce, spot, description);
+}
+
+// Camera and mic: pinch or start talking to lock (beginDeploy), let go or go quiet to deploy.
+const input = new InputController(board.canvas, {
+  playing: () => myRoom()?.status === 'playing',
+  side: mySide,
+  toWorld: (px, py) => board.toWorld(px, py),
+  begin: beginAt,
+  deploy: designAt,
+  cancel: cancelAt,
+  status,
+  typedText: () => $<HTMLInputElement>('descInput').value,
+  clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
+});
 
 $<HTMLFormElement>('describe').onsubmit = e => {
   e.preventDefault();
@@ -260,6 +287,7 @@ function frame() {
     pendings,
     aim: r.status === 'playing' ? aim : null,
     lock: r.status === 'playing' ? lock : null,
+    input: input.view(),
   });
 }
 

@@ -9,11 +9,12 @@
     "db:publish": "spacetime publish --module-path server --server local arena -y",
     "db:reset": "spacetime publish --module-path server --server local arena -y --delete-data",
     "db:generate": "spacetime generate --lang typescript --out-dir client/src/module_bindings --module-path server -y",
-    "test": "tsx --test shared/*.test.ts",
+    "test": "tsx --test shared/*.test.ts client/src/input/*.test.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p server"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
+    "@mediapipe/tasks-vision": "0.10.14",
     "spacetimedb": "2.13.0"
   },
   "devDependencies": {
