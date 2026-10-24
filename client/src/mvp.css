@@ -1,0 +1,28 @@
+/* The MVP card on the result screen (mvp.ts): a chamfered stone slab like the chronicle, with the
+   troop's art standing on a lit octagon, its name in Cinzel, the words that summoned it, and the
+   damage in big lining figures. Gold on a win, ice on a loss, like the rest of the screen. */
+.mvpCard > .gFace { width: min(760px, calc(100vw - 2 * (14vw + 24px))); display: flex; align-items: center; gap: 22px; padding: 14px 26px 14px 18px; }
+.result.win .mvpCard { --a: #2a2312; --b: #201a0d; --side: #0b0906; }
+.result.lose .mvpCard { --a: #16283a; --b: #112131; --side: #08121c; }
+.mvpArt { flex: none; width: 88px; height: 88px; display: grid; place-items: center; position: relative;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  background: linear-gradient(160deg, #ffffff22 0 50%, #ffffff0d 50% 100%); }
+.result.win .mvpArt { background: linear-gradient(160deg, #f3d58a55 0 50%, #f3d58a22 50% 100%); }
+.mvpArt img, .mvpArt canvas { width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 3px 0 #0008); }
+.mvpText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.result.win .mvpText .gLabel { color: var(--gold); } .result.lose .mvpText .gLabel { color: var(--ice2); }
+.mvpName { font: 800 clamp(20px, 2vw, 28px)/1.1 var(--cinzel); color: #fff; letter-spacing: .02em; }
+.mvpWords { font: italic 500 16px/1.3 var(--chakra); color: #d8dcec; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mvpWords::before { content: '“'; } .mvpWords::after { content: '”'; }
+.mvpDamage { flex: none; display: flex; flex-direction: column; align-items: flex-end; position: relative; padding-right: 2px; }
+.mvpDamage b { font: 900 clamp(30px, 3vw, 42px)/1 var(--cinzel); color: #fff; font-variant-numeric: lining-nums; }
+.result.win .mvpDamage b { color: var(--gold); } .result.lose .mvpDamage b { color: var(--ice); }
+.mvpDamage small { font: 700 12px var(--chakra); letter-spacing: .18em; text-transform: uppercase; color: var(--muted, #8e96b3); }
+.mvpCost { position: absolute; top: -8px; left: -30px; width: 24px; height: 24px; display: grid; place-items: center;
+  font: 800 13px var(--cinzel); color: #f3dcff; background: #5b2a86;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.mvpCard { animation: mvpIn .5s 1.4s cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes mvpIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@media (prefers-reduced-motion: reduce) { .mvpCard { animation: none; } }
+@media (max-width: 900px) { .mvpCard > .gFace { width: calc(100vw - 32px); } }
+@media (max-height: 820px) { .mvpArt { width: 64px; height: 64px; } .mvpArt img, .mvpArt canvas { width: 60px; height: 60px; } .mvpCard > .gFace { padding: 10px 22px 10px 14px; } }
