@@ -7,13 +7,48 @@ import { InputController } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
-import { Board, type DrawUnit } from './render';
+import { PovBoard, type Eye } from './pov';
+import { Board, type DrawUnit, type View } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const board = new Board($<HTMLCanvasElement>('board'));
+const flat = new Board($<HTMLCanvasElement>('board'));
+const pov = new PovBoard($<HTMLCanvasElement>('board3d'), flat.canvas);
+
+// V (or the 3D button) cycles the top-down board and the POV eyes; remembered per browser.
+const VIEWS = ['flat', 'tower', 'high', 'low'] as const;
+type ViewMode = (typeof VIEWS)[number];
+const VIEW_NAMES: Record<ViewMode, string> = { flat: 'top-down', tower: 'POV, behind your towers', high: 'POV, high', low: 'POV, ground level' };
+let viewMode: ViewMode = (() => {
+  const asked = new URLSearchParams(location.search).get('view');
+  if (asked === 'pov') return 'tower';
+  try {
+    const saved = localStorage.getItem('view') as ViewMode | null;
+    if (saved && VIEWS.includes(saved)) return saved;
+  } catch { /* storage blocked */ }
+  return 'flat';
+})();
+function setView(mode: ViewMode) {
+  viewMode = mode;
+  pov.show(mode !== 'flat');
+  if (mode !== 'flat') pov.eye = mode as Eye;
+  try { localStorage.setItem('view', mode); } catch { /* storage blocked */ }
+}
+setView(viewMode);
+
+// What input and the frame loop talk to: whichever view is showing.
+const board = {
+  canvas: flat.canvas,
+  toWorld: (px: number, py: number) => (viewMode === 'flat' ? flat.toWorld(px, py) : pov.toWorld(px, py)),
+  draw: (v: View) => (viewMode === 'flat' ? flat.draw(v) : pov.draw(v)),
+};
+function cycleView() {
+  setView(VIEWS[(VIEWS.indexOf(viewMode) + 1) % VIEWS.length]);
+  status(`View: ${VIEW_NAMES[viewMode]} (V to switch)`);
+}
+$('viewBtn').onclick = cycleView;
 
 let net: Net | null = null;
 let online: OnlineMatch | null = null;
@@ -213,6 +248,7 @@ addEventListener('keydown', e => {
   }
   if (/^[0-9]$/.test(e.key)) deployAnchor((Number(e.key) + 9) % 10);
   else if (e.key === 'Escape') lock = null;
+  else if (e.key === 'v' || e.key === 'V') cycleView();
   else if (e.key === 'Enter' || e.key === '/') {
     e.preventDefault();
     $('descInput').focus();

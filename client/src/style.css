@@ -10,7 +10,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, sans-serif; overflow: hidden; }
-canvas#board { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+canvas#board, canvas#board3d { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+canvas#board3d { pointer-events: none; }
+canvas#board3d[hidden] { display: none; }
 #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; }
 #hudTop { display: flex; gap: 16px; justify-content: center; align-items: baseline; padding: 10px; }
 #clock { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }

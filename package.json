@@ -18,7 +18,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
     "@mediapipe/tasks-vision": "0.10.14",
-    "spacetimedb": "2.13.0"
+    "@types/three": "0.169.0",
+    "spacetimedb": "2.13.0",
+    "three": "0.169.0"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
