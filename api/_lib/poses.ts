@@ -1,15 +1,16 @@
 // Attack-pose frame (motion layer 2): one image-edit call redraws a troop's base sprite mid-attack,
 // prompted by its flavor, then BiRefNet cuts it out like a sprite. The renderer swaps it in at each
-// strike. Cached on disk by description + flavor and served at /api/pose/<id>.png, so a troop
+// strike. Cached (disk or Vercel Blob, art_store.ts) by description + flavor and served at /api/pose/<id>.png, so a troop
 // deployed twice, or by both players, pays once.
 import { createHash } from 'node:crypto';
 import { normalise } from '../../shared/troop.js';
-import { BACKGROUND, artFile, cacheDir, cachedArt, fal, spritePng, type Art } from './sprites.js';
+import { artStore } from './art_store.js';
+import { BACKGROUND, artFile, cachedArt, fal, spritePng, type Art } from './sprites.js';
 
 const POSE_VERSION = 1; // bump to redraw every pose after a prompt or model change
 const EDIT_TIMEOUT_MS = 25_000;
 
-const DIR = cacheDir('poses');
+const STORE = artStore('poses');
 
 const idOf = (description: string, flavor: string) =>
   createHash('sha1')
@@ -49,7 +50,7 @@ export async function editImage(png: Buffer, prompt: string): Promise<string> {
 
 // The base sprite (cached for any troop that already has art), edited into the pose.
 export function pose(description: string, flavor: string): Promise<Art> {
-  return cachedArt('pose', DIR, idOf(description, flavor), async () => editImage(await spritePng(description), posePrompt(description, flavor)));
+  return cachedArt('pose', STORE, idOf(description, flavor), async () => editImage(await spritePng(description), posePrompt(description, flavor)));
 }
 
-export const poseFile = (name: string) => artFile(DIR, name);
+export const poseFile = (name: string) => artFile(STORE, name);

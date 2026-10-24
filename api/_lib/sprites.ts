@@ -1,14 +1,10 @@
 // Troop art: fal FLUX.1 schnell draws the unit on flat magenta, BiRefNet v2 cuts it out, and the
-// PNG is kept on disk and served from this proxy at a short URL. The troop row's spriteUrl is a
+// PNG is kept (art_store.ts: disk locally, Vercel Blob when deployed) and served from this proxy at a short URL. The troop row's spriteUrl is a
 // string cut at 2048 chars, so a data URI won't fit; the client loads this URL same-origin
 // through Vite's /api proxy (with CORS headers too), so the canvas is never tainted.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { normalise } from '../../shared/troop.js';
+import { artStore, type ArtStore } from './art_store.js';
 
 // Description first, then the shared style, so the subject wins over the boilerplate.
 export const STYLE =
@@ -20,12 +16,9 @@ const SIZE = 384;
 const FLUX_TIMEOUT_MS = 10_000;
 const REMOVE_TIMEOUT_MS = 3000; // past this, the browser keys the background itself
 
-// Generated art is kept on disk, in .cache/ locally. Vercel's filesystem is read-only apart from
-// the temp dir, which only lasts as long as the function instance, so there art is redrawn after
-// a cold start, and the sprite function serves its own files (the rewrites in vercel.json).
-export const cacheDir = (name: string) =>
-  process.env.VERCEL ? pathToFileURL(join(tmpdir(), 'arena', name) + '/') : new URL(`../../.cache/${name}/`, import.meta.url);
-const DIR = cacheDir('sprites');
+// Generated art is kept in .cache/ locally, and in Vercel Blob when the project has a store
+// (art_store.ts); the sprite function serves it either way (the rewrites in vercel.json).
+const STORE = artStore('sprites');
 
 export const hasFalKey = () => !!(process.env.FAL_KEY ?? '').trim();
 
@@ -42,7 +35,7 @@ const idOf = (description: string) =>
   createHash('sha1').update(`${STYLE_VERSION}|${normalise(description)}`).digest('hex').slice(0, 20);
 
 export function sprite(description: string): Promise<Art> {
-  return cachedArt('sprite', DIR, idOf(description), async () => {
+  return cachedArt('sprite', STORE, idOf(description), async () => {
     const flux = await fal<{ images?: { url: string }[] }>(
       'fal-ai/flux/schnell',
       {
@@ -61,27 +54,27 @@ export function sprite(description: string): Promise<Art> {
   });
 }
 
-export const spriteFile = (name: string) => artFile(DIR, name);
+export const spriteFile = (name: string) => artFile(STORE, name);
 
 // The base sprite's PNG for a description, drawing it first if needed. Poses (poses.ts) edit it.
 export async function spritePng(description: string): Promise<Buffer> {
   const s = await sprite(description);
   const png = await spriteFile(s.url.slice('/api/sprite/'.length).split('?')[0]);
-  if (!png) throw new Error('sprite missing on disk');
+  if (!png) throw new Error('sprite missing from the art store');
   return png;
 }
 
-// Same id, same art: a hit on disk is free, and a second request for art still being drawn waits
+// Same id, same art: a hit in the store is free, and a second request for art still being drawn waits
 // for the first instead of paying twice. draw() answers with the raw image (a data URI or URL);
 // BiRefNet cuts it out, and if that fails or times out it's kept as is for the browser to key.
 const inFlight = new Map<string, Promise<Art>>();
 
-export async function cachedArt(kind: 'sprite' | 'pose', dir: URL, id: string, draw: () => Promise<string>): Promise<Art> {
+export async function cachedArt(kind: 'sprite' | 'pose', store: ArtStore, id: string, draw: () => Promise<string>): Promise<Art> {
   const t0 = performance.now();
   const file = (removed: boolean) => (removed ? `${id}.png` : `${id}.key.png`);
   const urlOf = (removed: boolean) => (removed ? `/api/${kind}/${id}.png` : `/api/${kind}/${id}.key.png?key`);
   for (const removed of [true, false]) {
-    if (existsSync(new URL(file(removed), dir))) return { url: urlOf(removed), removed, cached: true, ms: 0 };
+    if (await store.exists(file(removed))) return { url: urlOf(removed), removed, cached: true, ms: 0 };
   }
   const key = `${kind}/${id}`;
   let p = inFlight.get(key);
@@ -102,8 +95,7 @@ export async function cachedArt(kind: 'sprite' | 'pose', dir: URL, id: string, d
       }
       const removed = !!png;
       png ??= await bytes(raw);
-      mkdirSync(dir, { recursive: true });
-      await writeFile(new URL(file(removed), dir), png);
+      await store.write(file(removed), png);
       return { url: urlOf(removed), removed, cached: false, ms: 0 };
     })().finally(() => inFlight.delete(key));
     inFlight.set(key, p);
@@ -111,14 +103,10 @@ export async function cachedArt(kind: 'sprite' | 'pose', dir: URL, id: string, d
   return { ...(await p), ms: Math.round(performance.now() - t0) };
 }
 
-// The PNG for a served name, or null. Ids are hex only, so the name can't walk out of dir.
-export async function artFile(dir: URL, name: string): Promise<Buffer | null> {
+// The PNG for a served name, or null. Ids are hex only, so the name can't walk out of the store.
+export async function artFile(store: ArtStore, name: string): Promise<Buffer | null> {
   if (!/^[0-9a-f]{20}(\.key)?\.png$/.test(name)) return null;
-  try {
-    return await readFile(new URL(name, dir));
-  } catch {
-    return null;
-  }
+  return store.read(name);
 }
 
 // fal's synchronous endpoint: one POST, the result in the response.
