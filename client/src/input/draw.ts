@@ -5,7 +5,7 @@ import { micRing, wordsFlash, wordsPill } from './wordfx';
 export type CursorState = 'open' | 'fire' | 'fist';
 
 export interface InputView {
-  cursor: { x: number; y: number; state: CursorState } | null; // hand cursor only; the mouse has its own ring
+  cursor: { x: number; y: number; state: CursorState; fade?: number } | null; // hand cursor only; the mouse has its own ring
   prompt: { x: number; y: number; text: string; speaking: boolean } | null; // at the cursor, hand or mouse
   flashes: { x: number; y: number; kind: 'deploy' | 'cancel' | 'miss'; label: string; t: number; words?: string }[]; // words: what was sent or cleared, for wordfx.ts
   mic?: { x: number; y: number; db: number; speaking: boolean } | null; // mic on: its level, at the cursor
@@ -38,7 +38,11 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
     g.globalAlpha = 1;
   }
   if (v.mic) micRing(g, v.mic.x, v.mic.y, v.mic.db, v.mic.speaking);
-  if (v.cursor) drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.state);
+  if (v.cursor) {
+    g.globalAlpha = v.cursor.fade ?? 1;
+    drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.state);
+    g.globalAlpha = 1;
+  }
   if (v.hint) text(g, v.hint, innerWidth / 2, 70, 13, C.warn);
   g.restore();
 }

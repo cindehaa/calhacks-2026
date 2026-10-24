@@ -273,6 +273,7 @@ export class AutoSpeech implements SpeechSource {
   onPartial = (_: string) => {};
   onFinal = (_: string) => {};
   onError = (_: string) => {};
+  onFallback = () => {}; // Cartesia gave up and the browser's recogniser took over
   private cartesia: CartesiaSpeechSource;
   private web = new WebSpeechSource();
   private cur: SpeechSource;
@@ -290,6 +291,7 @@ export class AutoSpeech implements SpeechSource {
       if (this.cur !== this.cartesia) return;
       this.cur = this.web;
       console.warn(`Cartesia STT unavailable (${why}), using the browser's speech recognition`);
+      this.onFallback();
       if (this.on) {
         this.web.start();
         this.onError(this.web.available ? 'listening (browser speech; Cartesia unavailable)' : 'no speech recognition: voice locks, typed text describes');

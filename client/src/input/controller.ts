@@ -6,7 +6,7 @@
 // Close your hand into a fist, press Esc or say "cancel" to throw the words away. Typed text,
 // number keys and click-to-type work as before.
 import { drawCursor, MISS_MS, type CursorState, type InputView } from './draw';
-import { notice } from '../notice';
+import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
 import { OneEuro } from './filter';
 import { FlickDetector } from './flick';
@@ -55,6 +55,8 @@ interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean
 interface Firing { nonce: number; spot: Spot; at: Pt; by: string; words: Transcript }
 
 const FLUSH_MS = 600; // how long a fire waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
+const LOST_MS = 1000; // hand out of view this long before "show your hand"
+const FADE_MS = 450; // the cursor fades out over this when the hand goes
 const FLICK_SHOW_MS = 180; // the cursor fills this long after a flick
 const SCREEN_IN_CAMERA = invertH(DEFAULT_H); // the screen's edges in camera coords, for the preview
 
@@ -87,6 +89,10 @@ export class InputController {
   private camStatus = '';
   private heard = '';
   private heardWords = false; // the recogniser has returned words at least once
+  private lostAt = 0; // when the hand went out of view, 0 while it's in view
+  private lostCursor: Pt | null = null; // where it was, for the fade
+  private playingSince = 0;
+  private fellBack = false; // Cartesia gave up; say so once, in a match
   private hinted = false; // the how-to after a fire with no words shows once
   private flaggedAt = 0; // last mismatch flag: interim words flag it, then the final repeats them
   private lastPanel = 0;
@@ -106,6 +112,7 @@ export class InputController {
     this.speech.setGated(false); // always listening
     this.speech.onPartial = t => this.words(t, false);
     this.speech.onFinal = t => this.words(t, true);
+    this.speech.onFallback = () => (this.fellBack = true); // told once a match is under way
     this.speech.onError = msg => {
       this.heard = msg;
       this.host.event?.('speech:error', msg);
@@ -197,11 +204,12 @@ export class InputController {
     const playing = this.host.playing(), at = this.cursor();
     const words = this.firing ? '' : this.prompt.text;
     return {
-      cursor: this.handCursor && playing ? { ...this.handCursor, state: this.cursorState(performance.now()) } : null,
+      cursor: this.handCursor && playing ? { ...this.handCursor, state: this.cursorState(performance.now()) }
+        : this.lostCursor && playing && performance.now() - this.lostAt < FADE_MS ? { ...this.lostCursor, state: 'open', fade: 1 - (performance.now() - this.lostAt) / FADE_MS } : null,
       prompt: playing && at && (words || this.vad.speaking) ? { x: at.x, y: at.y, text: words, speaking: this.vad.speaking } : null,
       flashes: this.flashes,
       mic: playing && this.mic.on && at ? { x: at.x, y: at.y, db: this.vad.level, speaking: this.vad.speaking } : null,
-      hint: this.tracker?.ready && !this.hand && playing ? 'no hand in view' : '',
+      hint: '', // "show your hand" is a notice now, after a second out of view
     };
   }
 
@@ -216,6 +224,14 @@ export class InputController {
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
     this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
+    const playing = this.host.playing();
+    if (!playing) this.playingSince = 0;
+    else if (!this.playingSince) this.playingSince = now;
+    // After the versus card and countdown, so it isn't missed under them.
+    if (this.fellBack && this.mic.on && playing && now - this.playingSince > 4500) {
+      this.fellBack = false;
+      notice(this.speech.available ? 'Using your browser’s speech instead · same game, a touch slower' : 'No speech here · type the troop instead', { tone: 'warn', ms: 3400, key: 'speech', rank: 1 });
+    }
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
     else this.renderHint();
@@ -224,10 +240,13 @@ export class InputController {
   private onHandFrame(f: HandFrame | null, now: number): void {
     this.hand = f;
     if (!f) {
+      if (this.handCursor) { this.lostAt = now; this.lostCursor = this.handCursor }
       this.resetHand();
       this.drawPreviews();
+      this.handLost(now);
       return;
     }
+    if (this.lostAt) { this.lostAt = 0; this.lostCursor = null; clearNotice('hand') }
     const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
     this.trail.push(now, this.handCursor);
@@ -240,6 +259,16 @@ export class InputController {
       this.fire(aim, 'flick');
     }
     this.drawPreviews();
+  }
+
+  // The hand left the camera (or the camera stopped): the cursor fades where it was, and after a
+  // second a gentle "show your hand" holds until it's back.
+  private handLost(now: number): void {
+    if (!this.host.playing() || !this.tracker?.ready) return clearNotice('hand');
+    if (!this.lostAt) this.lostAt = now;
+    if (now - this.lostAt > LOST_MS && !noticeShowing('hand')) {
+      notice('Show your hand to the camera to aim', { tone: 'warn', hold: true, key: 'hand' });
+    }
   }
 
   private resetHand(): void {

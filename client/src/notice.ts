@@ -22,6 +22,8 @@ interface Showing { key: string; rank: number; hold: boolean; until: number }
 let el: HTMLDivElement | null = null;
 let showing: Showing | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
+let waiting: ReturnType<typeof setTimeout> | undefined;
+let waitingKey = '';
 
 function mount(): HTMLDivElement {
   if (el) return el;
@@ -39,6 +41,13 @@ export function notice(text: string, o: NoticeOpts = {}): void {
   const rank = o.rank ?? (o.hold ? 1 : 0);
   const cur = showing && (showing.hold || showing.until > now) ? showing : null;
   if (cur && cur.rank > rank && cur.key !== o.key) return;
+  // A held message waits for a short one to finish rather than cutting it off.
+  if (o.hold && cur && !cur.hold && cur.key !== (o.key ?? text)) {
+    clearTimeout(waiting);
+    waitingKey = o.key ?? text;
+    waiting = setTimeout(() => notice(text, o), cur.until - now + 60);
+    return;
+  }
   const n = mount();
   const ms = o.ms ?? 2400;
   showing = { key: o.key ?? text, rank, hold: !!o.hold, until: now + ms };
@@ -73,6 +82,7 @@ export function notice(text: string, o: NoticeOpts = {}): void {
 }
 
 export function clearNotice(key: string): void {
+  if (waitingKey === key) clearTimeout(waiting);
   if (showing?.key === key) hide();
 }
 
