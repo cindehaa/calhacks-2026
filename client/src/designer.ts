@@ -23,6 +23,13 @@ function offline(description: string, t0: number, error: string): Designed {
   return { design, cost: price(design), ms: Math.round(performance.now() - t0), source: 'offline', error };
 }
 
+// Your troops the offline designer made (the model was slow, erroring or unreachable), so the
+// board can mark them "improvised": a plain troop then reads as intended, not broken.
+const improvisedSet = new Set<string>();
+export function improvised(description: string | undefined): boolean {
+  return !!description && improvisedSet.has(normalise(description));
+}
+
 // Designs started while the player is still talking, keyed by normalised words. If the final
 // words match, the deploy reuses the request already in flight, hiding most of the model's latency.
 const early = new Map<string, Promise<Designed>>();
@@ -45,6 +52,7 @@ export async function designTroop(description: string): Promise<Designed> {
   const t0 = performance.now();
   const hit = early.get(normalise(description));
   const d = await (hit ?? request(description));
+  if (d.source === 'offline') improvisedSet.add(normalise(description));
   return { ...d, apiMs: d.ms, ms: Math.round(performance.now() - t0), early: !!hit };
 }
 

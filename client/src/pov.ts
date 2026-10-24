@@ -14,6 +14,7 @@ import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View }
 import { Scenery } from './scenery';
 import { poseFrame } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
+import { improvised } from './designer';
 
 // Where you stand, in your own view coords (your back line is y = 0): height, resting pitch and
 // vertical field of view.
@@ -1109,6 +1110,7 @@ export class PovBoard {
         g.globalAlpha = st.alpha;
         this.outlined(name, x + icon / 2, y, Math.round(size * st.scale), ink);
         g.globalAlpha = 1;
+        if (mine && improvised(troop.description)) this.improvisedStamp(x + w / 2 + 4 * s, y - size * 0.15, s, st.alpha);
         if (buildings) this.towerIcon(x - w / 2 + 5 * s, y - size * 0.35, s, ink);
       } else if (!free(x - 10, py - ph / 2, x + 10, py + ph / 2)) continue;
       // The cost stays hidden until the troop lands, then rolls like a slot reel (juice.ts).
@@ -1125,6 +1127,29 @@ export class PovBoard {
   private labels: { u: DrawUnit; troop: DrawTroop; x: number; y: number; T: number }[] = [];
   private labelBoxes: number[] = [];
   private lead = new Map<bigint, DrawUnit>();
+
+  // "Improvised": the offline designer made this one. A small tilted ink stamp beside the name, in
+  // amber like a wax seal, so a plain troop reads as a deliberate quick sketch rather than a bug.
+  private improvisedStamp(x: number, y: number, s: number, alpha: number): void {
+    const g = this.g;
+    g.save();
+    g.globalAlpha = 0.9 * alpha;
+    g.translate(x, y);
+    g.rotate(-0.16);
+    const fs = Math.round(8.5 * s);
+    g.font = `800 ${fs}px 'Cinzel', Georgia, serif`;
+    const label = 'IMPROVISED', w = g.measureText(label).width + 8 * s, h = fs + 5 * s;
+    g.fillStyle = 'rgba(26,14,0,0.72)';
+    g.fillRect(0, -h / 2, w, h);
+    g.strokeStyle = '#ffb02e';
+    g.lineWidth = 1.2;
+    g.strokeRect(0.5, -h / 2 + 0.5, w - 1, h - 1);
+    g.fillStyle = '#ffd27a';
+    g.textAlign = 'left';
+    g.textBaseline = 'middle';
+    g.fillText(label, 4 * s, 0.5);
+    g.restore();
+  }
 
   // A tiny crenellated tower, about 10 px at s = 1, centred on (x, y).
   private towerIcon(x: number, y: number, s: number, color: string): void {

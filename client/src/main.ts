@@ -690,7 +690,7 @@ async function designAt(nonce: number, spot: [number, number], description: stri
     const d = await designTroop(description);
     attempts.get(nonce)?.gotDesign(d);
     const { design, ms, source, early } = d;
-    const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
+    const tags = [source === 'offline' && 'improvised', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
     status(`${design.name} · ${ms} ms${tags ? ` (${tags})` : ''}`); // the cost waits for the landing reveal
     void deployWithArt(nonce, spot, description, design, art);
