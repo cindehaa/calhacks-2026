@@ -17,6 +17,7 @@ import { Scenery } from './scenery';
 import { poseFrame, spriteFailed } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 import { improvised } from './designer';
+import { frostLevel, frostStone, Rubble, TowerIce } from './frost';
 
 // Where you stand, in your own view coords (your back line is y = 0): height, resting pitch and
 // vertical field of view.
@@ -51,7 +52,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 const OVER = 10; // renderOrder for shots, trails and particles: drawn over the bodies
 const WHITE = new THREE.Color('#ffffff');
 
-interface TowerMesh { grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number; hp: number }
+interface TowerMesh {
+  grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number; hp: number;
+  frost: { value: number }; seed: number; // the frost line, 0..1 of the body (frost.ts)
+}
 interface UnitMesh {
   sprite: THREE.Sprite; mat: THREE.SpriteMaterial; glow: THREE.Sprite; glowMat: THREE.SpriteMaterial; ghosts: THREE.Sprite[] | null;
   shadow: THREE.Mesh; ring: THREE.Mesh; seen: number;
@@ -144,7 +148,9 @@ export class PovBoard {
   private v3 = new THREE.Vector3();
   private v3b = new THREE.Vector3();
   private v3c = new THREE.Vector3();
-  private stone = new THREE.MeshStandardMaterial({ color: '#2b3150', roughness: 0.75 });
+  private stone = new THREE.MeshStandardMaterial({ color: '#2b3150', roughness: 0.75, flatShading: true });
+  private ice!: TowerIce;
+  private rubble!: Rubble;
   // Unit-radius tower parts, scaled per tower (the king is wider and taller).
   private body = new THREE.CylinderGeometry(1, 1.15, 2.2, 8);
   private crownGeo = new THREE.CylinderGeometry(1.15, 1, 0.5, 8);
@@ -189,6 +195,8 @@ export class PovBoard {
     s.add(this.layout, this.pockets);
     this.addSurroundings();
     this.scenery = new Scenery(s);
+    this.ice = new TowerIce(s);
+    this.rubble = new Rubble(s);
     this.parts = this.makePoints();
     this.summons = new SummonCircles(s, (x, y, h, out) => this.at(x, y, h, out));
 
@@ -409,12 +417,17 @@ export class PovBoard {
 
   private syncTowers(v: View, dt: number): void {
     this.hurt = Math.max(0, this.hurt - dt * 1.6);
+    this.ice.begin();
     v.towers.forEach((tw, i) => {
       const key = towerKey(tw, i);
       let t = this.towers.get(key);
+      const fresh = !t;
       if (!t) {
         const grp = new THREE.Group();
-        const base = new THREE.Mesh(this.body, this.stone.clone());
+        const frost = { value: 0 }, seed = this.towers.size + 1 + tw.side * 3;
+        const stone = this.stone.clone();
+        frostStone(stone, frost, seed);
+        const base = new THREE.Mesh(this.body, stone);
         base.position.y = 1.1;
         base.castShadow = base.receiveShadow = true;
         const mat = new THREE.MeshStandardMaterial({ roughness: 0.4 });
@@ -425,7 +438,7 @@ export class PovBoard {
         gem.position.y = 3.25;
         grp.add(base, crown, gem);
         this.scene.add(grp);
-        t = { grp, base, crown, gem, mat, seen: 0, hp: tw.hp };
+        t = { grp, base, crown, gem, mat, seen: 0, hp: tw.hp, frost, seed };
         this.towers.set(key, t);
       }
       t.seen = this.frame;
@@ -436,7 +449,12 @@ export class PovBoard {
       const col = mine ? C.mine : C.theirs;
       t.mat.color.set(col);
       t.mat.emissive.set(col);
-      t.mat.emissiveIntensity = (sleeping(tw, v.towers) ? 0.08 : 0.35) + this.fx.towerFlash(key) * 1.5;
+      // Frost climbs toward its line (damage, or overtime's creep) rather than jumping.
+      const target = frostLevel(tw.hp, tw.maxHp, v.time ?? 0, v.status === 'playing');
+      t.frost.value = still() ? target : t.frost.value + (target - t.frost.value) * (1 - Math.exp(-dt * 1.8));
+      // The gem's fire dims as the frost nears the top.
+      const chill = 1 - 0.6 * Math.max(0, t.frost.value - 0.5) / 0.5;
+      t.mat.emissiveIntensity = (sleeping(tw, v.towers) ? 0.08 : 0.35) * chill + this.fx.towerFlash(key) * 1.5;
       const r = towerRadius(tw.lane ?? 0);
       // From the top eye your king is a lookout tall enough to stand on at eye height.
       const lookout = king && mine && this.eye === 'top';
@@ -457,7 +475,16 @@ export class PovBoard {
       t.base.scale.y = alive ? 1 : 0.25;
       t.base.position.y = alive ? 1.1 : 0.28;
       t.gem.rotation.y += 0.02;
+      // A tower that falls breaks into rubble round its stump (laid straight down if it was
+      // already down when we first saw it, or under reduced motion).
+      const bodyH = 2.2 * t.grp.scale.y;
+      if (!alive) this.rubble.crumble(key, t.grp.position.x, t.grp.position.z, r, bodyH, col, still() || fresh || v.status !== 'playing', t.seed);
+      if (!ghost && !lookout) this.ice.add(t.grp.position, r, bodyH, t.frost.value, t.seed, !alive);
     });
+    this.ice.end();
+    // Towers that stood back up (a rematch) or left the board take their rubble with them.
+    this.rubble.clear(k => (this.towers.get(k)?.hp ?? 1) <= 0 && this.towers.get(k)?.seen === this.frame);
+    this.rubble.update(dt);
     for (const [key, t] of this.towers) {
       if (t.seen === this.frame) continue;
       this.scene.remove(t.grp);
@@ -1353,6 +1380,10 @@ export function flameGlyph(g: CanvasRenderingContext2D, x: number, y: number, h:
   g.fillStyle = '#ffe9a8';
   const yy = y; y = yy + r * 0.28; tongue(0.5); y = yy;
 }
+
+const still = () => {
+  try { return matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
+};
 
 // Same rule as the sim: the king sleeps until it is hit or loses a princess tower.
 function sleeping(tw: DrawTower, all: DrawTower[]): boolean {
