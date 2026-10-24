@@ -20,11 +20,43 @@ export interface TroopStats {
   count: number; // identical units spawned
 }
 
-export interface TroopDesign extends TroopStats {
+// Quirks, two layers. Mechanics are closed lists the engine runs and prices; presentation only
+// changes how a troop looks. The first value of each list is the plain choice.
+export const ATTACKS = ['single', 'splash', 'breath', 'chain'] as const;
+export const TARGETS = ['any', 'buildings'] as const;
+export const ON_HITS = ['none', 'burn', 'slow', 'stun'] as const;
+export const TRAITS = ['none', 'flying', 'shield', 'spawner', 'death_burst', 'heal_aura', 'charge'] as const;
+export const MOTIONS = ['slash', 'smash', 'stab', 'shoot', 'lob', 'cast', 'breathe', 'bite', 'charge', 'other'] as const;
+export const ELEMENTS = ['none', 'fire', 'ice', 'lightning', 'poison', 'holy', 'shadow'] as const;
+export type Attack = (typeof ATTACKS)[number];
+export type Targets = (typeof TARGETS)[number];
+export type OnHit = (typeof ON_HITS)[number];
+export type Trait = (typeof TRAITS)[number];
+export type Motion = (typeof MOTIONS)[number];
+export type Element = (typeof ELEMENTS)[number];
+
+export interface TroopQuirks {
+  attack: Attack; // how a hit lands
+  targets: Targets; // what it chases
+  on_hit: OnHit; // effect after a hit
+  windup: boolean; // visible charge before each hit
+  trait: Trait; // one special rule at most
+}
+
+export interface TroopLook {
+  motion: Motion; // attack animation
+  element: Element; // effect colour; cosmetic, a fire troop burns only with on_hit burn
+  flavor: string; // what the attack looks like, 10 words or fewer
+}
+
+export const PLAIN_QUIRKS: TroopQuirks = { attack: 'single', targets: 'any', on_hit: 'none', windup: false, trait: 'none' };
+export const PLAIN_LOOK: TroopLook = { motion: 'other', element: 'none', flavor: '' };
+
+export type TroopDesign = TroopStats & TroopQuirks & TroopLook & {
   name: string;
   battle_cry: string;
   voice_style: VoiceStyle;
-}
+};
 
 export const STAT_KEYS = ['health', 'damage', 'attack_speed', 'move_speed', 'range', 'count'] as const;
 const INT_STATS = new Set<keyof TroopStats>(['health', 'damage', 'range', 'count']);
@@ -63,7 +95,24 @@ export function clampStats(s: TroopStats): TroopStats {
   return out;
 }
 
-// Unclamped power; price() clamps first.
+// Price multiplier per quirk value (spec: Troop quirks → Quirk rules). The plain choices are 1,
+// so a troop without quirks prices exactly as before. Starting guesses for the balance sim to tune.
+export const QUIRK_PRICE = {
+  attack: { single: 1, splash: 1.4, breath: 1.5, chain: 1.4 },
+  targets: { any: 1, buildings: 0.8 },
+  on_hit: { none: 1, burn: 1.2, slow: 1.2, stun: 1.25 },
+  windup: { false: 1, true: 0.85 },
+  trait: { none: 1, flying: 1.3, shield: 1.15, spawner: 1.3, death_burst: 1.15, heal_aura: 1.25, charge: 1.15 },
+} as const satisfies { [K in keyof TroopQuirks]: Record<string, number> };
+
+// Product of the quirk multipliers; missing or unknown values count as plain.
+export function quirkMultiplier(q: Partial<TroopQuirks> = {}): number {
+  const f = <T extends Record<string, number>>(table: T, v: unknown) => (table as Record<string, number>)[String(v)] ?? 1;
+  return f(QUIRK_PRICE.attack, q.attack) * f(QUIRK_PRICE.targets, q.targets) * f(QUIRK_PRICE.on_hit, q.on_hit) *
+    f(QUIRK_PRICE.windup, q.windup === true) * f(QUIRK_PRICE.trait, q.trait);
+}
+
+// Unclamped power of the stats alone; price() clamps first and adds the quirks.
 export function power(s: TroopStats, p: Pricing = PRICING): number {
   const hp = s.health * s.count;
   const dps = s.damage * s.attack_speed * s.count;
@@ -72,9 +121,13 @@ export function power(s: TroopStats, p: Pricing = PRICING): number {
   return Math.sqrt(hp * dps) * fRange * fSpeed;
 }
 
-// Same stats always give the same cost. Can exceed MAX_COST; callers reject those.
-export function price(s: TroopStats, p: Pricing = PRICING): number {
-  return Math.max(1, Math.round(power(clampStats(s), p) / p.K));
+// Same stats and quirks always give the same cost. Can exceed MAX_COST; callers reject those.
+// Quirks come from `s` itself (a whole design) unless passed separately; the second argument may
+// also be the pricing knobs, so price(design, knobs) still works for the balance sim.
+export function price(s: TroopStats & Partial<TroopQuirks>, q?: Partial<TroopQuirks> | Pricing, p: Pricing = PRICING): number {
+  if (q && 'K' in q) [p, q] = [q, undefined];
+  const mult = quirkMultiplier(q ?? s);
+  return Math.max(1, Math.round((power(clampStats(s), p) * mult) / p.K));
 }
 
 export function trimWords(s: string, n = 8): string {
@@ -96,7 +149,28 @@ export function sanitizeDesign(raw: Partial<TroopDesign>): TroopDesign {
   const voice = VOICE_STYLES.includes(raw.voice_style as VoiceStyle)
     ? (raw.voice_style as VoiceStyle)
     : 'cheerful_hero';
-  return { ...stats, name, battle_cry: trimWords(String(raw.battle_cry ?? '')).slice(0, 80), voice_style: voice };
+  return {
+    ...stats, ...sanitizeQuirks(raw), ...sanitizeLook(raw),
+    name, battle_cry: trimWords(String(raw.battle_cry ?? '')).slice(0, 80), voice_style: voice,
+  };
+}
+
+const oneOf = <T extends string>(list: readonly T[], v: unknown): T => (list.includes(v as T) ? (v as T) : list[0]);
+
+// Unknown values fall back to the plain choice. trait is a single field, so "at most one" holds.
+export function sanitizeQuirks(raw: Partial<TroopQuirks>): TroopQuirks {
+  return {
+    attack: oneOf(ATTACKS, raw.attack),
+    targets: oneOf(TARGETS, raw.targets),
+    on_hit: oneOf(ON_HITS, raw.on_hit),
+    windup: raw.windup === true || (raw.windup as unknown) === 'true',
+    trait: oneOf(TRAITS, raw.trait),
+  };
+}
+
+export function sanitizeLook(raw: Partial<TroopLook>): TroopLook {
+  const motion = MOTIONS.includes(raw.motion as Motion) ? (raw.motion as Motion) : 'other';
+  return { motion, element: oneOf(ELEMENTS, raw.element), flavor: trimWords(String(raw.flavor ?? ''), 10).slice(0, 80) };
 }
 
 // JSON schema for Claude's structured output. Clamps are enforced in code (clampStats),
@@ -113,7 +187,18 @@ export const TROOP_SCHEMA = {
     count: { type: 'integer' },
     battle_cry: { type: 'string' },
     voice_style: { type: 'string', enum: [...VOICE_STYLES] },
+    attack: { type: 'string', enum: [...ATTACKS] },
+    targets: { type: 'string', enum: [...TARGETS] },
+    on_hit: { type: 'string', enum: [...ON_HITS] },
+    windup: { type: 'boolean' },
+    trait: { type: 'string', enum: [...TRAITS] },
+    motion: { type: 'string', enum: [...MOTIONS] },
+    element: { type: 'string', enum: [...ELEMENTS] },
+    flavor: { type: 'string' },
   },
-  required: ['name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count', 'battle_cry', 'voice_style'],
+  required: [
+    'name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count', 'battle_cry', 'voice_style',
+    'attack', 'targets', 'on_hit', 'windup', 'trait', 'motion', 'element', 'flavor',
+  ],
   additionalProperties: false,
 } as const;

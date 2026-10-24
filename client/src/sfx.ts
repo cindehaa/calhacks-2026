@@ -6,7 +6,7 @@
 export type SfxName =
   | 'deploy' | 'incoming' | 'land' | 'hit' | 'attack' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
   | 'count' | 'fight' | 'double' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw'
-  | 'click' | 'versus' | 'joined' | 'forfeit';
+  | 'click' | 'versus' | 'joined' | 'forfeit' | 'slam' | 'zap' | 'whoosh' | 'boom' | 'puff' | 'stun';
 
 // The pack's troop families; each has spawn, attack_1/2, hit_1/2 and death.
 export const SOUND_KINDS = ['beast', 'blade', 'heavy', 'magic', 'mech', 'ranged', 'swarm'] as const;
@@ -78,6 +78,7 @@ const VOLUME = 0.35;
 // Minimum gap between two plays of the same sound, in seconds. Keeps swarms from roaring.
 const GAP: Partial<Record<SfxName, number>> = {
   click: 0.05, hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
+  slam: 0.1, zap: 0.1, whoosh: 0.08, boom: 0.12, puff: 0.15, stun: 0.12,
 };
 
 function readMuted(): boolean {
@@ -295,6 +296,29 @@ class Sfx {
         break;
       case 'forfeit':
         this.tone(ac, out, t, 'sine', 196, 98, 0.9, 0.5);
+        break;
+      case 'slam': // smash landing: low thud
+        this.tone(ac, out, t, 'sine', 110, 40, 0.18, 0.6);
+        this.noiseHit(ac, out, t, 0.1, 0.25, 'lowpass', 700, 150, 0.7);
+        break;
+      case 'zap': // chain lightning crackle
+        this.noiseHit(ac, out, t, 0.14, 0.3, 'highpass', 3000, 1800, 1.5);
+        this.tone(ac, out, t, 'sawtooth', 1400, 300, 0.1, 0.08, 4000);
+        break;
+      case 'whoosh': // slash or breath
+        this.noiseHit(ac, out, t, 0.16, 0.22, 'bandpass', 1800, 600, 1.2);
+        break;
+      case 'boom': // death burst: short low blast
+        this.tone(ac, out, t, 'sine', 140, 35, 0.35, 0.8);
+        this.noiseHit(ac, out, t, 0.4, 0.5, 'lowpass', 2400, 160, 0.8);
+        break;
+      case 'puff': // spawner minion: soft pop
+        this.noiseHit(ac, out, t, 0.12, 0.2, 'bandpass', 1200, 500, 1);
+        this.tone(ac, out, t, 'sine', 300, 520, 0.08, 0.12);
+        break;
+      case 'stun': // stun lands: bright ding
+        this.tone(ac, out, t, 'triangle', 1760, 1500, 0.18, 0.18);
+        this.tone(ac, out, t + 0.04, 'triangle', 2350, 2000, 0.14, 0.1);
         break;
       case 'count':
       case 'lastTen':

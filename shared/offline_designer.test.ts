@@ -21,8 +21,11 @@ const BATCH = [
   'a hamster with a sword', 'a spaceship that shoots lasers', 'an angry chicken', 'speedy squirrels',
 ];
 
-test('every anchor description maps to its own anchor', () => {
-  for (const a of ANCHORS) assert.equal(pickAnchor(a.description).anchor?.role, a.role, a.description);
+test('every plain anchor description maps to its own anchor', () => {
+  // The quirked anchors (dragon, ram, ...) build on a plain one plus keyword quirks.
+  const plain = ANCHORS.filter(a => a.attack === 'single' && a.targets === 'any' && a.on_hit === 'none' && !a.windup && a.trait === 'none');
+  assert.equal(plain.length, 10);
+  for (const a of plain) assert.equal(pickAnchor(a.description).anchor?.role, a.role, a.description);
 });
 
 test('size words move cost the right way and giants stay under the golem', () => {
@@ -120,6 +123,18 @@ test('names and cries are short, clean and voiced', () => {
   }
   assert.equal(designOffline('a swarm of angry bees').name, 'Angry Bee Swarm');
   assert.equal(designOffline('tiny fire wizard').name, 'Tiny Fire Wizard');
+});
+
+test('keywords pick mechanics without changing the cost', () => {
+  const dragon = designOffline('a fire dragon');
+  assert.equal(dragon.attack, 'breath');
+  assert.equal(dragon.on_hit, 'burn');
+  assert.equal(dragon.element, 'fire');
+  assert.equal(designOffline('a storm mage').attack, 'chain');
+  assert.equal(designOffline('a giant').targets, 'buildings');
+  assert.equal(designOffline('an ice archer').on_hit, 'slow');
+  assert.equal(designOffline('a goblin').attack, 'single');
+  assert.ok(Math.abs(price(designOffline('a lightning wizard')) - price(designOffline('a wizard'))) <= 1);
 });
 
 test('same text gives the same troop, different texts vary', () => {

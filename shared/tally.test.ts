@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MID_Y } from './arena';
-import { newMatch, step, type SimUnit } from './sim';
+import { newMatch, newUnit, step, type SimUnit } from './sim';
 import { newTally, tallyStep, troopsHit, type TroopTally } from './tally';
 
 const unit = (id: number, side: 0 | 1, y: number, o: Partial<SimUnit> = {}): SimUnit => ({
-  id, side, x: 4, y, hp: 300, maxHp: 300, damage: 100, attackSpeed: 1, moveSpeed: 1, range: 1, cooldown: 0, delay: 0, attackSeq: 0, ...o,
+  ...newUnit(id, side, 4, y, { health: 300, damage: 100, attack_speed: 1, move_speed: 1, range: 1 }, 0), ...o,
 });
 
 test('tallies credit each hit, kill and death to the troop that made it', () => {

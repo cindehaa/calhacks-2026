@@ -2,20 +2,20 @@
 
 Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the top, decisions dated at the bottom. Update it whenever something lands, changes or gets cut.
 
-**Last updated:** 2026-10-24 (night) · **Submission:** Devpost, 9:00 AM PT Sat Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Oct 25
+**Last updated:** 2026-10-24 (late night) · **Submission:** Devpost, 9:00 AM PT Sat Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Oct 25
 
 ## Where we are
 
-**Phase 1 is scaffolded and running locally.** Two browsers can join a room, start a 90 s match and fight with the 10 anchor troops. Combat runs on the SpacetimeDB server at 20 Hz from the start. Typed descriptions go through Claude and deploy, so part of phase 2 is in too. The Claude call has not been run with a real key yet. See [README.md](../README.md) for how to run it.
+**Phase 1 is scaffolded and running locally.** Two browsers can join a room, start a 90 s match and fight with the 10 anchor troops. Combat runs on the SpacetimeDB server at 20 Hz from the start. Typed descriptions go through Claude and deploy, so part of phase 2 is in too. The Claude call has not been run with a real key yet. Cartesia STT and fal sprites are in and were checked with real keys in headless browsers; not yet with a real mic. See [README.md](../README.md) for how to run it.
 
 ## Build plan status
 
 | Phase | Person A: game + multiplayer | Person B: AI + input | Status |
 |---|---|---|---|
 | 1 | SpacetimeDB rooms; arena, river and bridges, towers, elixir, hardcoded troops fighting in a shared `step()` | Troop designer: text in, JSON stats out; cost formula; anchors | **Done locally**; needs a real-key test and a two-laptop test |
-| 2 | Hook designer up via a text box | Cartesia STT with push-to-talk | Text box done; STT **next** (cut line) |
+| 2 | Hook designer up via a text box | Cartesia STT with push-to-talk | **Done**; STT checked with a generated clip, not a real mic |
 | 3 | Code animations, silhouette placeholder, headless sim | Hand tracking, lock, drag-off cancel, voice click | Not started |
-| 4 | Interpolation, rematch, demo room (server tick moved to phase 1) | Sprite gen, background removal, cache, anchor art, TTS cries | Interpolation, rematch, demo room done early |
+| 4 | Interpolation, rematch, demo room (server tick moved to phase 1) | Sprite gen, background removal, cache, anchor art, TTS cries | Interpolation, rematch, demo room done early; sprites, removal, cache and TTS cries done; anchor art is drawn on first use, not at startup |
 | 5 | Polish, tutorial overlay, sound | Polish, Devpost writeup, backup video | Not started |
 
 ## Done so far
@@ -33,17 +33,27 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] Input: camera hand tracking (MediaPipe, index-knuckle cursor, One Euro smoothing, fixed touchpad mapping, thumb + middle pinch), pinch to lock, release to deploy, drag off the 150 px ring or lose the hand to cancel. Mic: loudness starts a voice lock, 700 ms quiet deploys, saying "cancel" cancels; the browser's speech recognition stands in for Cartesia behind a swappable interface. Camera and mic are opt-in from a top-left panel; mouse, keys and the text box still work. 34 tests on the pure parts; smoke-tested with a fake camera and mic, not yet with a real webcam.
 - [x] Balance sim: `npm run balance` runs every troop against the anchors on the real `step()` (elixir-matched duels plus solo tower runs) and flags cost outliers. Knobs for K, pricing factors and tower stats; `--troops file.json` takes generated designs. Findings in [sim/README.md](../sim/README.md): range is underpriced and speed overpriced; tweaks suggested, none applied.
 - [x] Bot mode: **Play vs Bot** (easy / normal / hard) runs the whole match in the browser on the same `step()` and deploy rules (`shared/deploy.ts`, now also used by the server), with no SpacetimeDB at all, so it's the demo fallback when the network fails. `client/src/match.ts` gives `main.ts` one `MatchSource` for online rooms and `LocalMatch`. The bot (`shared/bot.ts`) defends real threats near the threatened tower, otherwise pushes over the bridge in front of your weakest princess tower, and sometimes saves for a big troop. Its drops show a lock and countdown like a real opponent's.
+- [x] Cartesia STT behind `SpeechSource` (`client/src/input/cartesia_stt.ts`): the mic is resampled to 16 kHz `pcm_s16le` in an AudioWorklet and streamed in 100 ms chunks to an `ink-2` socket while the mic is on. A deploy sends `finalize`, waits for `flush_done` (600 ms cap) and swaps in the spare socket, which is opened ahead of time; quiet after speech does the same, so each utterance starts clean. The browser opens the socket straight to Cartesia with a 60 s token from `POST /api/voice-token`, so the key stays in `api/` and no audio goes through the proxy. No key, no token or two failed connects switches to the browser recogniser. Pinch push-to-talk, voice click and designing on the partial transcript work as before. Checked in headless Chrome with a Cartesia-generated clip as the fake mic: voice lock, words arriving one by one, finalize → `flush_done` → swap, design and deploy; and the fallback with the token route returning 503.
+- [x] ~~Battle cries~~ removed 2026-10-24 (too much noise; see decisions). Was (`client/src/cries.ts`): a troop's `battle_cry` is spoken in its `voice_style`'s voice when it lands, over one TTS socket per match (`sonic-3.6`, raw `pcm_s16le` at 24 kHz, one `context_id` per cry), opened at match start with the STT sockets. Cut to 8 words; a cry that would overlap one still playing is dropped; muted means no cries and no TTS calls. Online you hear only your own troops (the other laptop plays theirs), vs Bot both sides. Measured 0.2–0.3 s from request to the last audio chunk.
+- [x] Sprites (`api/sprites.ts`, `client/src/sprites.ts`): FLUX.1 schnell 384 px, 4 steps, description first then the shared style on magenta, then BiRefNet v2 with a 3 s timeout, about 3 s in all. The PNG is cached in `.cache/sprites/` by a hash of the normalised description and served at `/api/sprite/<id>.png` with CORS headers, so `spriteUrl` stays short and the canvas loads it with `crossOrigin = "anonymous"` without tainting. If removal fails the URL ends in `?key` and the browser keys it itself (`client/src/chroma.ts`: median border colour, flood fill from the edges, 4 tests). Art starts with the designer, or on the partial transcript (3 words settled 500 ms), goes in with the deploy if it's ready and through `set_troop_sprite` if not. Bot matches get art for both sides. Checked with two headless tabs: the sprite reached the troop row and both tabs loaded it.
+- [x] Core loop feel, matched to the prep playground (2026-10-24 night): with the camera on, the pinch is push to talk. Audio reaches Cartesia only while it's held (plus 300 ms from just before), and letting go finalises at once, with no quiet timer; voice click stays as an option (`⋯` → "Voice click with camera") and is still the default without a camera. With the mic on, holding the mouse button works like a pinch (drag off to cancel); a quick empty click still picks the typing spot. After you let go, the drop shows your words, "designing…" and a pulsing silhouette at the spot until the stats land and the troop appears. `T` (or `?timings`) shows per-drop timings: hold, release → final words, release → stats, release → art. The designer warms at page load. Mic level analyser now feeds a muted sink, so the meter and voice click read in headless Chrome too. 12 new tests (`drops.test.ts`, `ptt.test.ts`, mouse cases in `lock.test.ts`). Checked in headless Chrome with a Cartesia-generated clip and a fake camera, in a bot match and a two-tab room: release → final words about 180 ms, release → stats 1.0–3.4 s (all of the spread is Claude), the troop lands at the pressed spot, the opponent's INCOMING marker sits at the same spot mirrored, and an idle STT socket survived 49 s between holds. Not checked with a real webcam or mic.
 - [x] Game feel: emoji-on-disc placeholder tokens (size by sqrt of health), walk bob, melee lunge, ranged and tower projectiles, hit flash and damage numbers, death poofs, landing rings, tower crumble with shake, 3-2-1 / FIGHT and DOUBLE ELIXIR banners, cost pills and non-overlapping name labels, INCOMING marker for the opponent's drop, synthesized sound effects (M or the speaker button mutes), and a first-time how-to-play card (reopen with `?`). Code in `client/src/{fx,tokens,sfx,tutorial}.ts` and `render.ts`.
+- [x] Troop quirks and attack motion (2026-10-24 late night): designs now carry `attack` (single, splash, breath, chain), `targets`, `on_hit` (burn, slow, stun), `windup`, `trait` (flying, shield, spawner, death_burst, heal_aura, charge) and a look (`motion`, `element`, `flavor`). All of it runs in the shared `step()` with fixed numbers from the spec, so server and bot matches agree; spawner minions become unit rows under their spawner's troop. Motion layer 1 animates each strike by `motion` and `element`; layer 2 swaps in a generated pose frame (`api/poses.ts`) around each predicted hit. Status visuals: flames, slow tint, shield ring, stun stars, charge dust, heal pulse, spawn puff, death explosion, with new `boom`, `puff` and `stun` sounds. 116 tests and a 90 s headless sim with every trait and on-hit pass. Not yet seen in a browser. Quirk multipliers are untuned: Storm Wizard and Fire Dragon play like cost 8.7 against prices of 6 and 7. The server needs `npm run db:publish` and `db:reset` for the new columns.
+- [x] POV troops and voice fix (2026-10-24): the 3D view (`client/src/pov.ts`) now draws sprites with attack poses, the shared attack motion from `fx.ts`, quirk status effects, labels, HP bars and pending drops; the view button is labelled and the how-to card mentions V. Voice: Space no longer types into an empty description box during a match, setup continues with mic only, and a hint under the box says how to talk a troop in. Checked headless with Space, mouse hold, no camera and camera push-to-talk. 114 tests pass.
 
 ## Next up
 
 **Waiting on keys**
 - [ ] Run `npm run bench` with Anthropic + Gemini + Cerebras keys (Groq optional) and pick the designer: stay on Claude unless another backend is clearly faster at similar judgement. Then set `DESIGNER` or add a race.
 - [ ] `ANTHROPIC_API_KEY` in `.env`: run the 30 test descriptions through `/api/troop` and check the prompt fixes ("god", "1000 ants", Pikachu, blob names). Without a key the offline designer is used.
-- [ ] Cartesia STT to replace the browser's speech recognition (behind `SpeechSource` in `client/src/input/speech.ts`), then TTS battle cries; fal sprites.
 
 **Can do now**
-- [ ] Real-webcam test of hand tracking; two laptops on one network or Maincloud.
+- [ ] Manual testing of troop quirks, status visuals and the pose-frame swap in a bot match and a two-tab room.
+- [ ] Balance tuning of quirk multipliers (`npm run balance`); Storm Wizard and Fire Dragon are underpriced.
+- [ ] Re-run `npm run bench`: the designer JSON is larger now with the quirk and look fields.
+- [ ] Real-webcam test of hand tracking (no calibration step now); two laptops on one network or Maincloud.
+- [ ] Real-mic test of Cartesia STT (prep test 6, hall noise) and listen to the six cry voices on speakers (prep test 7).
+- [ ] Pre-draw the 10 anchors' art (`curl` each description to `/api/sprite` once, or at api start) so the first bot match isn't bare. About $0.03.
 - [ ] Optional `?bot` URL to jump straight into a bot match at the judging table.
 
 ## What prep settled
@@ -157,6 +167,10 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 - There's no splash stat yet, so the bomber is now "Bomb Lobber", a plain heavy ranged unit. Add a `splash` field if we want area damage.
 - Swarms deployed next to your own tower overlap it visually; harmless.
 - Voice "cancel" can lose the race with the 500 ms quiet timer; try 700 ms.
+- With voice click on (no camera, or ticked in `⋯`), Cartesia STT streams the whole time the mic is on, so turn the mic off between matches to save minutes. With the camera on, it only streams while a pinch or mouse press is held.
+- Release → stats can pass 2.5 s when Claude is slow (3.4 s seen once in four runs). The early design only helps when the final words match a partial, and Cartesia often sends the last words only on `finalize`, so most voice drops pay a full designer call after release.
+- Sprites are served by the api that drew them. Two laptops on one Vite server share it; with each laptop running its own api (Maincloud), you see your opponent's placeholder instead of their art.
+- How long Cartesia keeps an idle spare STT socket open isn't documented. A closed one is replaced the next time it's needed, which costs one ~0.5 s connect.
 
 ## Decisions log
 
@@ -180,7 +194,13 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Claude call: 4.5 s timeout, no retries, offline designer as fallback. Bot opponent is local only (browser), never on the server. |
 | 2026-10-24 | Balance fixes from the sim: range charged per tile (+0.2 per tile above 1), no speed charge; Sniper, Goblin and Knight retuned. Starter costs: Goblin 2, Bees 3, Knight 3, Ninja 3, Charger 4, Archers 5, Wizard 6, Sniper 6, Lobber 7, Golem 8. |
 | 2026-10-24 | Designs start on the partial transcript (reused if the final words match); the Claude prompt is cached. Designer backend is switchable (`DESIGNER`), pending `npm run bench` with real keys. |
+| 2026-10-24 | Cartesia keys stay in `api/`, which mints 60 s access tokens; the browser opens the STT and TTS sockets to Cartesia itself. Simpler than proxying audio through `api/`. |
+| 2026-10-24 | Sprites are cached as PNG files by `api/` and served at a short URL instead of a data URI, which doesn't fit the 2048-char `spriteUrl`. The browser keys the background only when BiRefNet times out. |
+| 2026-10-24 | Online, you hear only your own troops' battle cries; vs Bot, both sides. Muted means no TTS calls. |
+| 2026-10-24 | With the camera on, the pinch (or a mouse hold) is push to talk and talking alone doesn't lock; voice click is opt-in there. Open mic locked on anything said near the laptop. Cost still shows only on landing, and cries still play on landing, unlike the playground. |
 | 2026-10-23 | Arena follows the Clash Royale layout instead of three lanes: a river with two bridges, a king tower (1.5× health, asleep until hit or a princess tower falls) behind two princess towers. Troops cross only on bridges. Drops go anywhere on your half; taking a princess tower opens that side of their half (the pocket). Killing the king wins outright. The `tower.lane` column now means 0/2 princess, 1 king, so no schema change. |
+| 2026-10-23 | Merged the Clash Royale layout with troop quirks. Ground units path over the bridges; `trait: flying` units fly straight over the river and are never shoved back to a bank. Death bursts use each tower's own radius, so the bigger king counts. Manual calibration is gone (Cindy's newer touchpad mapping wins); push to talk, mouse hold and Cartesia STT sit beside Space/Esc and the setup screen. The mouse-hold lock follows the mouse-and-keyboard toggle. The `hit` sound stays removed. |
+| 2026-10-24 | Battle cries cut: spoken lines on every landing added too much noise. Cartesia stays for speech-to-text only; `battle_cry` and `voice_style` are still in the design JSON but unused. |
 
 ## Open questions
 

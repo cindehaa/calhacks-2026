@@ -157,8 +157,8 @@ Voice works both ways: Cartesia speech-to-text hears the player, and Cartesia te
 
 Each troop gets one generated sprite, animated in code; full frame-by-frame animation is a stretch goal.
 
-- **Sprite generation:** a fast hosted image model, 256 px, one shared style prompt so every troop looks like the same game.
-- **Background removal without an extra call:** prompt "on a solid magenta background" and chroma-key it out in the browser.
+- **Sprite generation:** fal FLUX.1 schnell, 384 px, the troop description first and then one shared style prompt so every troop looks like the same game.
+- **Background removal:** fal BiRefNet v2 with a 3 s timeout. If it fails, the browser keys the background by its border colour, flood-filling from the edges; plain magenta chroma-key ate pink and purple troops in prep.
 - **Placeholder:** the tile shows a shadow or blur during the deploy delay. If art is late, the troop fights as a silhouette and swaps when it arrives.
 - **Cache:** reuse sprites by normalized description; anchor troops are pre-generated at startup.
 - **Code animation:** bob while walking, lunge or squash when attacking, flash when hit, poof on death.
@@ -185,7 +185,7 @@ Goal: stats ready inside the 2.5 s deploy delay; art may arrive later. The origi
 1. **Stream STT during the pinch.** The transcript is nearly done at release.
 2. **Run Claude and image gen in parallel** off the raw transcript. Art never waits for stats.
 3. **Fastest Claude model** (Haiku-class) with a tight JSON schema and short output.
-4. **Small images:** 256 px, magenta background, chroma-keyed in the browser.
+4. **Small images:** 384 px on a flat magenta background, cut out by BiRefNet v2 (3 s cap), border-colour key in the browser as the fallback.
 5. **Cache** by normalized description; pre-generate anchors.
 6. **Warm connections:** open API connections at match start, not on first deploy.
 7. **Graceful lateness:** silhouette until art lands; TTS cry plays when ready.

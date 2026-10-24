@@ -153,6 +153,14 @@ export const Troop = __t.object("Troop", {
   battleCry: __t.string(),
   voiceStyle: __t.string(),
   spriteUrl: __t.string(),
+  attack: __t.string(),
+  targets: __t.string(),
+  onHit: __t.string(),
+  windup: __t.bool(),
+  trait: __t.string(),
+  motion: __t.string(),
+  element: __t.string(),
+  flavor: __t.string(),
 });
 export type Troop = __Infer<typeof Troop>;
 
@@ -196,6 +204,26 @@ export const Unit = __t.object("Unit", {
   cooldown: __t.f32(),
   delay: __t.f32(),
   attackSeq: __t.u32(),
+  attack: __t.string(),
+  targets: __t.string(),
+  onHit: __t.string(),
+  windup: __t.bool(),
+  trait: __t.string(),
+  motion: __t.string(),
+  element: __t.string(),
+  burnT: __t.f32(),
+  burnDps: __t.f32(),
+  slowT: __t.f32(),
+  stunT: __t.f32(),
+  windupT: __t.f32(),
+  shield: __t.f32(),
+  maxShield: __t.f32(),
+  spawnT: __t.f32(),
+  chargeDist: __t.f32(),
+  lastTargetX: __t.f32(),
+  lastTargetY: __t.f32(),
+  chainXs: __t.array(__t.f32()),
+  chainYs: __t.array(__t.f32()),
 });
 export type Unit = __Infer<typeof Unit>;
 

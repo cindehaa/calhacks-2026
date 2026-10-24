@@ -3,15 +3,16 @@ import { COUNTDOWN, ELIXIR_MAX, KING_LANE, MATCH_SECONDS, MID_Y, canDeploy, type
 import type { BotLevel } from '../../shared/bot';
 import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
+import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, type DeployHow } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
-import type { DrawUnit } from './render';
+import type { DrawTroop, DrawUnit } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
-import { readySprite, spriteFor } from './sprites';
+import { prefetchSprite, requestSprite } from './sprites';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
 import { showTutorialOnce } from './tutorial';
 
@@ -25,6 +26,8 @@ let local: LocalMatch | null = null; // vs Bot, entirely in this tab
 let aim: [number, number] | null = null; // hover point on your half, world coords
 let lock: [number, number] | null = null; // clicked spot for typed troops
 let warmedFor = '';
+const drops = new Drops(); // your drops from let-go to landing: board feedback and timings
+const arted = new WeakSet<DrawTroop>(); // bot-match troops already sent for art
 
 // ---------- connection ----------
 
@@ -45,6 +48,8 @@ function netMsg(s: string) {
 }
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
+// The first designer call is 2–3 s cold. Warm it now, not at match start, so the lobby absorbs it.
+warmDesigner();
 
 const me = () => online?.me();
 const myRoom = () => online?.room();
@@ -350,27 +355,40 @@ function settle(nonce: number, outcome: string) {
   if (outcome === 'deployed') lastDeployed = a;
 }
 
-// The sprite rides along if it's already here, else it's attached once both have landed.
-function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign) {
+// Resolves true once the server took it. On a refusal, cancels the lock and says why.
+async function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign, spriteUrl = ''): Promise<boolean> {
   const m = match();
-  if (!m) return settle(nonce, 'no match');
-  const art = spriteFor(description);
-  attempts.get(nonce)?.waitForArt(art);
-  const ready = readySprite(description);
-  const deployed = m.deployTroop(nonce, x, y, description, d, ready);
-  deployed.then(() => settle(nonce, 'deployed'), () => {});
-  if (!ready) Promise.all([art, deployed]).then(([url]) => (url ? m.attachSprite(description, url) : undefined)).catch(() => {});
-  call(
-    deployed,
-    msg => {
-      settle(nonce, msg);
-      call(match()?.cancelDeploy(nonce), () => {});
-      sfx.play('buzz');
-      const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
-      if (m?.[1] === 'not enough elixir') sfx.play('tooExpensive');
-      status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
-    }
-  );
+  if (!m) {
+    settle(nonce, 'no match');
+    return false;
+  }
+  try {
+    await m.deployTroop(nonce, x, y, description, d, spriteUrl);
+    settle(nonce, 'deployed');
+    drops.deployed(nonce, performance.now());
+    return true;
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    settle(nonce, msg);
+    call(match()?.cancelDeploy(nonce), () => {});
+    sfx.play('buzz');
+    const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
+    if (m?.[1] === 'not enough elixir') sfx.play('tooExpensive');
+    status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
+    drops.refused(nonce, m ? `would cost ${m[2]}${m[1] === 'too expensive' ? ', over 10' : ''}` : 'refused', performance.now());
+    return false;
+  }
+}
+
+// Deploy with the art if it's already here, else deploy now and set the art when it lands.
+async function deployWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
+  const m = match();
+  attempts.get(nonce)?.waitForArt(art.then(url => url ?? ''));
+  const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
+  const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
+  if (!ok || ready !== undefined) return;
+  const url = await art;
+  if (url && m) call(m.attachSprite(description, url), () => {});
 }
 
 // Anchors skip Claude: lock and deploy in one go.
@@ -383,8 +401,24 @@ function deployAnchor(i: number) {
   const at = attempt(nonce, 'key');
   at.released(a.description, 'anchor');
   at.gotDesign({ design: a, cost: price(a), ms: 0, source: 'anchor' });
-  sendDeploy(nonce, spot, a.description, a);
+  void deployWithArt(nonce, spot, a.description, a, requestSprite(a.description));
   status(`${a.name}`);
+}
+
+// Dev only: drop any anchor by name at a spot, and reach the local match (headless view checks).
+if (import.meta.env.DEV) {
+  Object.assign(window, {
+    devDrop(name: string, x: number, y: number) {
+      const a = ANCHORS.find(t => t.name === name);
+      if (!a || match()?.status !== 'playing') return false;
+      const nonce = ++nonceSeq;
+      call(match()?.beginDeploy(nonce, x, y), msg => status(msg, true));
+      void deployWithArt(nonce, [x, y], a.description, a, requestSprite(a.description));
+      return true;
+    },
+    devLocal: () => local,
+    devAnchors: ANCHORS,
+  });
 }
 
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
@@ -393,28 +427,34 @@ function beginAt(spot: [number, number], by: string): number | null {
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
   attempt(nonce, by);
+  drops.begin(nonce, spot, performance.now());
   return nonce;
 }
 
+// An empty message cancels quietly (a quick click that wasn't a hold-to-talk).
 function cancelAt(nonce: number, msg: string, transcript = '') {
   const a = attempts.get(nonce);
   if (a) a.transcript ||= transcript;
   settle(nonce, msg);
   call(match()?.cancelDeploy(nonce), () => {});
-  status(msg, true);
+  drops.cancelled(nonce);
+  status(msg, !!msg);
 }
 
 async function designAt(nonce: number, spot: [number, number], description: string, how?: DeployHow) {
   status(`designing “${description}”…`);
   attempts.get(nonce)?.released(description, how?.from ?? 'typed', how?.transcript, how?.by);
-  spriteFor(description); // in parallel with the design
+  drops.heard(nonce, description, performance.now());
+  const art = requestSprite(description); // in parallel with the designer; often already started
+  void art.then(url => url && drops.art(nonce, performance.now()));
   try {
     const d = await designTroop(description);
     attempts.get(nonce)?.gotDesign(d);
     const { design, cost, ms, source, early } = d;
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
-    status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms${tags ? ` (${tags})` : ''}`);
-    sendDeploy(nonce, spot, description, design);
+    drops.designed(nonce, design.name, tags, performance.now());
+    status(`${design.name} (${cost}) · ${ms} ms${tags ? ` (${tags})` : ''}`);
+    void deployWithArt(nonce, spot, description, design, art);
   } catch (e) {
     cancelAt(nonce, `designer failed: ${(e as Error).message}`);
   }
@@ -437,7 +477,11 @@ const input = new InputController(board.canvas, {
   status,
   typedText: () => $<HTMLInputElement>('descInput').value,
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
-  prefetch: prefetchDesign,
+  prefetch: words => {
+    prefetchDesign(words);
+    prefetchSprite(words);
+  },
+  released: (nonce, words) => drops.release(nonce, words, performance.now()),
   heard: (text, nonce) => logUtterance(text, nonce),
   mismatch: flagMismatch,
   event: (kind, detail) => logEvent(kind, detail),
@@ -485,6 +529,7 @@ addEventListener('keydown', e => {
     if (input.mouseKeys) deployAnchor((Number(e.key) + 9) % 10);
   }
   else if (e.key === 'x' || e.key === 'X') flagMismatch();
+  else if (e.key === 't' || e.key === 'T') $('timings').hidden = !$('timings').hidden;
   else if (e.key === 'Escape') lock = null;
   else if (e.key === 'Enter' || e.key === '/') {
     e.preventDefault();
@@ -499,7 +544,7 @@ board.canvas.addEventListener('mousemove', e => {
 });
 board.canvas.addEventListener('mouseleave', () => (aim = null));
 board.canvas.addEventListener('click', () => {
-  if (!aim) return;
+  if (input.tookClick() || !aim) return; // a hold-to-talk press already deployed or cancelled
   lock = aim;
   $('descInput').focus();
 });
@@ -523,6 +568,7 @@ function frame() {
   if (m.status === 'playing' && warmedFor !== m.key) {
     warmedFor = m.key;
     warmDesigner();
+    input.warm();
   }
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = clockText(m);
@@ -531,7 +577,9 @@ function frame() {
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
 
+  showTimings();
   const units: DrawUnit[] = m.units();
+  if (local) artForBot(local);
 
   board.draw({
     mySide: side,
@@ -542,10 +590,38 @@ function frame() {
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
     input: input.view(),
+    drops: m.status === 'playing' ? drops.views(performance.now()) : [],
     time: m.time,
     status: m.status,
     winner: m.winner ?? undefined,
   });
+}
+
+// Debug readout, off by default (T toggles): per drop, how long the pinch was held, then from
+// letting go to the final words, the stats and the art. Release → stats has to beat the 2.5 s delay.
+let timingsAt = 0;
+if (new URLSearchParams(location.search).has('timings')) $('timings').hidden = false;
+function showTimings() {
+  const el = $('timings');
+  const now = performance.now();
+  if (el.hidden || now - timingsAt < 250) return;
+  timingsAt = now;
+  const last = [...drops.list].reverse().find(d => releaseToStats(d) !== null);
+  const head = last ? `release → stats ${Math.round(releaseToStats(last)!)} ms` : 'release → stats …';
+  el.textContent = [head, ...timingLines(drops.list)].join('\n');
+  el.classList.toggle('slow', !!last && releaseToStats(last)! > 2500);
+}
+
+// The bot's troops are anchors, so their art is drawn once and cached by the api like yours.
+function artForBot(m: LocalMatch) {
+  for (const t of m.troops().values()) {
+    if (t.spriteUrl || !t.description || arted.has(t)) continue;
+    arted.add(t);
+    const desc = t.description;
+    requestSprite(desc).then(url => {
+      if (url) void m.attachSprite(desc, url);
+    });
+  }
 }
 
 function escapeHtml(s: string) {

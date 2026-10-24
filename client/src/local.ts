@@ -5,12 +5,11 @@ import { ANCHORS } from '../../shared/anchors';
 import { ELIXIR_MAX, MATCH_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
-import { newMatch, step, type SimState } from '../../shared/sim';
+import { newMatch, newUnit, step, type SimState } from '../../shared/sim';
 import { newTally, tallyStep, type TroopTally } from '../../shared/tally';
 import type { TroopDesign } from '../../shared/troop';
-import { Glide, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
+import { Glide, quirkView, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
 import type { DrawPending, DrawTroop } from './render';
-import { readySprite, spriteFor } from './sprites';
 import type { BotRoundLog, BotTroopLog } from './telemetry';
 
 const DT = 1 / TICK_HZ;
@@ -55,7 +54,7 @@ export class LocalMatch implements MatchSource {
       const id = BigInt(u.id);
       const [x, y] = this.glide.pos(id, u.x, u.y);
       const troopId = this.unitTroop.get(u.id) ?? 0n;
-      return { id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range };
+      return { ...quirkView(u), id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range };
     });
   }
 
@@ -73,9 +72,9 @@ export class LocalMatch implements MatchSource {
     this.deploy(this.side, nonce, x, y, description, d, spriteUrl);
   }
   async cancelDeploy(nonce: number) { this.unlock(this.side, nonce); }
-  // Both sides: the bot's anchors get art the same way.
-  async attachSprite(description: string, url: string) {
-    for (const t of this.troopRows.values()) if (t.description === description && !t.spriteUrl) t.spriteUrl = url;
+  // Nobody else sees this match, so the bot's troops take art the same way yours do.
+  async attachSprite(description: string, spriteUrl: string) {
+    for (const t of this.troopRows.values()) if (t.description === description && !t.spriteUrl) t.spriteUrl = spriteUrl.slice(0, 2048);
   }
   async rematch() { if (this.status !== 'playing') this.reset(); }
   async leave() {
@@ -88,6 +87,12 @@ export class LocalMatch implements MatchSource {
     if (this.status !== 'playing') return;
     this.runBot();
     const res = step(this.s, dt);
+    // Spawner minions join their spawner's troop, under an id from our own counter.
+    for (const { unit, parentId } of res.spawned) {
+      unit.id = this.nextId++;
+      const troopId = this.unitTroop.get(parentId);
+      if (troopId !== undefined) this.unitTroop.set(unit.id, troopId);
+    }
     tallyStep(this.tallies as Map<bigint, TroopTally>, res, id => this.unitTroop.get(id), this.s.time);
     if (this.s.time > 0) for (const side of [0, 1] as Side[]) if (this.s.elixir[side] >= ELIXIR_MAX) this.capped[side] += dt;
     for (const id of res.deadUnitIds) {
@@ -149,9 +154,7 @@ export class LocalMatch implements MatchSource {
       this.botMove = null;
       const a = ANCHORS[move.anchor];
       try {
-        const url = readySprite(a.description);
-        this.deploy(BOT, nonce, move.x, move.y, a.description, a, url);
-        if (!url) spriteFor(a.description).then(u => { if (u) this.attachSprite(a.description, u); });
+        this.deploy(BOT, nonce, move.x, move.y, a.description, a, '');
       } catch {
         this.unlock(BOT, nonce);
       }
@@ -202,7 +205,9 @@ export class LocalMatch implements MatchSource {
       throw new Error('deploy on your own half');
     }
     const troopId = BigInt(this.nextId++);
-    this.troopRows.set(troopId, { name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description });
+    this.troopRows.set(troopId, {
+      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style, flavor: design.flavor,
+    });
     this.tallies.set(troopId, {
       troopId, side, bot: side === BOT, nonce, description, name: design.name, design: JSON.stringify(design), cost,
       count: design.count, deployedAt: this.s.time, landsAt: this.s.time + delay, ...newTally(design.count),
@@ -210,11 +215,7 @@ export class LocalMatch implements MatchSource {
     for (const [ux, uy] of unitSpots(side, x, y, design.count, this.s.towers)) {
       const id = this.nextId++;
       this.unitTroop.set(id, troopId);
-      this.s.units.push({
-        id, side, x: ux, y: uy, hp: design.health, maxHp: design.health, damage: design.damage,
-        attackSpeed: design.attack_speed, moveSpeed: design.move_speed, range: design.range,
-        cooldown: 0, delay, attackSeq: 0,
-      });
+      this.s.units.push(newUnit(id, side, ux, uy, design, delay));
     }
     this.s.elixir[side] -= cost;
   }

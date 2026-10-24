@@ -1,50 +1,48 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chromaKey } from './chroma';
+import { test } from 'node:test';
+import { borderMedian, keyBackground } from './chroma';
 
-type RGB = [number, number, number];
-const BG: RGB = [253, 26, 202]; // what the model actually paints for "#FF00FF"
-const OUTLINE: RGB = [50, 16, 39];
-const PINK: RGB = [249, 76, 176]; // a pink dragon's belly, ~56 from BG
-
-// 20x20 magenta image with a dark-outlined 10x10 square at (5, 5). paint() fills its inside.
-function image(paint: (x: number, y: number) => RGB) {
-  const width = 20, height = 20, data = new Uint8ClampedArray(width * height * 4);
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    const inBox = x >= 5 && x < 15 && y >= 5 && y < 15;
-    const edge = inBox && (x === 5 || x === 14 || y === 5 || y === 14);
-    const c = !inBox ? BG : edge ? OUTLINE : paint(x, y);
-    data.set([...c, 255], (y * width + x) * 4);
-  }
-  const alpha = (x: number, y: number) => data[(y * width + x) * 4 + 3];
-  return { px: { data, width, height }, alpha };
+// w×h RGBA image filled with `bg`, with a `fg` square from (a,a) to (b,b) inclusive.
+function img(w: number, h: number, bg: number[], fg: number[], a: number, b: number) {
+  const d = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const c = x >= a && x <= b && y >= a && y <= b ? fg : bg;
+      d.set([...c, 255], (y * w + x) * 4);
+    }
+  return d;
 }
+const alpha = (d: Uint8ClampedArray, w: number, x: number, y: number) => d[(y * w + x) * 4 + 3];
 
-test('keys out the border background and boxes the troop', () => {
-  const { px, alpha } = image(() => [200, 200, 80]);
-  assert.deepEqual(chromaKey(px), { x: 5, y: 5, w: 10, h: 10 });
-  assert.equal(alpha(0, 0), 0);
-  assert.equal(alpha(19, 10), 0);
-  assert.equal(alpha(5, 5), 255);
-  assert.equal(alpha(10, 10), 255);
+test('border median ignores a few odd border pixels', () => {
+  const d = img(10, 10, [250, 5, 250], [0, 200, 0], 3, 6);
+  d.set([0, 0, 0, 255], 0); // one dark corner
+  assert.deepEqual(borderMedian(d, 10, 10), [250, 5, 250]);
 });
 
-test('a pink troop enclosed by its outline keeps its body', () => {
-  const { px, alpha } = image(() => PINK);
-  chromaKey(px);
-  assert.equal(alpha(10, 10), 255);
+test('keys a near-magenta background and keeps the troop', () => {
+  const d = img(12, 12, [240, 10, 245], [40, 160, 60], 4, 7);
+  // JPEG-ish noise on the background still keys.
+  d.set([225, 30, 230, 255], (1 * 12 + 1) * 4);
+  keyBackground(d, 12, 12);
+  assert.equal(alpha(d, 12, 0, 0), 0);
+  assert.equal(alpha(d, 12, 1, 1), 0);
+  assert.equal(alpha(d, 12, 5, 5), 255);
 });
 
-test('magenta enclosed by the outline is keyed too', () => {
-  const { px, alpha } = image((x, y) => (x >= 8 && x < 12 && y >= 8 && y < 12 ? BG : [200, 200, 80]));
-  chromaKey(px);
-  assert.equal(alpha(9, 9), 0);
-  assert.equal(alpha(6, 6), 255);
+test("a pink troop's inside survives: only pixels joined to the edge are cleared", () => {
+  // Magenta hole inside a dark ring: same colour as the background, but enclosed.
+  const w = 14, d = img(w, w, [255, 0, 255], [30, 30, 30], 3, 10);
+  for (let y = 5; y <= 8; y++) for (let x = 5; x <= 8; x++) d.set([255, 0, 255, 255], (y * w + x) * 4);
+  keyBackground(d, w, w);
+  assert.equal(alpha(d, w, 0, 0), 0);
+  assert.equal(alpha(d, w, 6, 6), 255);
+  assert.equal(alpha(d, w, 3, 3), 255);
 });
 
-test('an all-background image leaves nothing', () => {
-  const { px } = image(() => BG);
-  // The outline is still there, so blank the whole image.
-  for (let i = 0; i < px.data.length; i += 4) px.data.set(BG, i);
-  assert.equal(chromaKey(px), null);
+test('keys whatever colour the border is, not just magenta', () => {
+  const d = img(10, 10, [20, 200, 30], [200, 200, 200], 3, 6);
+  keyBackground(d, 10, 10);
+  assert.equal(alpha(d, 10, 0, 9), 0);
+  assert.equal(alpha(d, 10, 4, 4), 255);
 });

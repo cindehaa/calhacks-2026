@@ -178,6 +178,49 @@ test('cursor history returns the latest sample at or before t', () => {
   assert.equal(h.at(15)?.x, 3, 'old samples are trimmed');
 });
 
+test('mouse press locks where pressed, release in place deploys', () => {
+  const r = rig();
+  r.m.press(r.now(), { x: 200, y: 300 });
+  assert.deepEqual(r.log, ['lock mouse 200,300']);
+  r.m.pressMove({ x: 230, y: 310 });
+  r.m.pressEnd({ x: 230, y: 310 });
+  assert.deepEqual(r.log, ['lock mouse 200,300', 'deploy 200,300']);
+  assert.equal(r.m.lock, null);
+});
+
+test('mouse drag past the ring cancels, and the ring follows the mouse, not the hand', () => {
+  const r = rig();
+  r.m.press(r.now(), { x: 200, y: 300 });
+  r.frames(100, { x: 210, y: 300 }, false); // a hand in view doesn't move a mouse lock
+  r.m.pressMove({ x: 400, y: 300 });
+  assert.ok(r.m.dragDistance(r.now()) > 150);
+  r.m.pressEnd({ x: 400, y: 300 });
+  assert.deepEqual(r.log, ['lock mouse 200,300', 'cancel drag']);
+});
+
+test('a mouse lock ignores pinches and quiet; a press during a pinch lock does nothing', () => {
+  const r = rig();
+  r.m.press(r.now(), { x: 200, y: 300 });
+  r.frames(100, { x: 200, y: 300 }, true);
+  r.frames(100, { x: 200, y: 300 }, false);
+  r.m.speechEnd();
+  assert.deepEqual(r.log, ['lock mouse 200,300']);
+  r.m.pressEnd({ x: 200, y: 300 });
+  r.frames(300, { x: 50, y: 50 }, false);
+  r.frames(100, { x: 50, y: 50 }, true);
+  r.m.press(r.now(), { x: 500, y: 500 });
+  r.m.pressEnd({ x: 500, y: 500 });
+  assert.deepEqual(r.log, ['lock mouse 200,300', 'deploy 200,300', 'lock pinch 50,50']);
+});
+
+test('a refused mouse press leaves no lock, so its release does nothing', () => {
+  const r = rig(() => false);
+  r.m.press(r.now(), { x: 200, y: 300 });
+  r.m.pressEnd({ x: 200, y: 300 });
+  assert.deepEqual(r.log, []);
+  assert.equal(r.m.lock, null);
+});
+
 test('Space locks at the cursor and letting go deploys, hand or not', () => {
   const r = rig();
   r.frames(100, { x: 40, y: 50 }, false, false);

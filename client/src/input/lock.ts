@@ -1,15 +1,16 @@
 // The lock → deploy / cancel state machine shared by pinch and voice. Pure: time comes in as
 // arguments and positions are screen px, so it runs the same in tests as in the browser.
 //
-// Pinch start, Space down or speech start locks the spot. Releasing the pinch or Space (or going
-// quiet) deploys it, unless the cursor has been pulled outside the drag-off ring, which cancels
-// like dragging a card back. Losing the hand cancels a lock that was made with the hand.
+// Pinch start, a mouse press, Space down or speech start locks the spot. Releasing the pinch, the
+// button or Space (or going quiet) deploys it, unless the pointer has been pulled outside the
+// drag-off ring, which cancels like dragging a card back. Losing the hand cancels a lock that was
+// made with the hand.
 //
 // A flick is a tap, not a hold: it locks, then going quiet after the description (or a second
 // flick) deploys. Flicking while talking deploys the voice lock at once.
 
 export interface Pt { x: number; y: number }
-export type LockBy = 'pinch' | 'key' | 'voice' | 'flick';
+export type LockBy = 'pinch' | 'mouse' | 'key' | 'voice' | 'flick';
 export interface Lock { x: number; y: number; t: number; by: LockBy; hand: boolean }
 
 export interface LockOptions {
@@ -61,6 +62,7 @@ export class LockMachine {
   private hadHand = false;
   private lastHandT = -Infinity;
   private speaking = false;
+  private mouse: Pt | null = null; // where the held button is now, for a mouse lock
 
   constructor(private ev: LockEvents, readonly o: LockOptions = LOCK_DEFAULTS) {}
 
@@ -103,6 +105,24 @@ export class LockMachine {
     this.speaking = true;
     if (this.lock) return;
     this.tryLock(t, this.history.at(t) ?? this.cursor, 'voice', this.hadHand);
+  }
+
+  // Mouse fallback for the pinch: press to lock, hold while talking, release to deploy. The mouse
+  // doesn't jitter on release like a hand, so it's judged where it is, not from a moment ago.
+  press(t: number, p: Pt): void {
+    if (this.lock) return;
+    this.mouse = p;
+    this.tryLock(t, p, 'mouse', false);
+  }
+
+  pressMove(p: Pt): void {
+    if (this.lock?.by === 'mouse') this.mouse = p;
+  }
+
+  pressEnd(p: Pt): void {
+    if (this.lock?.by !== 'mouse') return;
+    this.mouse = p;
+    this.resolve(p, 'drag');
   }
 
   // Space works like a pinch: down locks at the cursor, up deploys. It takes over a voice lock the
@@ -149,7 +169,7 @@ export class LockMachine {
   dragDistance(t: number): number {
     const l = this.lock;
     if (l?.by === 'flick') return 0;
-    const c = l?.by === 'pinch' ? this.lagged(t) : this.cursor;
+    const c = l?.by === 'pinch' ? this.lagged(t) : l?.by === 'mouse' ? this.mouse : this.cursor;
     return l && c ? dist(l, c) : 0;
   }
 

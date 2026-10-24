@@ -1,5 +1,5 @@
-// Transcript source. The lock logic only sees this interface, so Cartesia streaming STT can
-// replace the browser recogniser later without touching it.
+// Transcript source. The lock logic only sees this interface: Cartesia streaming STT
+// (cartesia_stt.ts) is the main one, and the browser recogniser below is its fallback.
 
 export interface SpeechSource {
   readonly available: boolean;
@@ -13,7 +13,7 @@ export interface SpeechSource {
   flush(timeoutMs: number): Promise<void>;
 }
 
-// Keyless stand-in: the browser's Web Speech API (Chrome sends audio to Google, needs no key).
+// Keyless fallback: the browser's Web Speech API (Chrome sends audio to Google, needs no key).
 interface SRResult { isFinal: boolean; 0: { transcript: string } }
 interface SREvent { resultIndex: number; results: ArrayLike<SRResult> }
 interface SR {

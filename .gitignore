@@ -13,3 +13,5 @@ dist/
 # balance sim output
 sim/out/
 bench/out/
+# generated troop art (api/sprites.ts)
+.cache/

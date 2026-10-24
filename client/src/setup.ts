@@ -66,20 +66,22 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   function render() {
     raf = requestAnimationFrame(render);
     const s = input.setupState();
+    // The mic is what matters: without a camera, Space or the mouse stands in for the pinch.
     const devicesOk = s.cameraReady && s.mic;
     const starting = s.camera && !s.cameraReady;
     const errors = [s.camStatus, s.micStatus].filter(m => m.includes('failed'));
 
-    step('devices', devicesOk,
+    step('devices', s.mic,
       asking ? 'allow the camera and mic when the browser asks'
       : starting ? s.camStatus
-      : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
       : devicesOk ? 'camera and mic are on'
+      : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: hold Space or the mouse to talk`
+      : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
       : 'aim with your hand, speak to summon');
     const dev = q<HTMLButtonElement>('[data-act="devices"]');
     dev.hidden = devicesOk;
     dev.disabled = asking || starting;
-    dev.textContent = errors.length ? 'Try again' : 'Turn on';
+    dev.textContent = s.mic ? 'Try camera' : errors.length ? 'Try again' : 'Turn on';
 
     step('voice', s.heardWords,
       !s.mic ? 'checks the mic hears you'
@@ -91,7 +93,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     lvl.classList.toggle('speaking', s.speaking);
 
     q('.setupHint').textContent = !s.camera ? 'camera off' : starting ? s.camStatus : s.hand ? '' : 'show your hand';
-    q<HTMLButtonElement>('[data-act="done"]').disabled = !devicesOk;
+    q<HTMLButtonElement>('[data-act="done"]').disabled = !s.mic || starting;
   }
 
   input.onSetup = () => open();

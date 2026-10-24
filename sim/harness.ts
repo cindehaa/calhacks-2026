@@ -1,10 +1,10 @@
 // Headless fights on the real step(): duels between two troops, and one troop against towers.
 import { ARENA_W, BRIDGE_X, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, TOWER, formation, type Side } from '../shared/arena';
-import { newTowers, step, type SimState, type TowerStats } from '../shared/sim';
-import { MAX_COST, PRICING, clampStats, power, price, type Pricing, type TroopStats } from '../shared/troop';
+import { newTowers, newUnit, step, type SimState, type TowerStats } from '../shared/sim';
+import { MAX_COST, PRICING, clampStats, power, price, quirkMultiplier, sanitizeQuirks, type Pricing, type TroopQuirks, type TroopStats } from '../shared/troop';
 import { fairCost, flag, matchCounts, median, trade, tradeRatio, valuePerElixir, type Flag, type SideResult, type Trade } from './metrics';
 
-export interface Troop extends TroopStats {
+export interface Troop extends TroopStats, TroopQuirks {
   name: string;
   cost: number;
   power: number;
@@ -21,11 +21,12 @@ export interface Knobs {
 
 export const DEFAULT_KNOBS: Knobs = { pricing: PRICING, tower: TOWER, budget: 20, timeout: 60 };
 
-// Same path as a deploy in the game: clamp, then price.
-export function prepare(raw: TroopStats & { name: string }, pricing: Pricing, anchor = false): Troop {
+// Same path as a deploy in the game: clamp, then price with the quirks.
+export function prepare(raw: TroopStats & Partial<TroopQuirks> & { name: string }, pricing: Pricing, anchor = false): Troop {
   const s = clampStats(raw);
-  const cost = price(s, pricing);
-  return { ...s, name: raw.name, cost, power: power(s, pricing), rejected: cost > MAX_COST, anchor };
+  const q = sanitizeQuirks(raw);
+  const cost = price(s, q, pricing);
+  return { ...s, ...q, name: raw.name, cost, power: power(s, pricing) * quirkMultiplier(q), rejected: cost > MAX_COST, anchor };
 }
 
 const DT = 1 / TICK_HZ;
@@ -36,10 +37,7 @@ const INERT_TOWER: TowerStats = { health: 1e9, damage: 0, attack_speed: 1, range
 let nextId = 1;
 function spawn(s: SimState, side: Side, t: TroopStats, x: number, y: number) {
   for (const [dx, dy] of formation(t.count)) {
-    s.units.push({
-      id: nextId++, side, x: x + dx, y: y + dy, hp: t.health, maxHp: t.health, damage: t.damage,
-      attackSpeed: t.attack_speed, moveSpeed: t.move_speed, range: t.range, cooldown: 0, delay: 0, attackSeq: 0,
-    });
+    s.units.push(newUnit(nextId++, side, x + dx, y + dy, t, 0));
   }
 }
 

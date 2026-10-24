@@ -25,4 +25,12 @@ export default {
   battleCry: __t.string(),
   voiceStyle: __t.string(),
   spriteUrl: __t.string(),
+  attack: __t.string(),
+  targets: __t.string(),
+  onHit: __t.string(),
+  windup: __t.bool(),
+  trait: __t.string(),
+  motion: __t.string(),
+  element: __t.string(),
+  flavor: __t.string(),
 };

@@ -18,3 +18,5 @@
 #inputPanel .inLevel.speaking { background: var(--elixir); }
 #inputPanel .inThresh { position: absolute; top: 0; bottom: 0; width: 2px; background: #4ade80; }
 #inputOverlay { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; pointer-events: none; }
+#talkHint { align-self: center; max-width: 100%; padding: 3px 10px; border-radius: 999px; background: rgba(13, 16, 32, 0.8); border: 1px solid var(--line); color: var(--text); font-size: 12px; text-align: center; pointer-events: none; }
+#talkHint[hidden] { display: none; }

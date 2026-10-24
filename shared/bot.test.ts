@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors';
 import { BRIDGE_X, MID_Y, onOwnHalf, type Side } from './arena';
 import { BOT_LEVELS, botDecide, newBotMemory, weakestBridge, type BotMemory } from './bot';
-import { newMatch, type SimState } from './sim';
+import { newMatch, newUnit, type SimState } from './sim';
 
 const normal = BOT_LEVELS.normal;
 const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
@@ -20,10 +20,7 @@ function seeded(seed = 1) {
 
 let nextId = 1000;
 function addUnit(s: SimState, side: Side, a = golem, x = BRIDGE_X[0], y = MID_Y + 3) {
-  s.units.push({
-    id: nextId++, side, x, y, hp: a.health, maxHp: a.health, damage: a.damage, attackSpeed: a.attack_speed,
-    moveSpeed: a.move_speed, range: a.range, cooldown: 0, delay: 0, attackSeq: 0,
-  });
+  s.units.push(newUnit(nextId++, side, x, y, a, 0));
 }
 const ready = (): BotMemory => ({ ...newBotMemory(), nextThink: 0 });
 

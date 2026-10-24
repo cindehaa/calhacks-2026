@@ -1,5 +1,5 @@
 // What each deployed troop actually did, for the logs: cost against value is how the pricing
-// formula gets tuned. Fed by step()'s hits and deaths; the server tick and bot mode both use it.
+// formula gets tuned. Fed by step()'s hits, spawns and deaths; the server tick and bot mode both use it.
 import type { StepResult } from './sim';
 
 export interface TroopTally {
@@ -22,7 +22,7 @@ export function troopsHit<K>(res: StepResult, troopOf: (unitId: number) => K | u
     const k = troopOf(h.by);
     if (k !== undefined) out.add(k);
   }
-  for (const id of res.deadUnitIds) {
+  for (const id of [...res.deadUnitIds, ...res.spawned.map(b => b.parentId)]) {
     const k = troopOf(id);
     if (k !== undefined) out.add(k);
   }
@@ -45,6 +45,11 @@ export function tallyStep<K>(tallies: Map<K, TroopTally>, res: StepResult, troop
       t.unitDamage += h.damage;
       if (h.kill) t.kills++;
     }
+  }
+  // Spawner minions count as their spawner's troop.
+  for (const b of res.spawned) {
+    const t = get(b.parentId);
+    if (t) t.alive++;
   }
   for (const id of res.deadUnitIds) {
     const t = get(id);
