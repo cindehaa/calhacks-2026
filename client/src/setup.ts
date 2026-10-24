@@ -1,7 +1,10 @@
-// First-visit setup: camera and mic on, a quick voice check. Done or skipped
-// once (remembered in localStorage); after that the controller turns the camera and mic back on
-// by itself. "Run setup again" in the camera panel's ⋯ menu reopens it.
+// First-visit setup: camera and mic on, a quick voice check, then how to point and pinch, with a
+// short practice (practice.ts). Done or skipped once (remembered in localStorage); after that the
+// controller turns the camera and mic back on by itself. "Run setup again" in the camera panel's
+// ⋯ menu reopens it.
 import type { InputController } from './input/controller';
+import { pinchArt, pointArt } from './input/handart';
+import { initPractice, practiceDone } from './practice';
 import { logEvent } from './telemetry';
 
 const DONE_KEY = 'arena.setupDone';
@@ -23,9 +26,20 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   handSel.addEventListener('change', () => input.setHandPref(handSel.value as 'auto' | 'left' | 'right'));
   let raf = 0;
   let asking = false; // waiting on the browser's permission prompt
+  const practice = initPractice(input);
+
+  // Practice, then back to setup; from "Let's play" (then: true), on into the game after it.
+  async function runPractice(then: boolean) {
+    cancelAnimationFrame(raf);
+    const how = await practice.run();
+    if (then) close(`done:practice-${how}`);
+    else render();
+  }
 
   function open(first = false) {
     el.hidden = false;
+    q('[data-art="point"]').innerHTML = pointArt();
+    q('[data-art="pinch"]').innerHTML = pinchArt();
     q('[data-act="skip"]').textContent = first ? 'Skip, use mouse and keys' : 'Close';
     cancelAnimationFrame(raf);
     render();
@@ -58,7 +72,12 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     else if (act === 'skip') {
       input.setMouseKeys(true);
       close(act);
-    } else if (act === 'done') close(act);
+    } else if (act === 'practice') void runPractice(false);
+    else if (act === 'done') {
+      // First time with the camera working: a quick practice before the game.
+      if (input.setupState().cameraReady && !practiceDone()) void runPractice(true);
+      else close(act);
+    }
   });
 
   function step(name: string, done: boolean, msg: string) {
@@ -95,6 +114,16 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     const lvl = q('.setupMeter i');
     lvl.style.width = `${s.mic ? Math.max(0, Math.min(100, ((s.level + 90) / 90) * 100)) : 0}%`;
     lvl.classList.toggle('speaking', s.speaking);
+
+    const practiced = practiceDone();
+    step('hands', practiced,
+      !s.cameraReady ? 'No camera? Click or press Space instead of pinching.'
+      : practiced ? 'Practice done. Thumbs down cancels a troop.'
+      : 'Point at three targets and pinch each one. About 15 seconds.');
+    const prac = q<HTMLButtonElement>('[data-act="practice"]');
+    prac.hidden = !s.cameraReady;
+    prac.textContent = practiced ? 'Again' : 'Practice';
+    prac.classList.toggle('ghost', practiced);
 
     q('.setupHint').textContent = !s.camera ? 'camera off' : starting ? s.camStatus : s.hand ? '' : 'show your hand';
     q<HTMLButtonElement>('[data-act="done"]').disabled = !s.mic || starting;

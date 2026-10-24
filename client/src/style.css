@@ -614,3 +614,57 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .spoils .emberReward .face { height: 68px; padding: 0 22px 0 20px; }
 .spoils .emberReward .erDelta b { font-size: 34px; }
 .result .mvpCard > .gFace { width: min(560px, calc(100vw - 2 * (min(18vw, 31vh, 260px) + 4.3vw + 24px))); }
+
+/* setup's point-and-pinch step: the two hand diagrams (input/handart.ts) on dark stone tiles */
+#setup .steps li[data-step="hands"] { align-items: flex-start; }
+#setup .steps li[data-step="hands"] .stepDot { margin-top: 1px; }
+#setup .howHands { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 8px; }
+#setup .howHands figure { margin: 0; display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 4px; background: #0a0d1b;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+#setup .howHands figcaption { font-size: 13px; line-height: 1.3; color: #b9c0d8; }
+.handArt { flex: none; display: block; width: 64px; height: 77px; }
+.handArt svg { display: block; width: 100%; height: 100%; }
+#setup [data-act="practice"]:not(.ghost) { color: #1a0e00 !important; border-bottom-color: var(--amberSide) !important; background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%) !important; }
+#setup [data-act="practice"][hidden] { display: none; }
+#setup .handsFoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; }
+
+/* point-and-pinch practice (practice.ts): targets across the screen under a stone header */
+#handPractice { position: fixed; inset: 0; z-index: 9; font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #0d1124f2, #020308 80%); }
+#handPractice[hidden] { display: none; }
+.practiceHead { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: min(580px, calc(100vw - 32px)); display: flex; align-items: center; gap: 14px; padding: 12px 18px 14px 10px;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); border-bottom: 6px solid #0e1230;
+  background: linear-gradient(160deg, #212853 0 56%, #1a2045 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; }
+.practiceHead .handArt { width: 60px; height: 72px; }
+.practiceHead .handArt.nudge { animation: artNudge .6s ease-out; }
+@keyframes artNudge { 0%, 100% { transform: none; } 30% { transform: scale(1.15); } 60% { transform: scale(.97); } }
+.practiceText { flex: 1; min-width: 0; }
+.practiceText h2 { margin: 0; font: 800 21px/1.15 var(--cinzel); letter-spacing: .03em; color: #fff; }
+.practiceText .sub { margin: 4px 0 8px; font-size: 16px; line-height: 1.35; color: #b9c0d8; min-height: 1.35em; }
+.pinchMeter { height: 8px; background: #0a0d1b; overflow: hidden; }
+.pinchMeter i { display: block; height: 100%; width: 0; background: var(--ice2); transition: width .08s linear; }
+.pinchMeter i.shut { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.practiceCount { flex: none; font: 800 18px var(--cinzel); color: var(--amber); white-space: nowrap; }
+.practiceField { position: absolute; inset: 0; pointer-events: none; }
+/* a target: frost octagon, dark inner face, amber diamond; lights amber with the cursor on it */
+.pTarget { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; display: grid; place-items: center; background: #9cc3e0;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); animation: targetIn .32s cubic-bezier(.2, 1.4, .4, 1) backwards;
+  transition: background .12s, transform .12s; }
+.pTarget i { width: 86%; height: 86%; display: grid; place-items: center; background: linear-gradient(160deg, #212853 0 56%, #1a2045 56% 100%);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+.pTarget i::after { content: ''; width: 22px; height: 22px; transform: rotate(45deg); background: var(--amber); box-shadow: 0 0 12px var(--amber); }
+.pTarget.on { background: var(--amber); transform: scale(1.08); }
+.pTarget.hit { animation: targetHit .42s ease-out forwards; background: #fff1c4; }
+@keyframes targetIn { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+@keyframes targetHit { to { opacity: 0; transform: scale(1.5); } }
+#handPractice > [data-act="skip"] { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); height: 42px; padding: 0 16px; border: 0; background: transparent;
+  font: 700 15px var(--chakra); letter-spacing: .06em; color: var(--muted); cursor: pointer; }
+#handPractice > [data-act="skip"]:hover { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .pTarget, .pTarget.hit, .practiceHead .handArt.nudge { animation: none; transition: none; } .pTarget.hit { opacity: 0; } }
+@media (max-width: 640px) {
+  #setup .howHands { grid-template-columns: 1fr; }
+  .practiceHead { top: 12px; padding: 10px 12px 12px 6px; gap: 10px; }
+  .practiceHead .handArt { width: 46px; height: 55px; }
+  .practiceText h2 { font-size: 17px; }
+  .practiceText .sub { font-size: 14px; }
+  .pTarget { width: 92px; height: 92px; margin: -46px 0 0 -46px; }
+}

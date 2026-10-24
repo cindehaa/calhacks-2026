@@ -16,7 +16,7 @@ export const DWELL_MS = 1000;
 const TARGETS = 'button:not(:disabled), input[type=checkbox]:not(:disabled), input.codeIn';
 const MATCH_TARGETS = '#tools button:not(:disabled)'; // all the hand can reach mid-match
 // Dialogs over a match: while one is open the hand works menus, not the board.
-const DIALOGS = ['pause', 'forfeitAsk', 'tutorial', 'setup', 'raven'];
+const DIALOGS = ['pause', 'forfeitAsk', 'tutorial', 'setup', 'handPractice', 'raven'];
 const PRESS_MS = 140;
 
 const shown = (id: string) => {
@@ -143,10 +143,10 @@ export function activateUi(at: Pt | null, opts: { fallback?: boolean; playing?: 
   return true;
 }
 
-// Esc goes back: close the dialog on top, or leave the result screen. The pause menu and the
-// how-to card handle Esc themselves.
+// Esc goes back: close the dialog on top, or leave the result screen. The pause menu, the
+// how-to card and the pinch practice handle Esc themselves.
 export function menuBack(): boolean {
-  if (shown('tutorial') || shown('pause')) return false;
+  if (shown('tutorial') || shown('pause') || shown('handPractice')) return false;
   const click = (sel: string) => {
     const b = document.querySelector<HTMLElement>(sel);
     if (!b) return false;

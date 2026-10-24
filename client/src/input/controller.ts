@@ -16,6 +16,8 @@ import { drawHandView } from './handview';
 import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { PinchDetector, extension, thumbDownScore } from './pose';
+import { NearMiss } from './nearmiss';
+import { hidePinchHint, showPinchHint } from './pinchhint';
 import { AutoSpeech } from './cartesia_stt';
 import { chooseDescription, FIRE_WAIT_MS, fireWaits, isCancel, isMismatch, routeWords, Transcript } from './speech';
 import { KEYS, load, save } from './store';
@@ -101,6 +103,8 @@ export class InputController {
   private fy = new OneEuro(1.0, 0.007);
   private thumbDown = 0; // the last thumbs-down score, 0..1
   private pinch = new PinchDetector();
+  private ratio: number | null = null; // the control hand's pinch measure, null with no hand
+  private nearMiss = new NearMiss(); // pinches that almost close, for the pinch guide
   private trail = new CursorHistory(); // the hand cursor, to aim from before a pinch
 
   readonly scheme: Scheme = pinch;
@@ -198,10 +202,20 @@ export class InputController {
         },
         // A whole frame: drives the hand signal (and the intent gate) without a camera. thumbDown
         // is the score (0..1), pinched what the pinch measure says.
-        frame: (x: number, y: number, o: { thumbDown?: number; pinched?: boolean } = {}) => {
+        // ratio drives the pinch measure instead (pose.ts pinchMetric): pinches, near misses and all.
+        frame: (x: number, y: number, o: { thumbDown?: number; pinched?: boolean; ratio?: number } = {}) => {
+          const now = performance.now();
           this.handCursor = { x, y };
           this.thumbDown = o.thumbDown ?? 0;
-          this.publish(this.handSignal(performance.now(), this.handCursor, null, o.pinched ?? false));
+          if (o.ratio === undefined) return void this.publish(this.handSignal(now, this.handCursor, null, o.pinched ?? false));
+          this.ratio = o.ratio;
+          const pinched = this.pinch.push(o.ratio);
+          this.publish(this.handSignal(now, this.handCursor, null, this.pinch.closed));
+          if (pinched) {
+            this.pinchT = now;
+            this.publish({ kind: 'pinch', t: now, aim: this.handCursor });
+          }
+          this.checkNearMiss(now);
         },
         lost: () => {
           this.handCursor = null;
@@ -351,6 +365,7 @@ export class InputController {
       if (this.handCursor) { this.lostAt = now; this.lostCursor = this.handCursor }
       this.resetHand();
       this.publish({ kind: 'hand', t: now, visible: false });
+      this.checkNearMiss(now);
       this.drawPreviews();
       this.handLost(now);
       return;
@@ -361,12 +376,32 @@ export class InputController {
     this.trail.push(now, this.handCursor);
     this.thumbDown = thumbDownScore(f.lm, f.world, f.vw, f.vh);
     const pinched = this.pinch.update(f.lm, f.vw, f.vh);
+    this.ratio = this.pinch.ratio;
     this.publish(this.handSignal(now, this.handCursor, f, this.pinch.closed));
     if (pinched) {
       this.pinchT = now;
       this.publish({ kind: 'pinch', t: now, aim: this.trail.at(now - PINCH_AIM_MS) ?? this.handCursor });
     }
+    this.checkNearMiss(now);
     this.drawPreviews();
+  }
+
+  // The control hand's pinch measure (thumb to finger, in hand sizes), null with no hand. For the
+  // practice screen's meter.
+  pinchRatio(): number | null {
+    return this.ratio;
+  }
+
+  // Trying to pinch and it won't close: a few near misses with the hand over your half, in a
+  // match, show the pinch guide in the corner (rate limited in nearmiss.ts).
+  private checkNearMiss(now: number): void {
+    const c = this.handCursor, playing = this.host.playing();
+    if (!playing) hidePinchHint();
+    const active = !!c && playing && (this.host.started?.() ?? true) && !this.menus() && this.host.canDeploy(this.host.toWorld(c.x, c.y));
+    if (this.nearMiss.push(now, this.ratio, active)) {
+      showPinchHint();
+      this.host.event?.('hint:pinch');
+    }
   }
 
 
@@ -387,6 +422,7 @@ export class InputController {
     this.trail.clear();
     this.thumbDown = 0;
     this.pinch.reset();
+    this.ratio = null;
   }
 
   // The hand works the menus (home, setup, dialogs, result) rather than aiming troops.

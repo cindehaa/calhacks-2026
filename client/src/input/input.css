@@ -20,3 +20,23 @@
 #inputOverlay { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; pointer-events: none; }
 #talkHint { align-self: center; max-width: 100%; padding: 3px 10px; border-radius: 999px; background: rgba(13, 16, 32, 0.8); border: 1px solid var(--line); color: var(--text); font-size: 12px; text-align: center; pointer-events: none; }
 #talkHint[hidden] { display: none; }
+
+/* The pinch guide (pinchhint.ts): a small stone card just above the virtual hand, in the corner,
+   away from the board's middle. Takes no clicks; slides in, holds, fades. */
+#pinchHint { position: fixed; right: 12px; bottom: 182px; z-index: 5; width: 250px; display: flex; align-items: center; gap: 10px; padding: 8px 12px 10px 8px; pointer-events: none;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); border-bottom: 4px solid #0b0e22;
+  background: linear-gradient(160deg, #212853f0 0 56%, #1a2045f0 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; font-family: var(--chakra); }
+#pinchHint[hidden], body.inHub #pinchHint { display: none; }
+#pinchHint .phArt { flex: none; width: 56px; height: 67px; }
+#pinchHint .phArt svg { width: 100%; height: 100%; display: block; }
+#pinchHint .phText { display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.3; color: #b9c0d8; }
+#pinchHint .phText b { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--amber); }
+#pinchHint.in { animation: pinchHintLife 5.5s ease-out both; }
+@keyframes pinchHintLife { 0% { opacity: 0; transform: translateX(14px); } 6% { opacity: 1; transform: none; } 88% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #pinchHint.in { animation: none; } }
+@media (max-width: 640px) {
+  /* under the hand view, which moves to the top left on phones */
+  #pinchHint { top: 196px; left: 12px; right: auto; bottom: auto; width: min(210px, calc(100vw - 24px)); }
+  #pinchHint .phText { font-size: 13px; }
+  #pinchHint .phArt { width: 44px; height: 53px; }
+}

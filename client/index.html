@@ -222,10 +222,25 @@
       <ol class="steps">
         <li data-step="devices"><span class="stepDot"></span><div><b>Camera and mic</b><span class="sub" data-msg></span></div><button data-act="devices">Turn on</button></li>
         <li data-step="voice"><span class="stepDot"></span><div><b>Say hello</b><span class="sub" data-msg></span></div><span class="setupMeter"><i></i></span></li>
-        <li data-step="controls" class="done"><span class="stepDot"></span><div><b>Controls</b><span class="sub">Point, say it, pinch to summon. Thumbs down to cancel.</span></div><label class="sub setupHand">Pointing hand <select data-hand-pref><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label></li>
+        <li data-step="hands"><span class="stepDot"></span><div><b>Point and pinch</b><span class="sub" data-msg></span>
+          <div class="howHands">
+            <figure><span class="handArt" data-art="point"></span><figcaption><b>Point</b> with your index finger to aim</figcaption></figure>
+            <figure><span class="handArt" data-art="pinch"></span><figcaption><b>Pinch</b> your thumb to your index finger to click or send</figcaption></figure>
+          </div>
+          <div class="handsFoot"><label class="sub setupHand">Pointing hand <select data-hand-pref><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label><button data-act="practice">Practice</button></div></div></li>
       </ol>
       <div class="tutFoot"><button data-act="skip" class="ghost">Skip, use mouse and keys</button><button data-act="done" data-primary>Let’s play</button></div>
     </div>
+  </div>
+
+  <div id="handPractice" hidden role="dialog" aria-modal="true" aria-labelledby="practiceTitle">
+    <div class="practiceHead">
+      <span class="handArt" data-art="pinch"></span>
+      <div class="practiceText"><h2 id="practiceTitle">Practice: point and pinch</h2><p class="sub" data-msg></p><div class="pinchMeter" title="How close your thumb is to your finger"><i></i></div></div>
+      <span class="practiceCount" data-count></span>
+    </div>
+    <div class="practiceField"></div>
+    <button data-act="skip" class="ghost">Skip practice</button>
   </div>
 
   <div id="tutorial" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="tutTitle">
