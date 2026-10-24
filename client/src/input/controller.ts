@@ -6,8 +6,8 @@
 // The mic listens the whole time it's on, and everything said since the last fire is the troop.
 // Aim with the index fingertip (or the mouse). Fire by flicking the wrist down, pressing Space, or
 // clicking the board with words waiting: the troop goes where you were pointing just before.
-// Close your hand into a fist, press Esc or say "cancel" to throw the words away. Typed text,
-// number keys and click-to-type work as before.
+// Close your hand into a fist, press Esc or say "cancel" to throw the words away. Typed text
+// and click-to-type work as before.
 import { drawCursor, drawDwell, MISS_MS, type CursorState, type InputView } from './draw';
 import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
@@ -25,6 +25,7 @@ import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import { activateUi, menuBack, menuMode, menuPointer } from './menus';
 import { pickScheme, schemeById, SCHEMES } from './schemes/registry';
 import type { Intent, Scheme, SchemeCtx, SchemeInstance, Signal } from './schemes/types';
+import { DEV_MODE } from '../devmode';
 import './input.css';
 
 type Spot = [number, number]; // world coords
@@ -252,7 +253,7 @@ export class InputController {
     if (this.prefs.mic) void this.setMic(true);
   }
 
-  // Mouse and keyboard mode: the mouse aims and clicks, number keys drop troops. On by default
+  // Mouse and keyboard mode: the mouse aims and clicks. On by default
   // alongside the hand, and the fallback if vision fails; Space and Esc work either way.
   get mouseKeys(): boolean {
     return this.prefs.mouseKeys;
@@ -901,7 +902,7 @@ export class InputController {
 
   private hintText(): string {
     if (this.scheme.id !== 'flick' && this.mic.on && this.speech.available) return this.scheme.howTo;
-    if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : 'Turn on the Mic (top left) to speak troops in';
+    if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
     const send = this.tracker ? 'point and flick your wrist' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'make a fist' : 'press Esc';
     if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;

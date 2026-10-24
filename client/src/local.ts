@@ -2,7 +2,7 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { ELIXIR_MAX, MATCH_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { ELIXIR, MATCH_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, type ElixirRules, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, newUnit, step, type SimState } from '../../shared/sim';
@@ -41,7 +41,8 @@ export class LocalMatch implements MatchSource {
   private last = 0;
   private raf = 0;
 
-  constructor(readonly level: BotLevel = 'normal', private onLeave: () => void = () => {}, autorun = true, private rand = Math.random) {
+  constructor(readonly level: BotLevel = 'normal', private onLeave: () => void = () => {}, autorun = true, private rand = Math.random,
+    readonly rules: ElixirRules = ELIXIR) {
     this.label = level === 'normal' ? 'vs Bot' : `vs Bot (${level})`;
     this.reset();
     if (autorun) this.raf = requestAnimationFrame(this.loop);
@@ -87,7 +88,7 @@ export class LocalMatch implements MatchSource {
   tick(dt = DT): void {
     if (this.status !== 'playing') return;
     this.runBot();
-    const res = step(this.s, dt);
+    const res = step(this.s, dt, undefined, this.rules);
     // Spawner minions join their spawner's troop, under an id from our own counter.
     for (const { unit, parentId } of res.spawned) {
       unit.id = this.nextId++;
@@ -95,7 +96,7 @@ export class LocalMatch implements MatchSource {
       if (troopId !== undefined) this.unitTroop.set(unit.id, troopId);
     }
     tallyStep(this.tallies as Map<bigint, TroopTally>, res, id => this.unitTroop.get(id), this.s.time);
-    if (this.s.time > 0) for (const side of [0, 1] as Side[]) if (this.s.elixir[side] >= ELIXIR_MAX) this.capped[side] += dt;
+    if (this.s.time > 0) for (const side of [0, 1] as Side[]) if (this.s.elixir[side] >= this.rules.max) this.capped[side] += dt;
     for (const id of res.deadUnitIds) {
       this.unitTroop.delete(id);
       this.glide.drop(BigInt(id));
@@ -131,7 +132,7 @@ export class LocalMatch implements MatchSource {
   };
 
   private reset() {
-    this.s = newMatch();
+    this.s = newMatch(undefined, this.rules);
     this.s.time = MATCH_START;
     this.locks = [];
     this.troopRows.clear();

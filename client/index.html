@@ -34,7 +34,6 @@
     </form>
     <div id="talkHint" hidden></div>
     <div id="status"></div>
-    <div id="hand"></div>
   </div>
 
   <div id="title" class="screen gScreen">
@@ -143,6 +142,15 @@
         <button data-level="normal" class="slab stone"><span class="face"><b>Normal</b></span></button>
         <button data-level="hard" class="slab stone"><span class="face"><b>Hard</b></span></button>
       </div>
+      <details class="devSettings">
+        <summary>Dev settings</summary>
+        <p class="devNote">Elixir rules for Practice only. Online matches use the defaults.</p>
+        <label>Max elixir <input id="devMax" type="number" min="1" max="30" step="1"></label>
+        <label>Starting elixir <input id="devStart" type="number" min="0" max="30" step="0.5"></label>
+        <label>Elixir per second <input id="devRate" type="number" min="0.05" max="5" step="0.05"></label>
+        <p class="devNote">Doubles in the last 30 s, triples in overtime. Troops still cost at most 10. <span id="devDefaults"></span></p>
+        <div class="devFoot"><span id="devStatus" class="devNote"></span><button id="devReset" type="button" class="textBtn">Reset</button></div>
+      </details>
       <button id="practiceBack" class="textBtn">Back</button>
     </div></div>
   </div>
@@ -225,7 +233,6 @@
         <li id="tutFire"><span><b>Fire</b> by flicking your wrist down. No camera? Click or press Space.</span></li>
         <li><span><b>Clear</b> what you said by making a fist, pressing Esc, or saying “cancel”.</span></li>
         <li><span>Troops cost <b>embers</b>, and the cost is a surprise. It shows on the troop once it lands.</span></li>
-        <li><span>Keys <kbd>1</kbd>–<kbd>0</kbd> drop the starter troops.</span></li>
         <li><span>Not what you asked for? Say <b>“that’s wrong”</b> or press <kbd>X</kbd>.</span></li>
       </ol>
       <div class="tutFoot"><button id="tutClose" data-primary>Got it</button><span class="sub">Reopen with <kbd>?</kbd> · mute with <kbd>M</kbd></span></div>

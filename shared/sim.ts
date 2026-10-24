@@ -8,8 +8,7 @@ import {
   BRIDGE_HALF,
   BRIDGE_X,
   DRAIN_PER_SEC,
-  ELIXIR_MAX,
-  ELIXIR_START,
+  ELIXIR,
   KING_HEALTH,
   KING_LANE,
   MATCH_SECONDS,
@@ -22,6 +21,7 @@ import {
   elixirRate,
   towerRadius,
   towerY,
+  type ElixirRules,
   type Side,
 } from './arena.js';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from './troop.js';
@@ -162,10 +162,10 @@ export function newTowers(tower: TowerStats = TOWER): Omit<SimTower, 'id'>[] {
   return out;
 }
 
-export function newMatch(tower: TowerStats = TOWER): SimState {
+export function newMatch(tower: TowerStats = TOWER, rules: ElixirRules = ELIXIR): SimState {
   return {
     time: 0,
-    elixir: [ELIXIR_START, ELIXIR_START],
+    elixir: [rules.start, rules.start],
     units: [],
     towers: newTowers(tower).map((t, i) => ({ ...t, id: i + 1 })),
   };
@@ -216,7 +216,7 @@ const awake = (s: SimState, t: SimTower) =>
   t.lane !== KING_LANE || t.hp < t.maxHp || s.towers.some(o => o.side === t.side && o.lane !== KING_LANE && o.hp <= 0);
 const kingDown = (s: SimState, side: Side) => s.towers.some(t => t.side === side && t.lane === KING_LANE && t.hp <= 0);
 
-export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepResult {
+export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: ElixirRules = ELIXIR): StepResult {
   // Pre-match countdown (negative time): only the clock runs.
   if (s.time < 0) {
     s.time += dt;
@@ -225,8 +225,8 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
   }
   if (s.time >= TIEBREAK_AT) return drain(s, dt);
   s.time += dt;
-  const rate = elixirRate(s.time);
-  s.elixir = [Math.min(ELIXIR_MAX, s.elixir[0] + rate * dt), Math.min(ELIXIR_MAX, s.elixir[1] + rate * dt)];
+  const rate = elixirRate(s.time, rules.perSec);
+  s.elixir = [Math.min(rules.max, s.elixir[0] + rate * dt), Math.min(rules.max, s.elixir[1] + rate * dt)];
 
   for (const u of s.units) if (u.delay > 0) u.delay = Math.max(0, u.delay - dt);
   const active = s.units.filter(u => u.delay <= 0 && u.hp > 0);

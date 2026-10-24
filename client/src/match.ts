@@ -1,6 +1,6 @@
 // Where a match comes from. main.ts renders and deploys through MatchSource, so the same UI
 // plays an online room (OnlineMatch, SpacetimeDB) or a bot match in this tab (LocalMatch).
-import { TICK_HZ, type Side } from '../../shared/arena';
+import { ELIXIR, TICK_HZ, type ElixirRules, type Side } from '../../shared/arena';
 import type { SimUnit } from '../../shared/sim';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from '../../shared/troop';
 import type { Player, Room } from './module_bindings/types';
@@ -43,6 +43,7 @@ export interface MatchSource {
   readonly status: MatchStatus;
   readonly time: number; // match seconds elapsed
   readonly elixir: number; // yours
+  readonly rules: ElixirRules; // cap and refill; online always plays ELIXIR
   readonly winner: Side | -1 | null; // -1 draw, null while undecided
   units(): MatchUnit[]; // positions already smoothed between ticks
   towers(): MatchTower[];
@@ -84,6 +85,7 @@ export class Glide {
 
 // The player's room on the SpacetimeDB connection. A thin view over the subscribed tables.
 export class OnlineMatch implements MatchSource {
+  readonly rules = ELIXIR;
   private glide = new Glide();
   // The SDK's find() scans the whole table, the player table gains a row for every tab ever
   // opened, and the HUD asks for me() and room() dozens of times a frame. So look them up again
