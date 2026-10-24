@@ -20,7 +20,7 @@ export class Vad {
   speaking = false;
   level = -120;
   private loudSince: number | null = null;
-  private lastLoud = 0;
+  lastLoud = -Infinity; // when the level was last above the threshold (ms)
 
   constructor(public o: VadOptions = { ...VAD_DEFAULTS }) {}
 
