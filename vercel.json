@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [
+    { "source": "/api/sprite/:name", "destination": "/api/sprite?name=:name" },
+    { "source": "/api/pose/:name", "destination": "/api/pose?name=:name" }
+  ]
+}

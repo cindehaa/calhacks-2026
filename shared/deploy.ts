@@ -1,7 +1,7 @@
 // Deploy rules, shared by the server's deploy_troop and the browser's bot mode so the two
 // can't drift. Pure: callers own the rows, the clock and how errors are thrown.
-import { DEPLOY_DELAY, MIN_DEPLOY_DELAY, clampTo, deployZones, formation, zoneAt, type Side, type TowerState } from './arena';
-import { MAX_COST, price, sanitizeDesign, type TroopDesign } from './troop';
+import { DEPLOY_DELAY, MIN_DEPLOY_DELAY, clampTo, deployZones, formation, zoneAt, type Side, type TowerState } from './arena.js';
+import { MAX_COST, price, sanitizeDesign, type TroopDesign } from './troop.js';
 
 export interface PricedDeploy {
   design: TroopDesign;

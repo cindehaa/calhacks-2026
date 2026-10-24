@@ -5,7 +5,8 @@
   "scripts": {
     "start": "./run.sh",
     "dev": "vite --config client/vite.config.ts",
-    "api": "tsx watch api/server.ts",
+    "api": "tsx watch api/_dev.ts",
+    "build": "vite build --config client/vite.config.ts",
     "db:start": "spacetime start",
     "db:publish": "spacetime publish --module-path server --server local arena -y",
     "db:reset": "spacetime publish --module-path server --server local arena -y --delete-data",

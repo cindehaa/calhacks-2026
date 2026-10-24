@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MID_Y } from './arena';
-import { newMatch, newUnit, step, type SimUnit } from './sim';
-import { newTally, tallyStep, troopsHit, type TroopTally } from './tally';
+import { MID_Y } from './arena.js';
+import { newMatch, newUnit, step, type SimUnit } from './sim.js';
+import { newTally, tallyStep, troopsHit, type TroopTally } from './tally.js';
 
 const unit = (id: number, side: 0 | 1, y: number, o: Partial<SimUnit> = {}): SimUnit => ({
   ...newUnit(id, side, 4, y, { health: 300, damage: 100, attack_speed: 1, move_speed: 1, range: 1 }, 0), ...o,

@@ -17,7 +17,7 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 | `shared/` | Plain TypeScript used everywhere: `sim.ts` (the combat `step()`), `troop.ts` (stat schema, clamps, `price()`), `anchors.ts` (the 10 reference troops), `arena.ts` (board and match constants), `prompt.ts` (the troop-designer prompt). |
 | `server/` | SpacetimeDB module: rooms, deploys, and the 20 Hz tick that runs `step()`. |
 | `client/` | Vite + TypeScript browser game: lobby, canvas arena, keyboard / mouse / text input, Cartesia STT. |
-| `api/` | Small Node proxy that holds the API keys. `POST /api/troop` turns a description into a priced troop with Claude, `POST /api/voice-token` mints a 60 s Cartesia token for the browser's sockets, `POST /api/sprite` draws a troop with fal and serves it at `/api/sprite/<id>.png` (cached in `.cache/sprites/`). |
+| `api/` | Key proxy: one Vercel function per route, with the shared code in `api/_lib/` and a local server in `api/_dev.ts`. `POST /api/troop` turns a description into a priced troop with Claude, `POST /api/voice-token` mints a 60 s Cartesia token for the browser's sockets, `POST /api/sprite` draws a troop with fal and serves it at `/api/sprite/<id>.png` (cached in `.cache/sprites/`, or the function's temp dir on Vercel). |
 | `meta/` | Spec, progress log and aesthetic vision. |
 
 ## Run it locally
@@ -43,6 +43,10 @@ Open http://localhost:5173 in two tabs (each tab is its own player), create a ro
 After changing tables or reducers in `server/`, run `npm run db:publish` then `npm run db:generate` to refresh `client/src/module_bindings`. If a schema change is refused, `npm run db:reset` republishes and wipes the data.
 
 To use Maincloud instead of a local server: `spacetime login`, `spacetime publish --module-path server --server maincloud <db-name> -y`, then open `http://localhost:5173/?host=https://maincloud.spacetimedb.com&db=<db-name>`.
+
+## Deploy
+
+The repo is linked to the Vercel project `calhacks-2026`: every push to `main` deploys to production, other branches get preview URLs. Vercel builds `client/` (`npm run build`) and serves `api/*.ts` as functions; their API keys are Vercel environment variables, not `.env`. The deployed site plays online against the Maincloud database `calhacks-arena`, so after changing `server/` run `spacetime publish --module-path server --server maincloud calhacks-arena -y`.
 
 ## Controls
 

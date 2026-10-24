@@ -1,6 +1,6 @@
 // What each deployed troop actually did, for the logs: cost against value is how the pricing
 // formula gets tuned. Fed by step()'s hits, spawns and deaths; the server tick and bot mode both use it.
-import type { StepResult } from './sim';
+import type { StepResult } from './sim.js';
 
 export interface TroopTally {
   unitDamage: number; // dealt to enemy units

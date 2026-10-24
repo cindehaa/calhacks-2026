@@ -22,8 +22,8 @@ import {
   towerRadius,
   towerY,
   type Side,
-} from './arena';
-import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from './troop';
+} from './arena.js';
+import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from './troop.js';
 
 export interface SimUnit {
   id: number;

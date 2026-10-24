@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANCHORS } from './anchors';
-import { ARENA_H, DEPLOY_DELAY, MID_Y, MIN_DEPLOY_DELAY, RIVER_HALF, canDeploy, onOwnHalf } from './arena';
-import { arrivalDelay, priceDeploy, unitSpots } from './deploy';
-import { newMatch } from './sim';
+import { ANCHORS } from './anchors.js';
+import { ARENA_H, DEPLOY_DELAY, MID_Y, MIN_DEPLOY_DELAY, RIVER_HALF, canDeploy, onOwnHalf } from './arena.js';
+import { arrivalDelay, priceDeploy, unitSpots } from './deploy.js';
+import { newMatch } from './sim.js';
 
 const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
 

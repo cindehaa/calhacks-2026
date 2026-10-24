@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANCHORS } from './anchors';
-import { designOffline, pickAnchor } from './offline_designer';
-import { MAX_COST, VOICE_STYLES, power, price, type TroopDesign } from './troop';
+import { ANCHORS } from './anchors.js';
+import { designOffline, pickAnchor } from './offline_designer.js';
+import { MAX_COST, VOICE_STYLES, power, price, type TroopDesign } from './troop.js';
 
 const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
 const wizard = ANCHORS.find(a => a.name === 'Fire Wizard')!;

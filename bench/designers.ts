@@ -7,7 +7,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { designOffline } from '../shared/offline_designer';
 import { price, type TroopDesign } from '../shared/troop';
-import { PROVIDERS, provider, type Provider } from '../api/providers';
+import { PROVIDERS, provider, type Provider } from '../api/_lib/providers';
 
 const envFile = new URL('../.env', import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);

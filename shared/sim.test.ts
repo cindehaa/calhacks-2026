@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANCHORS } from './anchors';
-import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, formation, type Side } from './arena';
-import { newMatch, newUnit, step, type SimState } from './sim';
-import { MAX_COST, clampStats, price, sanitizeDesign, type TroopStats } from './troop';
+import { ANCHORS } from './anchors.js';
+import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, formation, type Side } from './arena.js';
+import { newMatch, newUnit, step, type SimState } from './sim.js';
+import { MAX_COST, clampStats, price, sanitizeDesign, type TroopStats } from './troop.js';
 
 let nextId = 1000;
 function spawn(s: SimState, side: Side, stats: TroopStats, x: number, y: number) {

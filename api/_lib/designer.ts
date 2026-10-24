@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { designOffline } from '../shared/offline_designer';
-import { SYSTEM_PROMPT } from '../shared/prompt';
-import { price, type TroopDesign } from '../shared/troop';
-import { provider, type ProviderName } from './providers';
+import { designOffline } from '../../shared/offline_designer.js';
+import { SYSTEM_PROMPT } from '../../shared/prompt.js';
+import { price, type TroopDesign } from '../../shared/troop.js';
+import { provider, type ProviderName } from './providers.js';
 
 // DESIGNER picks the backend (claude, gemini, cerebras, groq); `npm run bench` compares them.
 // Claude Haiku 5.5 measured p90 2.11 s on Oct 23, inside the 2.5 s deploy delay.

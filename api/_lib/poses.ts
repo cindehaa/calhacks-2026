@@ -5,12 +5,12 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { BACKGROUND, REMOVE_TIMEOUT_MS, bytes, fal, normalise, spritePng } from './sprites';
+import { BACKGROUND, REMOVE_TIMEOUT_MS, bytes, cacheDir, fal, normalise, spritePng } from './sprites.js';
 
 const POSE_VERSION = 1; // bump to redraw every pose after a prompt or model change
 const EDIT_TIMEOUT_MS = 25_000;
 
-const DIR = new URL('../.cache/poses/', import.meta.url);
+const DIR = cacheDir('poses');
 
 export interface Pose {
   url: string; // '/api/pose/<id>.png', plus '?key' when the background is still on

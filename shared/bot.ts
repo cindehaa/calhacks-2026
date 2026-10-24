@@ -1,10 +1,10 @@
 // The practice bot. Pure: it reads a SimState and says which anchor to drop where, or nothing.
 // Only the browser's local "vs Bot" mode runs it (never the server); the headless balance sim
 // can reuse it. Randomness comes in through `rand`, so tests can seed it and step() stays pure.
-import { ANCHORS, type Anchor } from './anchors';
-import { BRIDGE_X, KING_LANE, MID_Y, clampToHalf, type Side } from './arena';
-import type { SimState, SimUnit } from './sim';
-import { K } from './troop';
+import { ANCHORS, type Anchor } from './anchors.js';
+import { BRIDGE_X, KING_LANE, MID_Y, clampToHalf, type Side } from './arena.js';
+import type { SimState, SimUnit } from './sim.js';
+import { K } from './troop.js';
 
 export type BotLevel = 'easy' | 'normal' | 'hard';
 

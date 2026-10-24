@@ -5,6 +5,9 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Description first, then the shared style, so the subject wins over the boilerplate.
 export const STYLE =
@@ -16,7 +19,12 @@ const SIZE = 384;
 const FLUX_TIMEOUT_MS = 10_000;
 export const REMOVE_TIMEOUT_MS = 3000; // past this, the browser keys the background itself
 
-const DIR = new URL('../.cache/sprites/', import.meta.url);
+// Generated art is kept on disk, in .cache/ locally. Vercel's filesystem is read-only apart from
+// the temp dir, which only lasts as long as the function instance, so there art is redrawn after
+// a cold start, and the sprite function serves its own files (the rewrites in vercel.json).
+export const cacheDir = (name: string) =>
+  process.env.VERCEL ? pathToFileURL(join(tmpdir(), 'arena', name) + '/') : new URL(`../../.cache/${name}/`, import.meta.url);
+const DIR = cacheDir('sprites');
 
 export const hasFalKey = () => !!(process.env.FAL_KEY ?? '').trim();
 

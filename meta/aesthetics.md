@@ -42,7 +42,23 @@ The prompts live in `tools/audio/prompts.mjs` (`MUSIC`); keep them in line with 
 
 ### Sound effects
 
-Stylised and punchy, close and dry, so they read clearly over the music (`SFX_STYLE` in `tools/audio/prompts.mjs`). The troop sets (blade, ranged, magic, swarm, heavy, mech, beast) aren't themed yet; candidates for a warmth-and-frost pass are the match sounds: arena ambience (wind over snow), match start, double elixir and victory and defeat jingles.
+Stylised and punchy, close and dry, so they read clearly over the music (`SFX_STYLE` in `tools/audio/prompts.mjs`).
+
+**Match sounds** (`GAME_SFX`) are themed: the world sounds frozen, and the big moments flare with fire.
+
+| Sound | Frost | Warmth |
+|---|---|---|
+| Arena ambience | Winter wind over a snowy arena | Faint crackling braziers, distant crowd |
+| Deploy charge-up | Swirling frost | Crackling embers |
+| Deploy landing | Packed snow, powder puff, icy crunch | |
+| Tower hit / destroyed | Frosted stone, ice chips, ice shattering | |
+| Match start | War horn across a frozen valley | |
+| Double elixir | Shimmer of ice crystals | Whoosh of flame |
+| Match end | | Gong, a fire flaring then settling |
+| Victory | Sleigh bells, celesta | Warm, festive brass |
+| Defeat | Cold wind gust | A fire dying to embers |
+
+**Troop sets** (blade, ranged, magic, swarm, heavy, mech, beast) stay unthemed: they describe what the troop is, and a player's "fire dragon" or "robot" shouldn't sound snowy.
 
 ## Art
 
@@ -54,9 +70,9 @@ Troop quirks show on the unit: a blue tint when slowed, a white flash on a hit, 
 
 - Should frost and warmth map to the two teams (blue vs red), or stay a mood both sides share?
 - Snow, breath fog or ember particles in the 3D arena?
-- Theme the match sound effects and arena ambience to match the music.
 
 ## Decisions
 
 - **2026-10-24:** Merged Isaac's troop quirks: generated sprites with attack-pose frames, status visuals, and the 3D view now starts on top of your king tower (still the only view).
 - **2026-10-24:** Theme is warmth and frost. Music gets a fireplace crackle under every track; menu, battle and overtime redone to match.
+- **2026-10-24:** Match sounds and arena ambience redone for warmth and frost (snow, ice, wind, embers, braziers). Troop sound sets left as they are, since they follow what the player describes.
