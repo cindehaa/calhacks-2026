@@ -15,7 +15,7 @@ const QUEUE_MAX = 40; // chunks held while no socket is open (2 s), oldest dropp
 const PREROLL = 6; // 300 ms kept from before a push-to-talk hold
 const TAIL_MS = 80; // after a release, wait for the chunk still filling before finalising
 
-// Runs on the audio thread: linear resample to 16 kHz, convert to int16, post 100 ms buffers.
+// Runs on the audio thread: linear resample to 16 kHz, convert to int16, post CHUNK-sized buffers.
 const WORKLET = `
 class Pcm16k extends AudioWorkletProcessor {
   constructor() { super(); this.step = sampleRate / ${RATE}; this.pos = 0; this.buf = new Int16Array(${CHUNK}); this.n = 0; }

@@ -63,6 +63,7 @@ interface Active { nonce: number; spot: Spot; words: Transcript }
 
 const FLUSH_MS = 600; // how long a deploy waits for the recogniser to finalise the last words (Cartesia: ~0.1 s)
 const FLICK_SHOW_MS = 180; // the cursor fills this long after a flick
+const SCREEN_IN_CAMERA = invertH(DEFAULT_H); // the screen's edges in camera coords, for the preview
 
 export class InputController {
   private machine: LockMachine;
@@ -717,7 +718,7 @@ export class InputController {
     g.setTransform(-dpr, 0, 0, dpr, w * dpr, 0); // mirror the video
     g.drawImage(v, 0, 0, w, h);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const inv = invertH(DEFAULT_H);
+    const inv = SCREEN_IN_CAMERA;
     if (inv) {
       g.strokeStyle = '#4ade80';
       g.lineWidth = 1.5;
