@@ -23,6 +23,8 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 
 Needs Node 22+ and the [SpacetimeDB CLI](https://spacetimedb.com/install).
 
+`npm start` (or `./run.sh`) does all of the below in one terminal: installs dependencies if missing, creates `.env` if missing, starts and publishes SpacetimeDB (skipped if the CLI isn't installed, leaving only Play vs Bot), then runs the API and the game. Ctrl-C stops everything. To run the pieces separately:
+
 ```sh
 npm install && (cd server && npm install)
 cp .env.example .env          # add ANTHROPIC_API_KEY (optional: without it the offline designer is used)

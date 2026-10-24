@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "./run.sh",
     "dev": "vite --config client/vite.config.ts",
     "api": "tsx watch api/server.ts",
     "db:start": "spacetime start",
