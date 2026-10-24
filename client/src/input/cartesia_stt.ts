@@ -5,9 +5,11 @@
 // starting with the last 300 ms before it. flush() sends `finalize`, waits for
 // `flush_done`, and swaps in a spare socket that was opened earlier, so the next words never
 // wait on a ~0.5 s connect. The socket opens straight to Cartesia with a token from api/.
+// Each socket is one epoch of audio, so cut() (a fire) splits the words exactly where it happened:
+// everything sent before it is finalised on the old socket, everything after goes to the new one.
 import { cartesiaUrl, openSocket } from '../cartesia';
 import { PreRoll } from './ptt';
-import { WebSpeechSource, type SpeechSource } from './speech';
+import { WebSpeechSource, type Cut, type SpeechSource } from './speech';
 
 const RATE = 16000;
 const CHUNK = 800; // 50 ms, so a release waits at most this long for its last chunk
@@ -34,11 +36,11 @@ class Pcm16k extends AudioWorkletProcessor {
 }
 registerProcessor('pcm16k', Pcm16k);`;
 
-interface Sock { ws: WebSocket; flushed: (() => void) | null }
+interface Sock { ws: WebSocket; flushed: (() => void) | null; epoch: number }
 
 export class CartesiaSpeechSource implements SpeechSource {
-  onPartial = (_: string) => {};
-  onFinal = (_: string) => {};
+  onPartial = (_: string, _epoch: number) => {};
+  onFinal = (_: string, _epoch: number) => {};
   onError = (_: string) => {};
   onUnavailable = (_: string) => {}; // gave up: no key, api down, or sockets keep failing
   private on = false;
@@ -49,7 +51,8 @@ export class CartesiaSpeechSource implements SpeechSource {
   private opening: Promise<Sock | null> | null = null;
   private queue: ArrayBuffer[] = [];
   private unsent = false; // audio sent since the last finalize
-  private flushing: Promise<void> | null = null;
+  private flushing = new Set<Promise<void>>(); // finalizes still waiting on flush_done
+  private epoch = 0; // the live socket's, or the next live socket's
   private fails = 0;
   private gate = false; // push to talk: audio only goes out while held
   private held = false;
@@ -127,33 +130,52 @@ export class CartesiaSpeechSource implements SpeechSource {
   }
 
   async flush(timeoutMs: number): Promise<void> {
-    if (this.flushing) return this.flushing;
     // Audio queued while the socket was (re)opening, e.g. Cartesia closed an idle one between
     // holds: give the open a moment rather than dropping those words.
     if (!this.live && this.opening && this.queue.length) {
       await Promise.race([this.opening, new Promise(r => setTimeout(r, timeoutMs))]);
       this.drain();
     }
-    if (this.flushing) return this.flushing;
+    this.finalize(timeoutMs);
+    await Promise.all(this.flushing);
+  }
+
+  // A fire: end this epoch here. The audio sent so far is finalised on its socket and the next
+  // chunk goes to the spare, whose words are the next epoch's.
+  cut(timeoutMs: number): Cut {
+    const epoch = this.epoch;
+    const done = this.finalize(timeoutMs);
+    if (this.epoch === epoch) {
+      // Nothing to finalise (no audio since the last one): the live socket just moves on.
+      this.epoch++;
+      if (this.live) this.live.epoch = this.epoch;
+    }
+    return { epoch, done: done ?? Promise.all(this.flushing).then(() => {}) };
+  }
+
+  // Send finalize on the live socket and swap in the spare. Resolves on flush_done or timeoutMs.
+  private finalize(timeoutMs: number): Promise<void> | null {
     const old = this.live;
-    if (!old || !this.unsent || old.ws.readyState !== WebSocket.OPEN) return Promise.resolve();
+    if (!old || !this.unsent || old.ws.readyState !== WebSocket.OPEN) return null;
     this.unsent = false;
     // New audio goes to the spare straight away; the old socket only has to finish its words.
     this.live = null;
+    this.epoch++;
     this.ensureLive();
     old.ws.send('finalize');
-    this.flushing = new Promise<void>(res => {
+    const p = new Promise<void>(res => {
       const done = () => {
         clearTimeout(timer);
         old.flushed = null;
-        this.flushing = null;
+        this.flushing.delete(p);
         res();
         setTimeout(() => old.ws.close(), 500);
       };
       const timer = setTimeout(done, timeoutMs);
       old.flushed = done;
     });
-    return this.flushing;
+    this.flushing.add(p);
+    return p;
   }
 
   private async capture(stream: MediaStream): Promise<void> {
@@ -207,6 +229,7 @@ export class CartesiaSpeechSource implements SpeechSource {
       this.opening = null;
       if (!this.on) return void s?.ws.close();
       if (!s) return;
+      s.epoch = this.epoch;
       this.live = s;
       if (!this.spare) this.spare = this.open();
     });
@@ -224,7 +247,7 @@ export class CartesiaSpeechSource implements SpeechSource {
       return null;
     }
     this.fails = 0;
-    const s: Sock = { ws, flushed: null };
+    const s: Sock = { ws, flushed: null, epoch: -1 };
     ws.onmessage = e => this.message(s, e.data);
     ws.onerror = () => {};
     ws.onclose = () => {
@@ -247,11 +270,15 @@ export class CartesiaSpeechSource implements SpeechSource {
       return;
     }
     if (m.type === 'transcript') {
-      // Final chunks are deltas to append; a partial is the words since the last final.
-      const text = (m.text ?? '').trim();
+      // Final chunks are deltas to append; a partial is the words since the last final. A socket
+      // being finalised still reports partials: they're the fallback if its final runs late.
+      // The text keeps its own spacing: a final can start mid-word ("necrom" + "ancer"), and the
+      // space before a new word is part of the segment, so the Transcript joins them as-is.
+      const text = m.text ?? '';
+      if (s.epoch < 0) return;
       if (m.is_final) {
-        if (text) this.onFinal(text);
-      } else if (s === this.live) this.onPartial(text);
+        if (text.trim()) this.onFinal(text, s.epoch);
+      } else this.onPartial(text, s.epoch);
     } else if (m.type === 'flush_done') {
       s.flushed?.();
     } else if (m.type === 'error') {
@@ -270,8 +297,8 @@ export class CartesiaSpeechSource implements SpeechSource {
 // Cartesia when the api has a key and the sockets connect, otherwise the browser recogniser.
 // The controller only sees one SpeechSource either way.
 export class AutoSpeech implements SpeechSource {
-  onPartial = (_: string) => {};
-  onFinal = (_: string) => {};
+  onPartial = (_: string, _epoch: number) => {};
+  onFinal = (_: string, _epoch: number) => {};
   onError = (_: string) => {};
   onFallback = () => {}; // Cartesia gave up and the browser's recogniser took over
   private cartesia: CartesiaSpeechSource;
@@ -283,8 +310,11 @@ export class AutoSpeech implements SpeechSource {
     this.cartesia = new CartesiaSpeechSource(stream);
     this.cur = this.cartesia;
     for (const s of [this.cartesia, this.web]) {
-      s.onPartial = t => s === this.cur && this.onPartial(t);
-      s.onFinal = t => s === this.cur && this.onFinal(t);
+      // Epochs are per engine; after a fallback the browser's start over a million on, so they
+      // still sort after Cartesia's.
+      const base = s === this.web ? 1e6 : 0;
+      s.onPartial = (t, e) => s === this.cur && this.onPartial(t, e + base);
+      s.onFinal = (t, e) => s === this.cur && this.onFinal(t, e + base);
       s.onError = msg => s === this.cur && this.onError(msg);
     }
     this.cartesia.onUnavailable = why => {
@@ -333,5 +363,10 @@ export class AutoSpeech implements SpeechSource {
 
   flush(timeoutMs: number): Promise<void> {
     return this.cur.flush(timeoutMs);
+  }
+
+  cut(timeoutMs: number): Cut {
+    const c = this.cur.cut(timeoutMs);
+    return this.cur === this.web ? { ...c, epoch: c.epoch + 1e6 } : c;
   }
 }
