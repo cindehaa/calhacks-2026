@@ -48,7 +48,9 @@ export interface Pricing {
   rangePerTile: number; // ... plus this per tile of range above 1
   speedSlope: number; // f_speed = 1 + speedSlope × (move_speed − 1)
 }
-export const PRICING: Pricing = { K, ranged: 1.3, rangePerTile: 0, speedSlope: 0.25 };
+// Range is charged per tile and speed is free: the balance sim (sim/README.md) showed long range
+// winning trades 3-14x at a flat 1.3, and speed buying nothing in fights.
+export const PRICING: Pricing = { K, ranged: 1.3, rangePerTile: 0.2, speedSlope: 0 };
 
 export function clampStats(s: TroopStats): TroopStats {
   const out = {} as TroopStats;

@@ -7,13 +7,13 @@ import { arrivalDelay, priceDeploy, unitSpots } from './deploy';
 const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
 
 test('priceDeploy re-prices and accepts what you can afford', () => {
-  const r = priceDeploy(golem, 7);
-  assert.equal(r.cost, 7);
+  const r = priceDeploy(golem, golem.cost);
+  assert.equal(r.cost, golem.cost);
   assert.equal(r.error, null);
 });
 
 test('priceDeploy rejects with the messages the client parses', () => {
-  assert.equal(priceDeploy(golem, 6.9).error, 'not enough elixir: 7');
+  assert.equal(priceDeploy(golem, golem.cost - 0.1).error, `not enough elixir: ${golem.cost}`);
   const r = priceDeploy({ ...golem, damage: 600, count: 3 }, 10);
   assert.match(r.error!, /^too expensive: \d+$/);
 });

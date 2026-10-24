@@ -80,7 +80,7 @@ test('saves up for a big troop, then drops it', () => {
   s.elixir = [5, 4];
   const mem = { ...ready(), saveFor: ANCHORS.indexOf(golem) };
   assert.equal(botDecide(s, 1, mem, normal, seeded()), null);
-  s.elixir[1] = 7;
+  s.elixir[1] = golem.cost;
   mem.nextThink = 0;
   assert.equal(botDecide(s, 1, mem, normal, seeded())?.anchor, ANCHORS.indexOf(golem));
   assert.equal(mem.saveFor, null);

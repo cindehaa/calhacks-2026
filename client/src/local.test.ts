@@ -13,7 +13,7 @@ test('player deploys follow the server rules', async () => {
   const m = new LocalMatch('normal', undefined, false);
   await assert.rejects(m.beginDeploy(9, 4, 6), /match starting/);
   run(m, COUNTDOWN);
-  await assert.rejects(m.deployTroop(1, 9, 5, '', golem), /not enough elixir: 7/);
+  await assert.rejects(m.deployTroop(1, 9, 5, '', golem), new RegExp(`not enough elixir: ${golem.cost}`));
   await assert.rejects(m.deployTroop(1, 9, 5, '', { ...golem, damage: 600, count: 4 }), /too expensive: \d+/);
   await assert.rejects(m.beginDeploy(2, 9, 20), /own half/);
   await m.beginDeploy(3, 4, 6);
