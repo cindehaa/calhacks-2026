@@ -18,6 +18,7 @@ import { crownSvg, shieldSvg } from './art';
 import { clock, reasons, type RoundSummary } from './chronicle';
 import { RANKS, applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
 import { hubFx, resultFx } from './hubfx';
+import { tapestry } from './banner';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -55,6 +56,7 @@ function netMsg(s: string) {
   $('hubNet').title = s;
 }
 hubFx(document.querySelector('#title .hubSky')!);
+tapestry(document.querySelector('#lobby .cloth')!, document.querySelector('#lobby .tapestry .bannerBody')!);
 resultFx($<HTMLCanvasElement>('resultSky'), () => ($('result').classList.contains('win') ? 'win' : $('result').classList.contains('lose') ? 'lose' : 'draw'));
 // The home scene leans a little toward the cursor: ranges least, the island most.
 $('lobby').addEventListener('pointermove', e => {
@@ -172,10 +174,9 @@ interface LastMatch { foe: string; outcome: Outcome; score: string }
 function renderLast() {
   let last: LastMatch | null = null;
   try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? 'null') } catch { /* private mode or junk */ }
-  $('lastMatch').hidden = !last;
-  (document.querySelector('#lobby .bWait') as HTMLElement).hidden = !!last;
+  $('lastMatch').classList.toggle('empty', !last);
   if (!last) return;
-  $('lastFoe').textContent = last.foe;
+  $('lastFoe').textContent = `vs ${last.foe}`;
   $('lastScore').textContent = `${{ win: 'Won', lose: 'Lost', draw: 'Drew' }[last.outcome]} ${last.score}`;
   $('lastScore').className = `bLastScore ${last.outcome}`;
 }

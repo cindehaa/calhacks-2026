@@ -192,8 +192,6 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 @keyframes shadowBob { 50% { transform: scale(.94); opacity: .8; } }
 .banner { position: absolute; top: 17vh; width: clamp(150px, 15.5vw, 244px); aspect-ratio: 244 / 392; container-type: inline-size;
   --side: #0f2650; filter: drop-shadow(0 8px 0 var(--side)) drop-shadow(0 18px 24px #000a); transform-origin: 50% 0; }
-.home .banner { animation: sway 9s ease-in-out infinite; }
-.home .banner.right { animation-delay: -4.5s; }
 @keyframes sway { 0%, 100% { transform: rotate(.5deg); } 50% { transform: rotate(-.5deg); } }
 .banner.left { left: clamp(16px, 4.6vw, 78px); }
 .banner.right { right: clamp(16px, 4.6vw, 78px); --side: #4a1019; }
@@ -223,8 +221,6 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .bBar { height: 2.6cqw; background: #0a1430a6; box-shadow: inset 0 -1px 0 #ffffff1f; clip-path: polygon(1.3cqw 0, 100% 0, calc(100% - 1.3cqw) 100%, 0 100%); }
 .bBar i { display: block; height: 100%; min-width: 3cqw; background: linear-gradient(90deg, #ff8a2e, #ffb02e); box-shadow: 0 0 8px #ff8a2e; }
 .bNext { font: 500 6.6cqw var(--chakra); color: #ffffffa6; text-align: left; }
-.bWait { display: flex; align-items: center; gap: 2.4cqw; margin-top: 2cqw; font: 700 5.6cqw var(--chakra); letter-spacing: .14em; text-transform: uppercase; color: #ffffffb3; }
-.bWait i { width: 2.4cqw; height: 2.4cqw; transform: rotate(45deg); background: var(--gold); animation: pulse 2.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 #nameInput { width: 86%; margin-top: -3cqw; padding: 0 0 1cqw; border: 0; border-bottom: 1px dashed transparent; background: none; color: #fff; text-align: center; font: 800 11.5cqw/1.1 var(--cinzel); cursor: text; letter-spacing: .04em; text-transform: uppercase; text-shadow: 0 2px 0 #00000059; outline: none; text-overflow: ellipsis; }
 #nameInput:hover, #nameInput:focus { border-bottom-color: #ffffffb0; }
@@ -255,8 +251,6 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 ::view-transition-old(wordmark) { display: none; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .5s; }
 .home:not([hidden]) .islandWrap { animation: fadeIn 1.2s .1s ease-out both; }
-.home:not([hidden]) .banner.left { animation: unfurl .8s .25s cubic-bezier(.2, .8, .2, 1) both, sway 9s 1.05s ease-in-out infinite; }
-.home:not([hidden]) .banner.right { animation: unfurl .8s .35s cubic-bezier(.2, .8, .2, 1) both, sway 9s -3.45s ease-in-out infinite; }
 .home:not([hidden]) .orders > * { animation: rise .7s cubic-bezier(.2, .8, .2, 1) both; }
 .home:not([hidden]) .orders > :nth-child(1) { animation-delay: .45s; }
 .home:not([hidden]) .orders > :nth-child(2) { animation-delay: .38s; }
@@ -397,13 +391,6 @@ body.inHub #inputPanel { display: none; }
 /* a lit top edge on every slab, so the faces read as cut stone rather than flat fills */
 .slab .face, .slabStatic > .face, .gPanel > .gFace { box-shadow: inset 0 1px 0 #ffffff26, inset 0 -1px 0 #0000004d; }
 .slab.amber .face { box-shadow: inset 0 2px 0 #ffffff70, inset 0 -1px 0 #0000004d; }
-.bLast { display: flex; flex-direction: column; align-items: center; gap: 1.4cqw; }
-.bWait[hidden] { display: none; }
-.bLast[hidden] { display: none; }
-.bLastLabel { font: 700 5cqw var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: #ffffff99; }
-.bLastFoe { font: 700 7.4cqw/1.2 var(--chakra); color: #fff; }
-.bLastScore { font: 800 6.6cqw var(--chakra); color: #ffd9b0; }
-.bLastScore.win { color: var(--gold); } .bLastScore.lose { color: var(--ice2); }
 /* parallax: --px / --py run -1..1 with the cursor (main.ts) */
 .home { --px: 0; --py: 0; }
 .home .gBg { transform: translate(calc(var(--px) * -8px), calc(var(--py) * -5px)) scale(1.02); transition: transform .6s ease-out; }
@@ -536,3 +523,27 @@ body.inHub #inputPanel { display: none; }
 #handView[data-state="fire"] .hvState { color: #fff1c4; }
 #handView[data-state="fist"] .hvState { color: #ff9aa4; }
 #handView[data-state="none"] canvas { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239cc3e0' stroke-opacity='.35' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") center / 52px no-repeat; }
+
+/* home: your tapestry hangs on chains from the top edge and ripples (banner.ts); the last match on a hung plaque */
+.tapestry { position: absolute; top: 0; left: clamp(16px, 4.3vw, 62px); width: min(18vw, 31vh, 260px); aspect-ratio: 260 / 600; container-type: inline-size; filter: drop-shadow(0 18px 22px #000b); }
+.tapestry .cloth { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tapestry .bannerBody { top: 23.5%; left: 9%; right: 9%; padding-top: 4cqw; gap: 4cqw; transform-origin: 50% 0; will-change: transform; }
+.tapestry .sigil { width: 30cqw; height: 30cqw; color: var(--gold); background: #f3d58a1f; }
+.tapestry .sigil svg { width: 16cqw; height: 16cqw; }
+.tapestry .bHouse { color: #f3d58acc; }
+.tapestry .bRule { background: #f3d58a66; }
+.tapestry .bRank { width: 66cqw; }
+.plaque { position: absolute; top: 0; right: clamp(16px, 4.3vw, 62px); width: min(15vw, 26vh, 220px); aspect-ratio: 220 / 300; transform-origin: 50% 0; filter: drop-shadow(0 12px 16px #000a); container-type: inline-size; }
+.plaque svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plaqueFace { position: absolute; left: 5.5%; right: 5.5%; top: 66%; bottom: 6%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5cqw; text-align: center; }
+.plaqueFace .bLastLabel { font: 700 5.6cqw var(--chakra); letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+.plaqueFace .bLastFoe { font: 700 8cqw/1.15 var(--chakra); color: #fff; }
+.plaqueFace .bLastScore { font: 800 9cqw/1.1 var(--cinzel); color: #ffd9b0; }
+.plaqueFace.empty .bLastScore { font: 500 6.4cqw var(--chakra); color: var(--muted); }
+.home:not([hidden]) .tapestry { animation: lower 1.1s .15s cubic-bezier(.2, .8, .2, 1) both; }
+.home:not([hidden]) .plaque { animation: lower 1s .3s cubic-bezier(.2, .8, .2, 1) both, swing 7s 1.3s ease-in-out infinite; }
+@keyframes lower { from { transform: translateY(-100%); } }
+@keyframes swing { 0%, 100% { transform: rotate(.7deg); } 50% { transform: rotate(-.7deg); } }
+@media (max-width: 900px) { .tapestry, .plaque { display: none; } }
+@media (prefers-reduced-motion: reduce) { .home .tapestry, .home .plaque { animation: none !important; } }
+.plaqueFace .bLastScore.win { color: var(--gold); } .plaqueFace .bLastScore.lose { color: var(--ice2); }

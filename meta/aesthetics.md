@@ -87,7 +87,7 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **Type:** Cinzel Decorative for the *Arena* wordmark (faceted fill: light gold top half, amber bottom half, with a warm glow), Cinzel for titles and names, Alegreya Sans for everything else, always with lining figures. Alegreya Sans replaced Chakra Petch, whose squared techno shapes fought the heraldry.
 - **Colour:** one accent. Amber `#ffb02e` marks the main action (Play online, Start match, Rematch) and the selected option; everything else is stone (`#252b4a` / `#1c2140`) with amber icons. Banner cloth is dyed deep: cobalt `#2c5ea8` / `#21498a` with ice trim, crimson `#a3303e` / `#80222f` with gold trim. Tower caps on the island are the same muted cobalt and crimson. Gold `#f3d58a` appears only on victory, ice `#dbe9f4` / `#9cc3e0` only on defeat.
 - **Texture:** fine film grain over the menus, a woven-thread overlay and embroidered trim and chevrons on the banners, snow on the island's rim and trees.
-- **Home:** amber *Arena* wordmark, the arena island centre-stage over low-poly snowy ranges, lit by its six braziers. Blue banner: your name (click to rename), rank, points and a bar to the next rank. Red banner: Opponent, and your last match (opponent and score) once you've played one. One big **Play online**, with **Practice** (plus Easy / Normal / Hard) and **Join a room** beside it. Footer: connection status with a dot, and the credit line.
+- **Home:** amber *Arena* wordmark, the arena island centre-stage over low-poly snowy ranges, lit by its six braziers. Your blue tapestry hangs on chains from the top edge of the screen and ripples in the wind (`client/src/banner.ts`: a grid of facets moved by a wave that grows toward the swallowtail, each facet shaded by its slope, so folds catch the light as they travel down; gusts every few seconds; the name and rank sway with it). It holds your name (click to rename), rank, points and a bar to the next rank. A stone plaque hung on chains on the right shows your last match. There is no red banner on the home screen: the opponent is always red, so it said nothing. One big **Play online**, with **Practice** (plus Easy / Normal / Hard) and **Join a room** beside it. Footer: connection status with a dot, and the credit line.
 - **Title:** the wordmark under a low-poly moon, "Say a troop. Watch it fight.", Press any key.
 - **Motion:** one entrance, then only the weather moves. Pressing a key on the title glides the wordmark up into the home screen (view transition); the banners unfurl and the buttons rise. After that: the scene leans a little toward the cursor (ranges least, island most), snow falls, embers rise from the braziers, the brazier light flickers, mist drifts, the island bobs and the banners sway. Play online catches a sheen of light on entry and on hover. All of it stops under reduced motion.
 - **Victory:** gold-lit ranges, rays and faceted gold confetti; your banner stands, theirs frosts over. **Defeat:** icy ranges, snow and heavy frost; your banner is the frozen one.
@@ -100,7 +100,6 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 
 ## Open questions
 
-- Home banners: they float beside the island, and the red one is always the opponent. Three directions are in Paper (page "Banner workshop"): a standard planted in snow, a tapestry hung from above with a last-match plaque, or no banners with a crest card.
 
 - Should frost and warmth map to the two teams (blue vs red), or stay a mood both sides share?
 
@@ -116,3 +115,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** In-match HUD restyled to match the menus: stone clock plaque, faceted segmented elixir bar, chamfered describe field, stone troop chips, Cinzel for text on the board.
 - **2026-10-24:** The arena got a world: snowy valley, crags, snow-laden pines, braziers with firelight and embers, red standards and falling snow. The old random dark spires are gone.
 - **2026-10-24:** Victory and Defeat screens got motion (staged entrance, confetti and rays, gusting snow and creeping frost). Added the virtual hand panel.
+- **2026-10-24:** Home banners: picked direction 2 from the Paper "Banner workshop" page (hung from above). The tapestry flutters; the red banner is gone from home, its last match moved to a hung plaque.
