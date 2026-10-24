@@ -280,6 +280,8 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .hName.waiting { font: 600 17px var(--chakra); color: var(--muted); }
 .hHouse { display: block; font: 700 13px var(--chakra); letter-spacing: .2em; text-transform: uppercase; color: var(--raven); }
 .houseFoe .hHouse { color: var(--sun); }
+.houseFoe.away .hName, .houseFoe.away .hHouse { color: var(--muted); }
+.houseFoe.away .shield { filter: grayscale(1); opacity: .45; }
 .gDivider { display: flex; align-items: center; gap: 14px; }
 .gDivider i { flex: 1; height: 1px; background: #2a3266; }
 
@@ -525,7 +527,7 @@ body.inHub #inputPanel { display: none; }
 #handView[data-state="fist"] .hvState { color: #ff9aa4; }
 #handView[data-state="none"] canvas { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239cc3e0' stroke-opacity='.35' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") center / 52px no-repeat; }
 
-/* home: your tapestry hangs on chains from the top edge and ripples (banner.ts); the last match on a hung plaque */
+/* home: blue and red tapestries hang on chains from the top edge and ripple (banner.ts); the red one shows your last match */
 .tapestry { position: absolute; top: 0; left: clamp(16px, 4.3vw, 62px); width: min(18vw, 31vh, 260px); aspect-ratio: 260 / 600; container-type: inline-size; filter: drop-shadow(0 18px 22px #000b); }
 .tapestry .cloth { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .tapestry .bannerBody { top: 23.5%; left: 9%; right: 9%; padding-top: 4cqw; gap: 4cqw; transform-origin: 50% 0; will-change: transform; }
@@ -534,20 +536,18 @@ body.inHub #inputPanel { display: none; }
 .tapestry .bHouse { color: #f3d58acc; }
 .tapestry .bRule { background: #f3d58a66; }
 .tapestry .bRank { width: 66cqw; }
-.plaque { position: absolute; top: 0; right: clamp(16px, 4.3vw, 62px); width: min(15vw, 26vh, 220px); aspect-ratio: 220 / 300; transform-origin: 50% 0; filter: drop-shadow(0 12px 16px #000a); container-type: inline-size; }
-.plaque svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.plaqueFace { position: absolute; left: 5.5%; right: 5.5%; top: 66%; bottom: 6%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5cqw; text-align: center; }
-.plaqueFace .bLastLabel { font: 700 5.6cqw var(--chakra); letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
-.plaqueFace .bLastFoe { font: 700 8cqw/1.15 var(--chakra); color: #fff; }
-.plaqueFace .bLastScore { font: 800 9cqw/1.1 var(--cinzel); color: #ffd9b0; }
-.plaqueFace.empty .bLastScore { font: 500 6.4cqw var(--chakra); color: var(--muted); }
-.home:not([hidden]) .tapestry { animation: lower 1.1s .15s cubic-bezier(.2, .8, .2, 1) both; }
-.home:not([hidden]) .plaque { animation: lower 1s .3s cubic-bezier(.2, .8, .2, 1) both, swing 7s 1.3s ease-in-out infinite; }
+.tapestry.right { left: auto; right: clamp(16px, 4.3vw, 62px); }
+.tapestry .bLast { display: flex; flex-direction: column; align-items: center; gap: 1.6cqw; margin-top: 2cqw; }
+.tapestry .bLastLabel { font: 700 5.2cqw var(--chakra); letter-spacing: .22em; text-transform: uppercase; color: #f3d58ab3; }
+.tapestry .bLastFoe { font: 700 7.6cqw/1.2 var(--chakra); color: #fff; }
+.tapestry .bLastScore { font: 800 8.4cqw/1.1 var(--cinzel); color: #ffd9b0; }
+.tapestry .bLastScore.win { color: var(--gold); } .tapestry .bLastScore.lose { color: var(--ice2); }
+.tapestry .bLast.empty .bLastScore { font: 500 6cqw/1.3 var(--chakra); color: #ffffffa6; padding: 0 6cqw; }
+.home:not([hidden]) .tapestry.left { animation: lower 1.1s .15s cubic-bezier(.2, .8, .2, 1) both; }
+.home:not([hidden]) .tapestry.right { animation: lower 1.1s .3s cubic-bezier(.2, .8, .2, 1) both; }
 @keyframes lower { from { transform: translateY(-100%); } }
-@keyframes swing { 0%, 100% { transform: rotate(.7deg); } 50% { transform: rotate(-.7deg); } }
-@media (max-width: 900px) { .tapestry, .plaque { display: none; } }
-@media (prefers-reduced-motion: reduce) { .home .tapestry, .home .plaque { animation: none !important; } }
-.plaqueFace .bLastScore.win { color: var(--gold); } .plaqueFace .bLastScore.lose { color: var(--ice2); }
+@media (max-width: 900px) { .tapestry { display: none; } }
+@media (prefers-reduced-motion: reduce) { .tapestry { animation: none !important; } }
 
 /* embers: the bar is a kindling pile (kindling.ts). #ff8a3d is the embers amber, a proposal for Cindy:
    kept apart from the enemy red #ff5d6c and the gold #ffd27a / #ffb02e. */
