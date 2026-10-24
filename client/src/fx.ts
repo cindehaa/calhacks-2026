@@ -119,7 +119,7 @@ export class Fx {
   private prevTime = -1;
   private countdownAt = -10;
   private countStep = -1;
-  private banner = { at: -10, title: '', sub: '' }; // DOUBLE EMBERS, OVERTIME, TIEBREAKER
+  private banner = { at: -10, title: '' }; // DOUBLE EMBERS, OVERTIME, TIEBREAKER
   private pendingCount = [0, 0];
   private reduced = reducedMotion();
   private out: UnitAnim = { dx: 0, dy: 0, sx: 1, sy: 1, flash: 0, rot: 0, up: 0, glow: 0, glowColor: '#fff', smear: 0, smx: 0, smy: 0 };
@@ -183,15 +183,15 @@ export class Fx {
     }
     const crossed = (at: number) => v.status === 'playing' && this.prevTime >= 0 && this.prevTime < at && time >= at;
     if (crossed(DOUBLE_ELIXIR_AT)) {
-      this.banner = { at: now, title: 'DOUBLE EMBERS', sub: '' };
+      this.banner = { at: now, title: 'DOUBLE EMBERS' };
       sfx.play('double');
     }
     if (crossed(MATCH_SECONDS)) {
-      this.banner = { at: now, title: 'OVERTIME', sub: 'next tower down wins · triple embers' };
+      this.banner = { at: now, title: 'OVERTIME' };
       sfx.play('overtime');
     }
     if (crossed(TIEBREAK_AT)) {
-      this.banner = { at: now, title: 'TIEBREAKER', sub: 'all towers lose health · first to fall loses' };
+      this.banner = { at: now, title: 'TIEBREAKER' };
       sfx.play('fight');
     }
     if (crossed(MATCH_SECONDS - 10) || crossed(TIEBREAK_AT - 10)) sfx.play('lastTen');
@@ -840,15 +840,12 @@ export class Fx {
     const dt = now - this.banner.at;
     if (dt >= 0 && dt < 2.4) {
       const inn = Math.min(1, dt / 0.18), out = dt > 1.9 ? (2.4 - dt) / 0.5 : 1;
-      // Measured at full size, then shrunk until both lines fit inside the pill's straight middle.
-      const font = (sz: number) => `700 ${Math.round(sz * 0.46)}px 'Alegreya Sans', system-ui, sans-serif`;
+      // Measured at full size, then shrunk until the title fits inside the pill's straight middle.
       const base = Math.min(width * 0.075, 28);
       g.font = `900 ${Math.round(base)}px 'Cinzel', Georgia, serif`;
-      const titleW = g.measureText(this.banner.title).width;
-      g.font = font(base);
-      const full = Math.max(titleW, this.banner.sub ? g.measureText(this.banner.sub).width : 0) + base * 2.4;
+      const full = g.measureText(this.banner.title).width + base * 2.4;
       const fit = Math.min(1, (width * 0.94) / full);
-      const size = base * fit, w = full * fit, h = size * (this.banner.sub ? 1.9 : 1.5);
+      const size = base * fit, w = full * fit, h = size * 1.5;
       const y = top(w) - (1 - inn) * (h * 0.6); // drops in from just above its spot
       const a = Math.min(inn, out);
       g.globalAlpha = a;
@@ -859,16 +856,7 @@ export class Fx {
       g.lineWidth = 2;
       g.stroke();
       g.globalAlpha = 1;
-      this.bigText(g, this.banner.title, cx, y + (this.banner.sub ? size * 0.68 : h / 2), size, '#ffc58a', a);
-      if (this.banner.sub) {
-        g.font = font(size);
-        g.textAlign = 'center';
-        g.textBaseline = 'middle';
-        g.fillStyle = '#e8b892';
-        g.globalAlpha = a;
-        g.fillText(this.banner.sub, cx, y + size * 1.48);
-      }
-      g.globalAlpha = 1;
+      this.bigText(g, this.banner.title, cx, y + h / 2, size, '#ffc58a', a);
     }
   }
 
