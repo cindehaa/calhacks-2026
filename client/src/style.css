@@ -10,6 +10,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, sans-serif; overflow: hidden; }
+/* no text highlighting from double-clicks or drags; text fields stay selectable */
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 canvas#board, canvas#board3d { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
 canvas#board3d { pointer-events: none; }
 #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; }
@@ -604,7 +607,7 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 /* result screens: the same banners as home, and a narrow middle column (title, crowns, XP, damage,
    most creative troop, buttons) stacked vertically so the banners have room on both sides */
 .resultCol { top: 6vh; gap: clamp(10px, 1.7vh, 18px); }
-.resultCol h1 { font-size: clamp(56px, 7vw, 104px); }
+.resultCol h1 { font-size: clamp(68px, 9.1vw, 132px); } /* as big as fits between the banners */
 .spoils { flex-direction: column; gap: clamp(8px, 1.2vh, 12px); }
 .crowns svg { width: 52px; height: auto; }
 .spoils .emberReward { width: 340px; }

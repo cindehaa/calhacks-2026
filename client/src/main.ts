@@ -842,7 +842,7 @@ $<HTMLFormElement>('describe').onsubmit = e => {
   if (TOUCH) input.blur(); // put the keyboard away so the board shows again
   deployDescription(text);
 };
-if (TOUCH) $<HTMLInputElement>('descInput').placeholder = 'Type a troop, then Go · tap your half to pick the spot';
+if (TOUCH) $<HTMLInputElement>('descInput').placeholder = 'Type a troop';
 
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
