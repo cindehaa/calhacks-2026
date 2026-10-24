@@ -585,3 +585,7 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .ico { display: inline-flex; line-height: 0; flex: none; }
 .ico svg, svg.ico3d { display: block; }
 .slab:disabled .ico { filter: grayscale(1) brightness(1.6); opacity: .45; }
+
+/* home: everything round the arena dims (homedim.ts); the banners hang below the title */
+.homeDim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .6; }
+.home .tapestry, .result .tapestry { top: calc(3.2vh + clamp(56px, 7.8vw, 112px) * 1.1 + 14px - min(18vw, 31vh, 260px) * 0.485); }

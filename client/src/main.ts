@@ -24,6 +24,7 @@ import { hubFx, resultFx } from './hubfx';
 import { tapestry } from './banner';
 import { heraldryCss } from './heraldry';
 import { icon, mountIcons } from './icons';
+import { homeDim } from './homedim';
 import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
@@ -102,6 +103,7 @@ function netMsg(s: string) {
 }
 heraldryCss();
 mountIcons();
+homeDim($('lobby'), (x, y, h) => board.toScreen(x, y, h));
 hubFx(document.querySelector('#title .hubSky')!);
 for (const [sel, house, rim, phase] of [['left', 'raven', 'right', 0], ['right', 'sun', 'left', 2.3]] as const) {
   tapestry(document.querySelector(`#lobby .tapestry.${sel} .cloth`)!, document.querySelector(`#lobby .tapestry.${sel} .bannerBody`)!, { house, rim, phase });

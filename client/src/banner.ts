@@ -47,8 +47,9 @@ export function tapestry(svg: SVGSVGElement, overlay: HTMLElement, o: { house: H
   new ResizeObserver(() => { fit(); draw(); }).observe(svg);
   // Chains, the rod and its finials stay put.
   for (const x of [50, 210]) {
-    svg.append(el('line', { x1: x, y1: 0, x2: x, y2: 118, stroke: '#1b1e2c', 'stroke-width': 4 }));
-    for (let y = 8; y < 112; y += 24) svg.append(el('rect', { x: x - 4, y, width: 8, height: 12, rx: 3, fill: '#2a2f45' }));
+    // The chains run on up past the top of the box, so a banner hung lower still hangs from the sky.
+    svg.append(el('line', { x1: x, y1: -800, x2: x, y2: 118, stroke: '#1b1e2c', 'stroke-width': 4 }));
+    for (let y = -808; y < 112; y += 24) svg.append(el('rect', { x: x - 4, y, width: 8, height: 12, rx: 3, fill: '#2a2f45' }));
   }
   const cloth = el('g', {});
   svg.append(cloth);
