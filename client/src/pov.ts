@@ -226,13 +226,16 @@ export class PovBoard {
     return this.toBoard(this.v3.x + ARENA_W / 2, MID_Y - this.v3.z);
   }
 
-  draw(v: View): void {
+  // visible false (an opaque menu covers the board) still runs Fx, which plays the match's sounds
+  // and music, but skips the scene and the overlay.
+  draw(v: View, visible = true): void {
     const now = performance.now();
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
     this.frame++;
     this.side = v.mySide;
     this.fx.observe(v, now / 1000);
+    if (!visible) return;
     this.syncLayout();
     this.syncPockets(v.towers);
     this.moveCamera(v, dt, now / 1000);
@@ -303,7 +306,7 @@ export class PovBoard {
     if (key === this.layoutKey) return;
     this.layoutKey = key;
     const L = this.layout;
-    L.clear();
+    clearGroup(L);
     const flat = (w: number, d: number, vx: number, vy: number, h: number, mat: THREE.Material) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
       m.rotation.x = -Math.PI / 2;
@@ -358,7 +361,7 @@ export class PovBoard {
     const key = zones.map(z => [z.x0, z.x1, z.y0, z.y1].join(',')).join(';');
     if (key === this.pocketKey) return;
     this.pocketKey = key;
-    this.pockets.clear();
+    clearGroup(this.pockets);
     const mat = new THREE.MeshBasicMaterial({ color: C.mine, transparent: true, opacity: 0.12, depthWrite: false });
     for (const z of zones) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(z.x1 - z.x0, z.y1 - z.y0), mat);
@@ -439,6 +442,8 @@ export class PovBoard {
     for (const [key, t] of this.towers) {
       if (t.seen === this.frame) continue;
       this.scene.remove(t.grp);
+      (t.base.material as THREE.Material).dispose();
+      t.mat.dispose();
       this.towers.delete(key);
     }
   }
@@ -1188,6 +1193,16 @@ export class PovBoard {
 function sleeping(tw: DrawTower, all: DrawTower[]): boolean {
   if (tw.lane !== KING_LANE || tw.hp <= 0 || tw.hp < tw.maxHp) return false;
   return !all.some(o => o.side === tw.side && o.lane !== undefined && o.lane !== KING_LANE && o.hp <= 0);
+}
+
+// Empty a group whose meshes own their geometry and materials (the layout, the pockets).
+function clearGroup(g: THREE.Group): void {
+  g.traverse(o => {
+    if (!(o instanceof THREE.Mesh || o instanceof THREE.LineSegments)) return;
+    o.geometry.dispose();
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose();
+  });
+  g.clear();
 }
 
 // A ring cut into dashes, for the target ring under a drop.

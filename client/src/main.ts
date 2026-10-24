@@ -720,9 +720,11 @@ function frame() {
   renderVersus(m);
   renderTools(m);
   if (m) trackRound(m);
+  // The title, home and result screens are opaque: no need to draw the board under them.
+  const visible = $('title').hidden && $('lobby').hidden && $('result').hidden;
   if (!m) {
     $('roomInfo').textContent = '';
-    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' });
+    board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' }, visible);
     return;
   }
   const side = m.side;
@@ -756,7 +758,7 @@ function frame() {
     time: m.time,
     status: m.status,
     winner: m.winner ?? undefined,
-  });
+  }, visible);
 }
 
 // Debug readout, off by default (T toggles): per drop, how long the pinch was held, then from
