@@ -1,6 +1,6 @@
 // What you say, made physical: element words light up in the live transcript as you speak ("fire"
 // glows orange, "ice" frosts over), a ring round the cursor breathes with the mic level, firing
-// pulls the words into an orb that drops onto the spot, and a fist crumples them up. Drawn in
+// pulls the words into an orb that drops onto the spot, and a cancel crumples them up. Drawn in
 // screen px over the board by draw.ts; a keyword match in the browser, nothing sent anywhere.
 
 export interface ElementLook { color: string; glow: string; frost?: boolean }
@@ -87,7 +87,7 @@ export function micRing(g: CanvasRenderingContext2D, x: number, y: number, db: n
 }
 
 // On fire: the words' letters gather into an orb above the cursor, which drops onto the spot.
-// On a fist: the words crumple into a ball and fall away. a is 0..1 through the flash.
+// On a cancel: the words crumple into a ball and fall away. a is 0..1 through the flash.
 export function wordsFlash(g: CanvasRenderingContext2D, kind: 'deploy' | 'cancel', words: string, x: number, y: number, a: number): void {
   if (!words) return;
   g.save();

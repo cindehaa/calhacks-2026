@@ -5,7 +5,7 @@ import type { InputController } from './input/controller';
 import type { Intent, Signal } from './input/schemes/types';
 
 const SPAN_MS = 10_000;
-const ROWS = ['hand', 'fist', 'pinch', 'point', 'voice', 'words', 'gesture', 'intent'] as const;
+const ROWS = ['hand', 'thumbDown', 'pinch', 'point', 'voice', 'words', 'gesture', 'intent'] as const;
 const INTENT_COLOR: Record<Intent['kind'], string> = {
   commit: '#4ade80', cancel: '#f87171', clear: '#fb923c', uiActivate: '#a78bfa',
 };
@@ -33,13 +33,13 @@ export function openLab(input: InputController): void {
 
   type Mark = { t: number; row: (typeof ROWS)[number]; color: string; label?: string; v?: number; until?: number };
   let marks: Mark[] = [];
-  const hand: { t: number; vis: boolean; half: boolean; fist: number; pinch: number; point: number }[] = [];
+  const hand: { t: number; vis: boolean; half: boolean; thumbDown: number; pinch: number; point: number }[] = [];
   const levels: { t: number; db: number; loud: boolean }[] = [];
   let voiceOn: number | null = null;
 
   input.listeners.signal.push((s: Signal) => {
     if (s.kind === 'hand') {
-      hand.push(s.visible ? { t: s.t, vis: true, half: s.overHalf, fist: s.gestures.Closed_Fist, pinch: s.gestures.Pinch, point: s.gestures.Pointing_Up } : { t: s.t, vis: false, half: false, fist: 0, pinch: 0, point: 0 });
+      hand.push(s.visible ? { t: s.t, vis: true, half: s.overHalf, thumbDown: s.gestures.Thumb_Down, pinch: s.gestures.Pinch, point: s.gestures.Pointing_Up } : { t: s.t, vis: false, half: false, thumbDown: 0, pinch: 0, point: 0 });
     } else if (s.kind === 'level') levels.push({ t: s.t, db: s.db, loud: s.loud });
     else if (s.kind === 'voice') {
       if (s.phase === 'start') voiceOn = s.t;
@@ -48,7 +48,7 @@ export function openLab(input: InputController): void {
         voiceOn = null;
       }
     } else if (s.kind === 'words') marks.push({ t: s.t, row: 'words', color: s.final ? '#e2e8f0' : '#64748b', label: s.cancel ? `✕ ${s.text}` : s.text });
-    else if (s.kind === 'fist' || s.kind === 'pinch') marks.push({ t: s.t, row: 'gesture', color: '#38bdf8', label: s.kind });
+    else if (s.kind === 'pinch') marks.push({ t: s.t, row: 'gesture', color: '#38bdf8', label: s.kind });
     else if (s.kind === 'deploy') marks.push({ t: s.t, row: 'gesture', color: '#94a3b8', label: `deploy ${s.phase}` });
     else if (s.kind === 'key') marks.push({ t: s.t, row: 'gesture', color: '#cbd5e1', label: s.key });
   });
@@ -84,13 +84,13 @@ export function openLab(input: InputController): void {
       g.fillStyle = !f.vis ? 'rgba(248,113,113,.4)' : f.half ? '#4ade80' : '#475569';
       g.fillRect(X(f.t), Y('hand') + 4, 3, rh - 8);
     }
-    const line = (row: (typeof ROWS)[number], key: 'fist' | 'pinch' | 'point', color: string) => {
+    const line = (row: (typeof ROWS)[number], key: 'thumbDown' | 'pinch' | 'point', color: string) => {
       g.strokeStyle = color;
       g.beginPath();
       hand.forEach((f, i) => (i ? g.lineTo : g.moveTo).call(g, X(f.t), Y(row) + rh - 3 - f[key] * (rh - 6)));
       g.stroke();
     };
-    line('fist', 'fist', '#fb923c');
+    line('thumbDown', 'thumbDown', '#fb923c');
     line('pinch', 'pinch', '#38bdf8');
     line('point', 'point', '#a78bfa');
     // Voice: the level, loud frames highlighted, VAD spans behind.

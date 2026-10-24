@@ -6,7 +6,7 @@ import type { Pt } from '../trail';
 
 export type { Pt };
 
-export type Gestures = Record<'Closed_Fist' | 'Open_Palm' | 'Pointing_Up' | 'Pinch', number>; // 0..1
+export type Gestures = Record<'Thumb_Down' | 'Open_Palm' | 'Pointing_Up' | 'Pinch', number>; // 0..1
 
 export type Signal =
   // A camera frame. With visible false there was no hand in it.
@@ -16,10 +16,10 @@ export type Signal =
       cursor: Pt; // index fingertip, filtered
       overHalf: boolean; // the fingertip points somewhere you may deploy
       gestures: Gestures;
+      pinched: boolean; // the pinch measure says closed (thumb on the index or middle finger)
     }
   // Gestures the hub reads off the hand.
-  | { kind: 'fist'; t: number; closed: boolean } // closed: held long enough to count (once per fist)
-  | { kind: 'pinch'; t: number; aim: Pt } // thumb to middle finger, once per pinch; aim: the fingertip ~100 ms before
+  | { kind: 'pinch'; t: number; aim: Pt } // thumb to index or middle finger, once per pinch; aim: the fingertip ~100 ms before
   // Mic voice activity: t is when the sound started or stopped.
   | { kind: 'voice'; t: number; phase: 'start' | 'end' }
   | { kind: 'level'; t: number; db: number; loud: boolean } // every frame while the mic is on

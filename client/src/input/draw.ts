@@ -2,7 +2,7 @@
 // screen px.
 import { micRing, wordsFlash, wordsPill } from './wordfx';
 
-export type CursorState = 'open' | 'fire' | 'fist';
+export type CursorState = 'open' | 'fire' | 'cancel';
 
 export interface InputView {
   cursor: { x: number; y: number; state: CursorState; fade?: number } | null; // hand cursor only; the mouse has its own ring
@@ -47,13 +47,13 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
   g.restore();
 }
 
-// The hand cursor: a soft glow, a ring, a filled centre just after a pinch, amber while a fist.
+// The hand cursor: a soft glow, a ring, a filled centre just after a pinch, amber while a thumbs down.
 export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, state: CursorState): void {
   const glow = g.createRadialGradient(x, y, 0, x, y, 42);
-  glow.addColorStop(0, state === 'fist' ? 'rgba(251,191,36,0.5)' : 'rgba(74,163,255,0.5)');
+  glow.addColorStop(0, state === 'cancel' ? 'rgba(251,191,36,0.5)' : 'rgba(74,163,255,0.5)');
   glow.addColorStop(1, 'rgba(74,163,255,0)');
   circle(g, x, y, 42, null, 0, glow);
-  circle(g, x, y, 14, state === 'fist' ? C.warn : '#bfe0ff', 2.5, state === 'fire' ? C.mine : 'rgba(13,16,32,0.35)');
+  circle(g, x, y, 14, state === 'cancel' ? C.warn : '#bfe0ff', 2.5, state === 'fire' ? C.mine : 'rgba(13,16,32,0.35)');
   circle(g, x, y, 3, null, 0, '#fff');
 }
 

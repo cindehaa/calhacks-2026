@@ -1,7 +1,7 @@
-// Hand size, finger extension, fist detection and the cursor trail.
+// Hand size, finger extension, thumbs down, pinch and the cursor trail.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extension, FistDetector, Hysteresis, type Landmark } from './pose';
+import { extension, Hysteresis, thumbDownScore, type Landmark } from './pose';
 import { CursorHistory } from './trail';
 
 // A right hand in world coords (metres), wrist at the origin, knuckles 9 cm up. curl 0 is open,
@@ -25,25 +25,6 @@ test('extension: about 1.9 open, under 1 for a fist, and pointing at the camera 
   assert.ok(extension(pointing) > 1.6, 'nowhere near a fist');
 });
 
-test('fist: counts once, after being held, and again only after opening', () => {
-  const f = new FistDetector();
-  const seq: boolean[] = [];
-  for (let t = 0; t < 300; t += 33) seq.push(f.update(t, world(0)));
-  for (let t = 300; t < 600; t += 33) seq.push(f.update(t, world(1)));
-  assert.equal(seq.filter(Boolean).length, 1);
-  assert.equal(seq.indexOf(true), 10 + 4, 'fires on the first frame past 120 ms closed');
-  for (let t = 600; t < 700; t += 33) f.update(t, world(0));
-  let again = false;
-  for (let t = 700; t < 900; t += 33) again ||= f.update(t, world(1));
-  assert.ok(again);
-});
-
-test('fist: a hand passing through a fist briefly does not count', () => {
-  const f = new FistDetector();
-  const seq = [0, 0, 1, 1, 1, 0, 0].map((c, i) => f.update(i * 33, world(c)));
-  assert.ok(!seq.some(Boolean));
-});
-
 test('hysteresis: on below, off above, steady in between', () => {
   const h = new Hysteresis(0.45, 0.65);
   const seq = [0.9, 0.5, 0.44, 0.5, 0.6, 0.64, 0.66, 0.5, 0.46];
@@ -62,7 +43,7 @@ test('cursor history returns the latest sample at or before t', () => {
   assert.equal(h.at(15)?.x, 3, 'old samples are trimmed');
 });
 
-test('pinch: fires once per pinch, with hysteresis, thumb to the middle finger only', async () => {
+test('pinch: fires once per pinch, with hysteresis, on either finger', async () => {
   const { PinchDetector, pinchMetric } = await import('./pose');
   const d = new PinchDetector();
   const fires = [0.9, 0.6, 0.44, 0.3, 0.5, 0.6, 0.44, 0.3, 0.7, 0.4].map(r => d.push(r));
@@ -75,6 +56,21 @@ test('pinch: fires once per pinch, with hysteresis, thumb to the middle finger o
     return px.map(([x, y]) => ({ x: x / 640, y: y / 480, z: 0 }));
   };
   assert.ok(pinchMetric(hand([322, 222]), 640, 480) < 0.45);
-  assert.ok(pinchMetric(hand([281, 232]), 640, 480) > 0.65, 'the index is for pointing');
+  assert.ok(pinchMetric(hand([281, 232]), 640, 480) < 0.45, 'thumb to index counts too');
   assert.ok(pinchMetric(hand([200, 330]), 640, 480) > 0.65);
+});
+
+// Image landmarks for an upright hand (knuckles at y 300, wrist at 400), thumb base at (290, 330).
+function image(thumbTip: [number, number]): Landmark[] {
+  const px: [number, number][] = Array.from({ length: 21 }, () => [320, 300]);
+  px[0] = [320, 400]; px[5] = [280, 300]; px[9] = [320, 300]; px[13] = [350, 300]; px[17] = [380, 300];
+  px[2] = [290, 330]; px[4] = thumbTip;
+  return px.map(([x, y]) => ({ x: x / 640, y: y / 480, z: 0 }));
+}
+
+test('thumbs down: thumb pointing down under curled fingers scores high; a pinch or open hand does not', () => {
+  assert.ok(thumbDownScore(image([292, 420]), world(1), 640, 480) > 0.9, 'thumbs down');
+  assert.ok(thumbDownScore(image([300, 230]), world(0.6), 640, 480) < 0.1, 'pinch: thumb tip up at the fingers');
+  assert.ok(thumbDownScore(image([292, 420]), world(0), 640, 480) < 0.1, 'thumb down but fingers open');
+  assert.ok(thumbDownScore(image([380, 340]), world(1), 640, 480) < 0.1, 'thumb out sideways');
 });

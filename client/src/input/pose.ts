@@ -1,4 +1,5 @@
-// Hand pose from the landmarks: how big the hand is, how straight the fingers are, and a fist.
+// Hand pose from the landmarks: how big the hand is, how straight the fingers are, a thumbs down
+// and a pinch.
 
 export interface Landmark { x: number; y: number; z: number }
 
@@ -33,51 +34,27 @@ export class Hysteresis {
   }
 }
 
-export interface FistOptions {
-  on: number; // extension below this closes the fist
-  off: number; // and above this opens it again
-  holdMs: number; // closed this long before it counts, so a hand passing through doesn't
-}
-export const FIST_DEFAULTS: FistOptions = { on: 1.15, off: 1.4, holdMs: 120 };
-
-export class FistDetector {
-  ext = 2; // the last extension seen
-  private hyst: Hysteresis;
-  private closedAt: number | null = null;
-  private fired = false;
-  constructor(readonly o: FistOptions = FIST_DEFAULTS) {
-    this.hyst = new Hysteresis(o.on, o.off);
-  }
-
-  get closed(): boolean {
-    return this.hyst.on;
-  }
-
-  // True once per fist, when it has been held for holdMs.
-  update(t: number, world: Landmark[]): boolean {
-    this.ext = extension(world);
-    if (!this.hyst.update(this.ext)) {
-      this.closedAt = null;
-      this.fired = false;
-      return false;
-    }
-    this.closedAt ??= t;
-    if (this.fired || t - this.closedAt < this.o.holdMs) return false;
-    this.fired = true;
-    return true;
-  }
-
-  reset(): void {
-    this.hyst.reset();
-    this.closedAt = null;
-    this.fired = false;
-  }
+// ---------- thumbs down ----------
+// The cancel gesture: thumb out and pointing down, the four fingers curled. Chosen because it is
+// the pose least like a pinch (thumb tip up against a finger) and the open hand after one. Scored
+// 0..1 from the landmarks, since MediaPipe's gesture model isn't loaded: every part has to hold,
+// so the score is the weakest of them.
+export function thumbDownScore(lm: Landmark[], world: Landmark[], vw: number, vh: number): number {
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+  const s = handSize(lm, vw, vh);
+  const dx = (lm[4].x - lm[2].x) * vw, dy = (lm[4].y - lm[2].y) * vh; // thumb base → tip, image y grows down
+  const down = clamp01((dy / s - 0.15) / 0.25); // tip well below the base
+  const vertical = clamp01((dy / (Math.hypot(dx, dy) || 1e-9) - 0.6) / 0.25); // pointing down, not sideways
+  const knuckles = Math.max(lm[5].y, lm[9].y, lm[13].y, lm[17].y) * vh;
+  const below = clamp01(((lm[4].y * vh - knuckles) / s) / 0.15); // and below every knuckle
+  const curled = clamp01((1.5 - extension(world)) / 0.35); // the other four folded in
+  return Math.min(down, vertical, below, curled);
 }
 
 // ---------- pinch ----------
-// Thumb tip against the middle finger's last segment, in hand sizes (the measure and thresholds
-// from the earlier pinch controls). Only the middle finger counts: the index is pointing, so a
-// thumb nearer the index than the middle reads as open.
+// Thumb tip against a finger's last segment, in hand sizes (the measure and thresholds from the
+// earlier pinch controls). Either the index or the middle finger counts, whichever closes first:
+// thumb to middle alone was hard for some hands.
 export const PINCH_DEFAULTS = { on: 0.45, off: 0.65 };
 const THUMB_TIP = 4;
 const INDEX: [number, number] = [7, 8], MIDDLE: [number, number] = [11, 12]; // DIP → TIP
@@ -94,8 +71,7 @@ export function pinchMetric(lm: Landmark[], vw: number, vh: number): number {
   const P = (i: number) => [lm[i].x * vw, lm[i].y * vh];
   const s = handSize(lm, vw, vh);
   const d = ([a, b]: [number, number]) => segDist(P(THUMB_TIP), P(a), P(b)) / s;
-  const mid = d(MIDDLE);
-  return d(INDEX) < mid ? Math.max(mid, 1) : mid;
+  return Math.min(d(INDEX), d(MIDDLE));
 }
 
 // True once per pinch, on the frame it closes; it has to open past `off` before the next.

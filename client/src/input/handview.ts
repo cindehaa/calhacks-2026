@@ -7,7 +7,7 @@ import type { Landmark } from './pose';
 
 const PALM = [0, 1, 5, 9, 13, 17];
 const TIPS = [4, 8, 12, 16, 20];
-const TIP_COLOR: Record<HandState, string> = { open: '#ffb02e', fire: '#fff1c4', fist: '#ff7a86' };
+const TIP_COLOR: Record<HandState, string> = { open: '#ffb02e', fire: '#fff1c4', cancel: '#ff7a86' };
 
 export function drawHandView(c: HTMLCanvasElement, world: Landmark[] | null, state: HandState): void {
   const w = c.clientWidth, h = c.clientHeight, dpr = devicePixelRatio || 1;

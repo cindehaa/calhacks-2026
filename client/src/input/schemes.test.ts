@@ -32,18 +32,59 @@ test('pinch: onset commits once at its aim; menus get uiActivate', () => {
   assert.deepEqual(r.out.at(-1), { kind: 'uiActivate', at: { x: 3, y: 3 } });
 });
 
-test('pinch: a fist cancels while the deploy is pending, else clears the words', () => {
+// A camera frame: thumbs-down score and whether the pinch measure says closed.
+const frame = (t: number, thumbDown: number, pinched = false, pinchScore = pinched ? 1 : 0): Signal => ({
+  kind: 'hand', t, visible: true, cursor: { x: 100, y: 400 }, overHalf: true, pinched,
+  gestures: { Thumb_Down: thumbDown, Open_Palm: 0, Pointing_Up: 1, Pinch: pinchScore },
+});
+
+test('thumbs down: held 250 ms while a drop is pending cancels it, once', () => {
   const r = rig();
-  r.send({ kind: 'fist', t: 0, closed: true });
-  assert.deepEqual(r.kinds(), ['clear'], 'nothing pending: a fist just clears the words');
-  r.send({ kind: 'deploy', t: 10, phase: 'pending', nonce: 1 });
-  r.send({ kind: 'fist', t: 20, closed: true });
-  assert.deepEqual(r.out.at(-1), { kind: 'cancel', why: 'fist' });
-  r.send({ kind: 'deploy', t: 30, phase: 'sent', nonce: 1 });
-  r.send({ kind: 'fist', t: 40, closed: true });
-  assert.deepEqual(r.out.at(-1), { kind: 'clear', why: 'fist' }, 'too late to take back');
-  r.send({ kind: 'fist', t: 50, closed: false });
-  assert.equal(r.out.length, 3, 'an opening hand does nothing');
+  r.send({ kind: 'deploy', t: 0, phase: 'pending', nonce: 1 });
+  for (let t = 1000; t < 1240; t += 33) r.send(frame(t, 0.9));
+  assert.deepEqual(r.kinds(), [], 'not yet 250 ms');
+  for (let t = 1240; t < 1600; t += 33) r.send(frame(t, 0.9));
+  assert.deepEqual(r.out, [{ kind: 'cancel', why: 'thumbsDown' }]);
+});
+
+test('thumbs down: a weak score, or one that drops out, never cancels', () => {
+  const r = rig();
+  r.send({ kind: 'deploy', t: 0, phase: 'pending', nonce: 1 });
+  for (let t = 1000; t < 2000; t += 33) r.send(frame(t, 0.65));
+  for (let t = 2000; t < 3000; t += 33) r.send(frame(t, (t / 33) % 6 < 5 ? 0.9 : 0.2)); // 165 ms runs
+  assert.deepEqual(r.kinds(), []);
+});
+
+test('thumbs down: nothing pending does nothing', () => {
+  const r = rig();
+  r.world.waiting = 'goblin';
+  for (let t = 0; t < 2000; t += 33) r.send(frame(t, 1));
+  assert.deepEqual(r.kinds(), [], 'no cancel, and no clear either');
+});
+
+test('thumbs down: a pinch sequence never cancels', () => {
+  const r = rig();
+  r.world.waiting = 'goblin';
+  // Fingers curl in (fist-like, a middling thumbs-down score), the pinch closes and fires so the
+  // drop goes pending, is held with a spurious high score, opens with the score still high inside
+  // 400 ms of onset, then the open hand.
+  let t = 0;
+  for (; t < 300; t += 33) r.send(frame(t, 0.6 * (t / 300), false, t / 300));
+  const onset = t;
+  r.send(frame(t, 0.9, true));
+  r.send({ kind: 'pinch', t, aim: { x: 100, y: 400 } });
+  r.send({ kind: 'deploy', t, phase: 'pending', nonce: 1 });
+  for (t += 33; t < onset + 800; t += 33) r.send(frame(t, 0.95, true)); // held pinched
+  for (; t < onset + 1000; t += 33) r.send(frame(t, 0.3, false)); // letting go
+  for (; t < onset + 2000; t += 33) r.send(frame(t, 0, false)); // open hand
+  assert.deepEqual(r.kinds(), ['commit']);
+  // A quick pinch released at once: the 400 ms after its onset are ignored even with a high score.
+  const r2 = rig();
+  r2.send({ kind: 'deploy', t: 0, phase: 'pending', nonce: 1 });
+  r2.send(frame(1000, 0.9, true));
+  r2.send({ kind: 'pinch', t: 1000, aim: { x: 1, y: 1 } });
+  for (let u = 1033; u < 1399; u += 33) r2.send(frame(u, 0.9, false));
+  assert.deepEqual(r2.kinds(), ['commit'], 'nothing in the 400 ms after pinch onset');
 });
 
 test('pinch: "cancel" takes back a pending deploy', () => {
@@ -69,7 +110,7 @@ test('pinch: Space fires at the cursor, a held Space only once, Esc clears, a cl
 
 test('pinch: Space on a menu clicks at the fingertip', () => {
   const r = rig({ menus: true });
-  r.send({ kind: 'hand', t: 0, visible: true, cursor: { x: 5, y: 6 }, overHalf: false, gestures: { Closed_Fist: 0, Open_Palm: 1, Pointing_Up: 1, Pinch: 0 } });
+  r.send({ kind: 'hand', t: 0, visible: true, cursor: { x: 5, y: 6 }, overHalf: false, pinched: false, gestures: { Thumb_Down: 0, Open_Palm: 1, Pointing_Up: 1, Pinch: 0 } });
   r.send({ kind: 'key', t: 1, key: 'Space', repeat: false });
   assert.deepEqual(r.out, [{ kind: 'uiActivate', at: { x: 5, y: 6 }, fallback: true }]);
 });

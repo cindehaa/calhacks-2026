@@ -3,10 +3,10 @@
 // commit, cancel, clear, click a menu. The game only sees the InputHost calls.
 //
 // The mic listens the whole time it's on, and everything said since the last fire is the troop.
-// Aim with the index fingertip (or the mouse). Fire by touching the thumb to the middle finger,
-// pressing Space, or clicking the board with words waiting: the troop goes where you were
-// pointing just before. Close your hand into a fist, press Esc or say "cancel" to throw the words
-// away (or take back a troop still being summoned). Typed text and click-to-type work as before.
+// Aim with the index fingertip (or the mouse). Fire by touching the thumb to the middle or index
+// finger, pressing Space, or clicking the board with words waiting: the troop goes where you were
+// pointing just before. Thumbs down or "cancel" takes back a troop still being summoned; Esc or
+// "cancel" throws the words away. Typed text and click-to-type work as before.
 import { drawCursor, drawDwell, MISS_MS, type CursorState, type InputView } from './draw';
 import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
@@ -14,14 +14,14 @@ import { OneEuro } from './filter';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
 import { drawHandView } from './handview';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
-import { FistDetector, PinchDetector, extension } from './pose';
+import { PinchDetector, extension, thumbDownScore } from './pose';
 import { AutoSpeech } from './cartesia_stt';
 import { chooseDescription, FIRE_WAIT_MS, fireWaits, isCancel, isMismatch, routeWords, Transcript } from './speech';
 import { KEYS, load, save } from './store';
 import { CursorHistory, type Pt } from './trail';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import { activateUi, menuBack, menuMode, menuPointer } from './menus';
-import { pinch } from './schemes/pinch';
+import { pinch, THUMB_DOWN } from './schemes/pinch';
 import type { Intent, Scheme, SchemeCtx, SchemeInstance, Signal } from './schemes/types';
 import { DEV_MODE } from '../devmode';
 import './input.css';
@@ -95,7 +95,7 @@ export class InputController {
 
   private fx = new OneEuro(1.0, 0.007);
   private fy = new OneEuro(1.0, 0.007);
-  private fist = new FistDetector();
+  private thumbDown = 0; // the last thumbs-down score, 0..1
   private pinch = new PinchDetector();
   private trail = new CursorHistory(); // the hand cursor, to aim from before a pinch
 
@@ -183,16 +183,17 @@ export class InputController {
     if (import.meta.env.DEV) {
       (window as unknown as { __hand: unknown }).__hand = {
         move: (x: number, y: number) => (this.handCursor = { x, y }),
-        fist: () => this.publish({ kind: 'fist', t: performance.now(), closed: true }),
         pinch: () => {
           if (!this.handCursor) return;
           this.pinchT = performance.now();
           this.publish({ kind: 'pinch', t: this.pinchT, aim: this.handCursor });
         },
-        // A whole frame: drives the hand signal (and the intent gate) without a camera.
-        frame: (x: number, y: number) => {
+        // A whole frame: drives the hand signal (and the intent gate) without a camera. thumbDown
+        // is the score (0..1), pinched what the pinch measure says.
+        frame: (x: number, y: number, o: { thumbDown?: number; pinched?: boolean } = {}) => {
           this.handCursor = { x, y };
-          this.publish(this.handSignal(performance.now(), this.handCursor, null));
+          this.thumbDown = o.thumbDown ?? 0;
+          this.publish(this.handSignal(performance.now(), this.handCursor, null, o.pinched ?? false));
         },
         lost: () => {
           this.handCursor = null;
@@ -312,11 +313,10 @@ export class InputController {
     const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
     this.trail.push(now, this.handCursor);
-    const fistNow = this.fist.update(now, f.world);
+    this.thumbDown = thumbDownScore(f.lm, f.world, f.vw, f.vh);
     const pinched = this.pinch.update(f.lm, f.vw, f.vh);
-    this.publish(this.handSignal(now, this.handCursor, f));
-    if (fistNow) this.publish({ kind: 'fist', t: now, closed: true });
-    if (pinched && !this.fist.closed) {
+    this.publish(this.handSignal(now, this.handCursor, f, this.pinch.closed));
+    if (pinched) {
       this.pinchT = now;
       this.publish({ kind: 'pinch', t: now, aim: this.trail.at(now - PINCH_AIM_MS) ?? this.handCursor });
     }
@@ -339,7 +339,7 @@ export class InputController {
     this.fx.reset();
     this.fy.reset();
     this.trail.clear();
-    this.fist.reset();
+    this.thumbDown = 0;
     this.pinch.reset();
   }
 
@@ -383,16 +383,16 @@ export class InputController {
     return this.handled;
   }
 
-  private handSignal(t: number, cursor: Pt, f: HandFrame | null): Signal {
+  private handSignal(t: number, cursor: Pt, f: HandFrame | null, pinched: boolean): Signal {
     const playing = this.host.playing();
     const ext = f ? extension(f.world) : 2;
     const pinch = this.pinch.ratio;
     return {
-      kind: 'hand', t, visible: true, cursor,
+      kind: 'hand', t, visible: true, cursor, pinched,
       overHalf: playing && !this.menus() && this.host.canDeploy(this.host.toWorld(cursor.x, cursor.y)),
       // Rough scores from the landmarks (MediaPipe's gesture model isn't loaded).
       gestures: {
-        Closed_Fist: clamp01((1.6 - ext) / 0.6),
+        Thumb_Down: this.thumbDown,
         Open_Palm: clamp01((ext - 1.4) / 0.5),
         Pointing_Up: f ? clamp01(pointing(f)) : 0,
         Pinch: clamp01((0.8 - pinch) / 0.4),
@@ -411,7 +411,7 @@ export class InputController {
         ok = this.cancelPending(i.why);
         break;
       case 'clear':
-        ok = this.clear(i.why as 'fist' | 'key');
+        ok = this.clear(i.why as 'key');
         break;
       case 'uiActivate':
         ok = activateUi(i.at ?? (i.fallback ? this.handCursor : null), { fallback: i.fallback, playing: this.host.playing() });
@@ -425,7 +425,7 @@ export class InputController {
   // Take back the deploy still being summoned: the words still being finalised, else the newest
   // one whose deploy_troop hasn't gone out. Nothing has been paid by then, so it's a full refund.
   private cancelPending(why: string): boolean {
-    if (this.firing) return this.clear(why as 'fist');
+    if (this.firing) return this.clear(why);
     const open = [...this.inFlight].filter(([, v]) => !v.sent);
     if (!open.length) return false;
     const [nonce, { at }] = open[open.length - 1];
@@ -452,7 +452,7 @@ export class InputController {
 
 
   private cursorState(now: number): CursorState {
-    return this.fist.closed ? 'fist' : now - this.pinchT < FIRE_SHOW_MS ? 'fire' : 'open';
+    return now - this.pinchT < FIRE_SHOW_MS ? 'fire' : this.thumbDown >= THUMB_DOWN.score && !this.pinch.closed ? 'cancel' : 'open';
   }
 
   // ---------- fire / cancel ----------
@@ -524,7 +524,7 @@ export class InputController {
   }
 
   // Throw away the words said so far, and a fire still waiting on its last words.
-  private clear(why: 'fist' | 'key' | 'said' | 'mismatch'): boolean {
+  private clear(why: string): boolean {
     const f = this.firing, words = f?.words.text ?? this.prompt.text;
     if (!f && !words) return false;
     this.firing = null;
@@ -587,7 +587,7 @@ export class InputController {
     sfx.play('miss');
     if (this.hinted) return;
     this.hinted = true;
-    const send = this.tracker ? 'pinch thumb and middle finger' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? 'pinch' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
     notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
   }
@@ -698,7 +698,7 @@ export class InputController {
     this.el.id = 'inputPanel';
     this.el.innerHTML = `
       <div class="inRow">
-        <button data-act="cam" title="Point with your index finger, pinch thumb and middle finger to send the troop there, make a fist to cancel">Camera</button>
+        <button data-act="cam" title="Point, say it, pinch to summon. Thumbs down to cancel.">Camera</button>
         <button data-act="mic" title="Always listening while on: say the troop, then pinch, click or press Space to send it">Mic</button>
         <button data-act="menu" class="ghost" title="Camera and mic settings">⋯</button>
       </div>
@@ -757,7 +757,7 @@ export class InputController {
     $('[data-act="mic"]').classList.toggle('on', this.mic.on);
     $('.inPreview').hidden = !this.tracker || !this.prefs.preview;
     this.handView.hidden = !this.tracker;
-    const pose = this.fist.closed ? 'fist' : `fingers ${this.fist.ext.toFixed(1)}`;
+    const pose = this.thumbDown >= THUMB_DOWN.score ? 'thumbs down' : this.hand ? `fingers ${extension(this.hand.world).toFixed(1)}` : '';
     const cam = this.tracker ? this.camStatus || (this.hand ? `hand · ${pose}` : 'no hand in view') : '';
     const mic = this.mic.on ? `${this.vad.level.toFixed(0)} dB${this.vad.speaking ? ' · speaking' : ''} · ${this.heard}` : this.heard;
     $('.inStatus').textContent = [cam, mic].filter(Boolean).join('\n');
@@ -781,9 +781,10 @@ export class InputController {
 
   private hintText(): string {
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
-    const send = this.tracker ? 'pinch thumb and middle finger' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
-    const clear = this.tracker ? 'make a fist' : TOUCH ? 'say “cancel”' : 'press Esc';
+    const send = this.tracker ? 'pinch' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const clear = this.tracker ? 'thumbs down' : TOUCH ? 'say “cancel”' : 'press Esc';
     if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;
+    if (this.tracker) return pinch.howTo;
     return `Say the troop, then ${send} to send it · ${clear} to cancel`;
   }
 
@@ -802,7 +803,7 @@ export class InputController {
     const state = this.cursorState(performance.now());
     const label = !this.tracker?.ready ? 'Starting camera…'
       : !this.hand ? 'Show your hand'
-      : state === 'fist' ? 'Fist · cancel' : state === 'fire' ? 'Pinch · send' : 'Aiming';
+      : state === 'cancel' ? 'Thumbs down · cancel' : state === 'fire' ? 'Pinch · send' : 'Aiming';
     const el = this.handView.querySelector<HTMLElement>('.hvState')!;
     if (el.textContent !== label) el.textContent = label;
     this.handView.dataset.state = this.hand ? state : 'none';
@@ -848,7 +849,7 @@ export class InputController {
     }
     g.stroke();
     const state = this.cursorState(performance.now());
-    g.fillStyle = state === 'fire' ? '#4aa3ff' : state === 'fist' ? '#fbbf24' : '#ff5d6c';
+    g.fillStyle = state === 'fire' ? '#4aa3ff' : state === 'cancel' ? '#fbbf24' : '#ff5d6c';
     g.beginPath();
     g.arc(...P(8), 4, 0, Math.PI * 2);
     g.fill();
