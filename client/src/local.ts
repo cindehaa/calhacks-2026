@@ -5,9 +5,9 @@ import { ANCHORS } from '../../shared/anchors';
 import { COUNTDOWN, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
-import { newMatch, step, type SimState } from '../../shared/sim';
+import { newMatch, newUnit, step, type SimState } from '../../shared/sim';
 import type { TroopDesign } from '../../shared/troop';
-import { Glide, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
+import { Glide, quirkView, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
 import type { DrawPending, DrawTroop } from './render';
 
 const DT = 1 / TICK_HZ;
@@ -49,7 +49,7 @@ export class LocalMatch implements MatchSource {
       const id = BigInt(u.id);
       const [x, y] = this.glide.pos(id, u.x, u.y);
       const troopId = this.unitTroop.get(u.id) ?? 0n;
-      return { id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range };
+      return { ...quirkView(u), id, troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range };
     });
   }
 
@@ -180,11 +180,7 @@ export class LocalMatch implements MatchSource {
     for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
       const id = this.nextId++;
       this.unitTroop.set(id, troopId);
-      this.s.units.push({
-        id, side, x: ux, y: uy, hp: design.health, maxHp: design.health, damage: design.damage,
-        attackSpeed: design.attack_speed, moveSpeed: design.move_speed, range: design.range,
-        cooldown: 0, delay, attackSeq: 0,
-      });
+      this.s.units.push(newUnit(id, side, ux, uy, design, delay));
     }
     this.s.elixir[side] -= cost;
   }

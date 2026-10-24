@@ -1,14 +1,32 @@
 // Where a match comes from. main.ts renders and deploys through MatchSource, so the same UI
 // plays an online room (OnlineMatch, SpacetimeDB) or a bot match in this tab (LocalMatch).
 import { TICK_HZ, type Side } from '../../shared/arena';
-import type { TroopDesign } from '../../shared/troop';
+import type { SimUnit } from '../../shared/sim';
+import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from '../../shared/troop';
 import type { Net } from './net';
 import type { DrawPending, DrawTower, DrawTroop, DrawUnit } from './render';
 
 export type MatchStatus = 'lobby' | 'playing' | 'done';
 
-export interface MatchUnit extends DrawUnit {
+// Quirk and state fields the renderer reads, under SimUnit's names (shared/sim.ts).
+export type UnitQuirkView = Pick<SimUnit, 'attackSpeed' |
+  'attack' | 'targets' | 'onHit' | 'windup' | 'trait' | 'motion' | 'element' | 'burnT' | 'burnDps' | 'slowT' | 'stunT' |
+  'windupT' | 'shield' | 'maxShield' | 'spawnT' | 'chargeDist' | 'lastTargetX' | 'lastTargetY' | 'chainXs' | 'chainYs'>;
+
+export interface MatchUnit extends DrawUnit, UnitQuirkView {
   attackSeq: number; // bumps on every hit
+}
+
+// Copies the quirk fields off a SimUnit or a unit row (same camelCase names; enums are strings in the table).
+export function quirkView(u: Omit<UnitQuirkView, 'attack' | 'targets' | 'onHit' | 'trait' | 'motion' | 'element'> &
+  { attack: string; targets: string; onHit: string; trait: string; motion: string; element: string }): UnitQuirkView {
+  return {
+    attackSpeed: u.attackSpeed, attack: u.attack as Attack, targets: u.targets as Targets, onHit: u.onHit as OnHit, windup: u.windup,
+    trait: u.trait as Trait, motion: u.motion as Motion, element: u.element as Element,
+    burnT: u.burnT, burnDps: u.burnDps, slowT: u.slowT, stunT: u.stunT, windupT: u.windupT,
+    shield: u.shield, maxShield: u.maxShield, spawnT: u.spawnT, chargeDist: u.chargeDist,
+    lastTargetX: u.lastTargetX, lastTargetY: u.lastTargetY, chainXs: u.chainXs, chainYs: u.chainYs,
+  };
 }
 export interface MatchTower extends DrawTower {
   attackSeq: number;
@@ -104,7 +122,7 @@ export class OnlineMatch implements MatchSource {
     for (const u of this.net.conn.db.unit.iter()) {
       if (u.roomCode !== code) continue;
       const [x, y] = this.glide.pos(u.id, u.x, u.y);
-      out.push({ id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range });
+      out.push({ ...quirkView(u), id: u.id, troopId: u.troopId, side: u.side, x, y, hp: u.hp, maxHp: u.maxHp, delay: u.delay, attackSeq: u.attackSeq, range: u.range });
     }
     return out;
   }
@@ -137,7 +155,8 @@ export class OnlineMatch implements MatchSource {
     return this.net.conn.reducers.deployTroop({
       nonce, x, y, description, name: d.name, health: d.health, damage: d.damage, attackSpeed: d.attack_speed,
       moveSpeed: d.move_speed, range: d.range, count: d.count, battleCry: d.battle_cry, voiceStyle: d.voice_style,
-      spriteUrl,
+      spriteUrl, attack: d.attack, targets: d.targets, onHit: d.on_hit, windup: d.windup, trait: d.trait,
+      motion: d.motion, element: d.element, flavor: d.flavor,
     });
   }
 

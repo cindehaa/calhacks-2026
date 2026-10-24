@@ -9,12 +9,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 // Description first, then the shared style, so the subject wins over the boilerplate.
 export const STYLE =
   'Single game unit, full body, centered, chunky stylised 3D mobile-game art, bold silhouette, bright saturated colours, soft studio lighting, no text, no signature, no watermark, no border';
-const BACKGROUND = 'on a flat magenta #FF00FF background';
+export const BACKGROUND = 'on a flat magenta #FF00FF background';
 const STYLE_VERSION = 1; // bump to regenerate everything after a prompt change
 
 const SIZE = 384;
 const FLUX_TIMEOUT_MS = 10_000;
-const REMOVE_TIMEOUT_MS = 3000; // past this, the browser keys the background itself
+export const REMOVE_TIMEOUT_MS = 3000; // past this, the browser keys the background itself
 
 const DIR = new URL('../.cache/sprites/', import.meta.url);
 
@@ -60,6 +60,14 @@ export async function spriteFile(name: string): Promise<Buffer | null> {
   }
 }
 
+// The base sprite's PNG for a description, drawing it first if needed. Poses (api/poses.ts) edit it.
+export async function spritePng(description: string): Promise<Buffer> {
+  const s = await sprite(description);
+  const png = await spriteFile(s.url.slice('/api/sprite/'.length).split('?')[0]);
+  if (!png) throw new Error('sprite missing on disk');
+  return png;
+}
+
 const urlOf = (id: string, removed: boolean) => (removed ? `/api/sprite/${id}.png` : `/api/sprite/${id}.key.png?key`);
 
 async function draw(id: string, description: string): Promise<Sprite> {
@@ -98,7 +106,7 @@ async function draw(id: string, description: string): Promise<Sprite> {
 }
 
 // fal's synchronous endpoint: one POST, the result in the response.
-async function fal<T>(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<T> {
+export async function fal<T>(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<T> {
   const r = await fetch(`https://fal.run/${model}`, {
     method: 'POST',
     headers: { Authorization: `Key ${(process.env.FAL_KEY ?? '').trim()}`, 'Content-Type': 'application/json' },
@@ -110,7 +118,7 @@ async function fal<T>(model: string, input: Record<string, unknown>, timeoutMs: 
 }
 
 // A data URI (sync_mode) or, if fal ignored that, a hosted URL.
-async function bytes(url: string): Promise<Buffer> {
+export async function bytes(url: string): Promise<Buffer> {
   const m = /^data:[^;,]+;base64,(.*)$/s.exec(url);
   if (m) return Buffer.from(m[1], 'base64');
   const r = await fetch(url, { signal: AbortSignal.timeout(5000) });

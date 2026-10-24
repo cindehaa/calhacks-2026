@@ -4,8 +4,8 @@ import { ScheduleAt } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
 import { COUNTDOWN, ELIXIR_START, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
-import { newTowers, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
-import type { VoiceStyle } from '../../shared/troop';
+import { newTowers, newUnit, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
+import type { Attack, Element, Motion, OnHit, Targets, Trait, VoiceStyle } from '../../shared/troop';
 
 const TICK_MICROS = BigInt(Math.round(1_000_000 / TICK_HZ));
 const PENDING_TTL_MICROS = 15_000_000n; // a lock nobody followed up on
@@ -58,6 +58,15 @@ const troop = table(
     battleCry: t.string(),
     voiceStyle: t.string(),
     spriteUrl: t.string(), // '' until art arrives
+    // Quirks (shared/troop.ts), as strings so the lists can grow without a migration.
+    attack: t.string(),
+    targets: t.string(),
+    onHit: t.string(),
+    windup: t.bool(),
+    trait: t.string(),
+    motion: t.string(),
+    element: t.string(),
+    flavor: t.string(),
   }
 );
 
@@ -79,6 +88,27 @@ const unit = table(
     cooldown: t.f32(),
     delay: t.f32(), // seconds until it lands
     attackSeq: t.u32(),
+    // Mirrors SimUnit (shared/sim.ts): quirks, then status timers, traits and the last hit.
+    attack: t.string(),
+    targets: t.string(),
+    onHit: t.string(),
+    windup: t.bool(),
+    trait: t.string(),
+    motion: t.string(),
+    element: t.string(),
+    burnT: t.f32(),
+    burnDps: t.f32(),
+    slowT: t.f32(),
+    stunT: t.f32(),
+    windupT: t.f32(),
+    shield: t.f32(),
+    maxShield: t.f32(),
+    spawnT: t.f32(),
+    chargeDist: t.f32(),
+    lastTargetX: t.f32(),
+    lastTargetY: t.f32(),
+    chainXs: t.array(t.f32()),
+    chainYs: t.array(t.f32()),
   }
 );
 
@@ -255,6 +285,14 @@ export const deployTroop = spacetimedb.reducer(
     battleCry: t.string(),
     voiceStyle: t.string(),
     spriteUrl: t.string(),
+    attack: t.string(),
+    targets: t.string(),
+    onHit: t.string(),
+    windup: t.bool(),
+    trait: t.string(),
+    motion: t.string(),
+    element: t.string(),
+    flavor: t.string(),
   },
   (ctx, a) => {
     const { r, side } = myMatch(ctx);
@@ -269,6 +307,14 @@ export const deployTroop = spacetimedb.reducer(
       count: a.count,
       battle_cry: a.battleCry,
       voice_style: a.voiceStyle as VoiceStyle,
+      attack: a.attack as Attack,
+      targets: a.targets as Targets,
+      on_hit: a.onHit as OnHit,
+      windup: a.windup,
+      trait: a.trait as Trait,
+      motion: a.motion as Motion,
+      element: a.element as Element,
+      flavor: a.flavor,
     }, elixir);
     if (error) throw new SenderError(error);
 
@@ -300,25 +346,18 @@ export const deployTroop = spacetimedb.reducer(
       battleCry: design.battle_cry,
       voiceStyle: design.voice_style,
       spriteUrl: a.spriteUrl.slice(0, 2048),
+      attack: design.attack,
+      targets: design.targets,
+      onHit: design.on_hit,
+      windup: design.windup,
+      trait: design.trait,
+      motion: design.motion,
+      element: design.element,
+      flavor: design.flavor,
     });
     for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
-      ctx.db.unit.insert({
-        id: 0n,
-        roomCode: r.code,
-        troopId: tr.id,
-        side,
-        x: ux,
-        y: uy,
-        hp: design.health,
-        maxHp: design.health,
-        damage: design.damage,
-        attackSpeed: design.attack_speed,
-        moveSpeed: design.move_speed,
-        range: design.range,
-        cooldown: 0,
-        delay,
-        attackSeq: 0,
-      });
+      const { id: _id, side: _side, ...u } = newUnit(0, side, ux, uy, design, delay);
+      ctx.db.unit.insert({ ...u, id: 0n, roomCode: r.code, troopId: tr.id, side });
     }
     ctx.db.room.code.update(side === 0 ? { ...r, elixir0: r.elixir0 - cost } : { ...r, elixir1: r.elixir1 - cost });
   }
@@ -352,9 +391,9 @@ export const tick = spacetimedb.reducer({ onSchedule: matchTimer }, { timer: mat
     elixir: [r.elixir0, r.elixir1],
     units: unitRows.map(
       (u): SimUnit => ({
-        id: Number(u.id), side: u.side as Side, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp, damage: u.damage,
-        attackSpeed: u.attackSpeed, moveSpeed: u.moveSpeed, range: u.range, cooldown: u.cooldown, delay: u.delay,
-        attackSeq: u.attackSeq,
+        ...u, id: Number(u.id), side: u.side as Side,
+        attack: u.attack as Attack, targets: u.targets as Targets, onHit: u.onHit as OnHit, trait: u.trait as Trait,
+        motion: u.motion as Motion, element: u.element as Element, chainXs: [...u.chainXs], chainYs: [...u.chainYs],
       })
     ),
     towers: towerRows.map(
@@ -371,9 +410,8 @@ export const tick = spacetimedb.reducer({ onSchedule: matchTimer }, { timer: mat
   for (const id of res.deadUnitIds) ctx.db.unit.id.delete(byId.get(id)!.id);
   for (const u of state.units) {
     const row = byId.get(u.id)!;
-    ctx.db.unit.id.update({
-      ...row, x: u.x, y: u.y, hp: u.hp, cooldown: u.cooldown, delay: u.delay, attackSeq: u.attackSeq,
-    });
+    const { id: _id, side: _side, ...state } = u;
+    ctx.db.unit.id.update({ ...row, ...state });
   }
   const towerById = new Map(towerRows.map(tw => [Number(tw.id), tw]));
   for (const tw of state.towers) {

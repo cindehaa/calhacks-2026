@@ -27,4 +27,12 @@ export default __t.row({
   battleCry: __t.string().name("battle_cry"),
   voiceStyle: __t.string().name("voice_style"),
   spriteUrl: __t.string().name("sprite_url"),
+  attack: __t.string(),
+  targets: __t.string(),
+  onHit: __t.string().name("on_hit"),
+  windup: __t.bool(),
+  trait: __t.string(),
+  motion: __t.string(),
+  element: __t.string(),
+  flavor: __t.string(),
 });

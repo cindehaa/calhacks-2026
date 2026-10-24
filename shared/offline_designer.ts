@@ -3,7 +3,10 @@
 // text always gives the same troop. It follows the rules of the Claude prompt (shared/prompt.ts):
 // scale from an anchor, ignore numbers and stat words, weak harmless troop for junk.
 import { ANCHORS, type Anchor } from './anchors';
-import { CLAMPS, power, sanitizeDesign, type TroopDesign, type TroopStats, type VoiceStyle } from './troop';
+import {
+  CLAMPS, PLAIN_QUIRKS, power, quirkMultiplier, sanitizeDesign,
+  type Element, type Motion, type TroopDesign, type TroopQuirks, type TroopStats, type VoiceStyle,
+} from './troop';
 
 type Arch = 'goblin' | 'swarm' | 'knight' | 'archers' | 'wizard' | 'ninja' | 'bomber' | 'charger' | 'sniper' | 'golem';
 
@@ -204,6 +207,63 @@ const WEAK_NAMES = ['Confused Blob', 'Lost Duckling', 'Sleepy Pebble', 'Puzzled 
 const WEAK_CRIES = ['Wait, which way is the fight?', 'Am I doing this right?', 'Bloop?', 'Five more minutes...',
   'Hello? Anyone?', 'I come in peace!', 'Is it snack time?', 'Oh no, not again.'];
 
+// Keywords to mechanics (spec: Troop quirks → Schema, prompt and fallbacks). Earlier rows win a field.
+const has = (ws: Set<string>, list: string) => list.split(' ').some(w => ws.has(w));
+const QUIRK_WORDS: [string, Partial<TroopQuirks>][] = [
+  ['fire flame flaming lava magma dragon', { attack: 'breath', on_hit: 'burn' }],
+  ['lightning thunder storm', { attack: 'chain', on_hit: 'stun' }],
+  ['bomb ogre hammer', { attack: 'splash' }],
+  ['ram hog', { targets: 'buildings' }],
+  ['ice frost', { on_hit: 'slow' }],
+  ['dragon flying winged wing', { trait: 'flying' }],
+];
+const ELEMENT_WORDS: [Element, string][] = [
+  ['fire', 'fire flame flaming lava magma dragon'],
+  ['ice', 'ice frost snow frozen'],
+  ['lightning', 'lightning thunder storm electric spark'],
+  ['poison', 'poison toxic venom'],
+  ['holy', 'holy angel priest cleric paladin'],
+  ['shadow', 'shadow'],
+];
+const MOTION_WORDS: [Motion, string][] = [
+  ['smash', 'hammer mace club fist'],
+  ['slash', 'sword axe katana claw'],
+  ['stab', 'spear dagger knife lance'],
+  ['shoot', 'bow arrow crossbow gun pistol rifle laser'],
+  ['lob', 'bomb grenade catapult'],
+  ['charge', 'ram hog'],
+];
+const ELEMENT_ADJ: Record<Element, string> = {
+  none: '', fire: 'flaming', ice: 'frozen', lightning: 'crackling', poison: 'venomous', holy: 'glowing', shadow: 'shadowy',
+};
+const FLAVOR_OF: Record<Motion, string> = {
+  slash: 'swings a {A} blade', smash: 'slams down a {A} fist', stab: 'thrusts a {A} point', shoot: 'fires {A} shots',
+  lob: 'lobs a {A} bomb', cast: 'hurls a {A} spell', breathe: 'breathes a wide {A} blast', bite: 'snaps {A} jaws',
+  charge: 'rams forward in a {A} rush', other: 'lunges with a {A} strike',
+};
+
+// Mechanics and look from the words. The mechanics' price comes off health and damage, so a
+// keyword changes how the troop fights, not what it costs (nor lets it beat the golem).
+function quirksAndLook(s: TroopStats, base: Anchor, words: Set<string>, giantBeing: boolean) {
+  const q: TroopQuirks = { ...PLAIN_QUIRKS };
+  for (const [list, set] of QUIRK_WORDS) {
+    if (!has(words, list)) continue;
+    for (const [k, v] of Object.entries(set) as [keyof TroopQuirks, never][]) if (q[k] === PLAIN_QUIRKS[k]) q[k] = v;
+  }
+  if (giantBeing && q.targets === 'any') q.targets = 'buildings';
+  const f = Math.min(1, 1 / quirkMultiplier(q));
+  s.health *= f;
+  s.damage *= f;
+
+  const element = ELEMENT_WORDS.find(([, list]) => has(words, list))?.[0] ?? base.element;
+  let motion = MOTION_WORDS.find(([, list]) => has(words, list))?.[0] ?? base.motion;
+  if (q.attack === 'breath' && !['cast', 'shoot', 'lob'].includes(motion)) motion = 'breathe';
+  const flavor = motion === base.motion && element === base.element
+    ? base.flavor
+    : FLAVOR_OF[motion].replace('{A}', ELEMENT_ADJ[element]).replace(/\s+/g, ' ');
+  return { ...q, motion, element, flavor };
+}
+
 // Prepositions and relative words end the first noun phrase, where the head noun usually is.
 const PHRASE_END = new Set('with of on in at that who which riding holding wielding carrying from and'.split(' '));
 
@@ -316,6 +376,7 @@ export function designOffline(description: string): TroopDesign {
     return sanitizeDesign({
       name: pick(seed, 1, WEAK_NAMES), health: 150, damage: 30, attack_speed: 1, move_speed: 1, range: 1, count: 1,
       battle_cry: pick(seed, 2, WEAK_CRIES), voice_style: pick(seed, 3, ['squeaky_critter', 'cheerful_hero'] as const),
+      motion: 'other', flavor: 'wobbles forward and bumps into things',
     });
   }
   const base = anchor(arch);
@@ -351,6 +412,8 @@ export function designOffline(description: string): TroopDesign {
   // Nothing beats the big tank; words of absolute power stop at the caster.
   const godly = tokens.some(t => GODLY.has(t.word));
   capPower(s, power(anchor(godly ? 'wizard' : 'golem')));
+  const giantBeing = tokens.some(t => t.word === 'giant' && t.entries.length > 0);
+  const look = quirksAndLook(s, base, new Set([...words, ...tokens.map(t => t.word)]), giantBeing);
 
   // Name: [adjective] [element or second being] [head], or [adjective] [noun] [Group].
   const nounWord = head?.word ?? pick(seed, 4, fl.heads);
@@ -372,5 +435,5 @@ export function designOffline(description: string): TroopDesign {
   const voiced = [head, second].find(t => t && VOICE_BY_WORD.has(t.word));
   const voice_style = voiced ? VOICE_BY_WORD.get(voiced.word)! : fl.voice;
 
-  return sanitizeDesign({ ...s, name, battle_cry, voice_style });
+  return sanitizeDesign({ ...s, ...look, name, battle_cry, voice_style });
 }

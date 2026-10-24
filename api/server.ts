@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { hasCartesiaKey, voiceToken } from './cartesia';
 import { designTroop, designerName, hasKey, warm } from './designer';
+import { pose, poseFile } from './poses';
 import { hasFalKey, sprite, spriteFile } from './sprites';
 
 const envFile = new URL('../.env', import.meta.url);
@@ -64,6 +65,30 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=31536000, immutable', // the name is a hash of the prompt
+        'Access-Control-Allow-Origin': '*',
+      });
+      return res.end(png);
+    }
+    // Attack-pose frame: the base sprite redrawn mid-attack from the troop's flavor (api/poses.ts).
+    if (req.method === 'POST' && req.url === '/api/pose') {
+      if (!hasFalKey()) return send(res, 503, { error: 'no FAL_KEY' });
+      const { description, flavor } = await readJson(req);
+      const text = String(description ?? '').trim().slice(0, 300);
+      if (!text) return send(res, 400, { error: 'empty description' });
+      try {
+        return send(res, 200, await pose(text, String(flavor ?? '').slice(0, 120)));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message.slice(0, 160) : String(e);
+        console.warn('pose failed:', msg);
+        return send(res, 502, { error: 'pose failed' });
+      }
+    }
+    if (req.method === 'GET' && req.url?.startsWith('/api/pose/')) {
+      const png = await poseFile(req.url.slice('/api/pose/'.length).split('?')[0]);
+      if (!png) return send(res, 404, { error: 'not found' });
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=31536000, immutable',
         'Access-Control-Allow-Origin': '*',
       });
       return res.end(png);

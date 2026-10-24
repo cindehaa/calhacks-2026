@@ -165,3 +165,44 @@ export function sizeScale(maxHp: number): number {
   const k = (Math.sqrt(Math.max(50, maxHp)) - lo) / (hi - lo);
   return 0.85 + 0.75 * Math.min(1, Math.max(0, k));
 }
+
+// Effect colours by element, [main, light]. Null for 'none' (or anything unknown) so the
+// caller keeps the team colours. Cosmetic only; a fire troop burns only with on_hit 'burn'.
+const ELEMENT_COLORS: Record<string, [string, string]> = {
+  fire: ['#ff8a2a', '#ffd08a'],
+  ice: ['#9fdcff', '#e6f7ff'],
+  lightning: ['#fff27a', '#ffffff'],
+  poison: ['#6fdc4a', '#c9f7a8'],
+  holy: ['#ffd24a', '#fff3b8'],
+  shadow: ['#a45cff', '#dcc0ff'],
+};
+
+export function elementColors(element: string | undefined): [string, string] | null {
+  return (element && ELEMENT_COLORS[element]) || null;
+}
+
+// Attack anticipation: the wind-up starts this long before the predicted hit, so the strike
+// lands when attackSeq bumps.
+export const ANTICIPATION = 0.15;
+
+// How far into the wind-up a unit is, 0..1, given when it last hit and the expected gap
+// between hits. If the hit is late it holds the pose briefly, then relaxes (the target died or
+// the unit walked on).
+export function anticipation(now: number, lastHit: number, interval: number, lead = ANTICIPATION): number {
+  if (lastHit < 0 || !(interval > 0)) return 0;
+  const due = lastHit + interval;
+  const p = (now - (due - Math.min(lead, interval))) / Math.min(lead, interval);
+  if (p <= 0) return 0;
+  if (p <= 1) return p;
+  const over = now - due;
+  return over < 0.25 ? 1 : Math.max(0, 1 - (over - 0.25) / 0.15);
+}
+
+// Expected gap between hits: 1 / attack speed when the feed carries it (slowed units hit 40%
+// slower), otherwise a running average of observed gaps that ignores long pauses between fights.
+export function hitInterval(prev: number, gap: number, attackSpeed?: number, slowed = false): number {
+  if (attackSpeed && attackSpeed > 0) return 1 / (attackSpeed * (slowed ? 0.6 : 1));
+  if (!(gap > 0) || gap > 4) return prev;
+  if (prev <= 0) return gap;
+  return gap > prev * 2.5 ? prev : prev * 0.6 + gap * 0.4;
+}

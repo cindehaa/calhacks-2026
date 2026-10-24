@@ -17,6 +17,7 @@ import {
   UNIT_RADIUS,
   type Side,
 } from './arena';
+import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from './troop';
 
 export interface SimUnit {
   id: number;
@@ -32,6 +33,53 @@ export interface SimUnit {
   cooldown: number; // seconds until it can hit again
   delay: number; // seconds until it arrives; inert while > 0
   attackSeq: number; // bumps on every hit, so clients can animate attacks
+  // Quirks, copied from the design. motion and element are only for the renderer.
+  attack: Attack;
+  targets: Targets;
+  onHit: OnHit;
+  windup: boolean;
+  trait: Trait; // flying is trait === 'flying'
+  motion: Motion;
+  element: Element;
+  // Status timers (tier 2): seconds remaining, burn as damage per second. 0 when inactive.
+  burnT: number;
+  burnDps: number;
+  slowT: number;
+  stunT: number;
+  windupT: number; // seconds charged toward the current hit, 0..WINDUP_SECONDS
+  // Traits (tier 3).
+  shield: number; // shield hp, lost before health; 0 without the trait
+  maxShield: number;
+  spawnT: number; // seconds until the next minion
+  chargeDist: number; // tiles moved since the last attack
+  // Where the most recent hit landed, and the extra hops of a chain (empty otherwise).
+  lastTargetX: number;
+  lastTargetY: number;
+  chainXs: number[];
+  chainYs: number[];
+}
+
+// Quirk rule numbers, fixed in code (spec: Troop quirks → Quirk rules).
+export const SPLASH_RADIUS = 1; // tiles around the target
+export const BREATH_HALF_ANGLE = Math.PI / 6; // a 60° cone
+export const CHAIN_HOPS = 3;
+export const CHAIN_JUMP = 2; // tiles from the last target
+export const CHAIN_FALLOFF = 0.75;
+export const WINDUP_SECONDS = 0.8;
+
+type UnitDesign = Pick<TroopDesign, 'health' | 'damage' | 'attack_speed' | 'move_speed' | 'range'> &
+  Partial<Pick<TroopDesign, 'attack' | 'targets' | 'on_hit' | 'windup' | 'trait' | 'motion' | 'element'>>;
+
+// A fresh unit from a design. Every spawn site goes through this so new fields can't be missed.
+export function newUnit(id: number, side: Side, x: number, y: number, d: UnitDesign, delay: number): SimUnit {
+  return {
+    id, side, x, y, hp: d.health, maxHp: d.health, damage: d.damage, attackSpeed: d.attack_speed,
+    moveSpeed: d.move_speed, range: d.range, cooldown: 0, delay, attackSeq: 0,
+    attack: d.attack ?? 'single', targets: d.targets ?? 'any', onHit: d.on_hit ?? 'none', windup: d.windup ?? false,
+    trait: d.trait ?? 'none', motion: d.motion ?? 'other', element: d.element ?? 'none',
+    burnT: 0, burnDps: 0, slowT: 0, stunT: 0, windupT: 0, shield: 0, maxShield: 0, spawnT: 0, chargeDist: 0,
+    lastTargetX: x, lastTargetY: y, chainXs: [], chainYs: [],
+  };
 }
 
 export interface SimTower {
@@ -113,7 +161,8 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
     const aggro = Math.max(AGGRO_RANGE, u.range + 1);
     let target: Target | null = null;
     let best = Infinity;
-    for (const e of active) {
+    // targets: buildings ignores units and walks to the nearest tower.
+    for (const e of u.targets === 'buildings' ? [] : active) {
       if (e.side === u.side || e.hp <= 0) continue;
       const d = dist(u.x, u.y, e.x, e.y);
       if (d < aggro && d < best) { best = d; target = { kind: 'unit', u: e } }
@@ -129,8 +178,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
     const gap = dist(u.x, u.y, tx(target), ty(target)) - radius(target) - UNIT_RADIUS;
     if (gap <= reach(u.range)) {
       if (u.cooldown <= 0) {
-        if (target.kind === 'unit') target.u.hp -= u.damage;
-        else target.t.hp = Math.max(0, target.t.hp - u.damage);
+        hit(u, target, active, live);
         u.cooldown = 1 / u.attackSpeed;
         u.attackSeq++;
       }
@@ -185,6 +233,65 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
   const standing = (side: Side) => s.towers.filter(t => t.side === side && t.hp > 0).length;
   const over = s.time >= MATCH_SECONDS || standing(0) === 0 || standing(1) === 0;
   return { deadUnitIds, over, winner: over ? judge(s) : null };
+}
+
+// One attack by u on its target, shaped by u.attack. Towers always hit single targets.
+function hit(u: SimUnit, target: Target, units: SimUnit[], towers: SimTower[]) {
+  const x = tx(target), y = ty(target);
+  u.lastTargetX = x;
+  u.lastTargetY = y;
+  u.chainXs = [];
+  u.chainYs = [];
+  const enemies: Target[] = [];
+  for (const e of units) if (e.side !== u.side && e.hp > 0) enemies.push({ kind: 'unit', u: e });
+  for (const t of towers) if (t.side !== u.side && t.hp > 0) enemies.push({ kind: 'tower', t });
+  const same = (a: Target, b: Target) => (a.kind === 'unit' ? b.kind === 'unit' && a.u === b.u : b.kind === 'tower' && a.t === b.t);
+  // Edge distance from a point, so a tower's bulk counts like a unit's.
+  const edge = (e: Target, px: number, py: number) => dist(px, py, tx(e), ty(e)) - radius(e);
+
+  if (u.attack === 'splash') {
+    // Full damage to every enemy within SPLASH_RADIUS of the target.
+    for (const e of enemies) if (same(e, target) || edge(e, x, y) <= SPLASH_RADIUS) damage(e, u.damage);
+  } else if (u.attack === 'breath') {
+    // Full damage to every enemy in a 60° cone out to the unit's range.
+    const aim = Math.atan2(y - u.y, x - u.x);
+    const len = Math.max(u.range, reach(u.range)) + UNIT_RADIUS;
+    for (const e of enemies) {
+      if (same(e, target)) { damage(e, u.damage); continue; }
+      if (edge(e, u.x, u.y) > len) continue;
+      let da = Math.abs(Math.atan2(ty(e) - u.y, tx(e) - u.x) - aim);
+      if (da > Math.PI) da = 2 * Math.PI - da;
+      if (da <= BREATH_HALF_ANGLE) damage(e, u.damage);
+    }
+  } else if (u.attack === 'chain') {
+    // The target, then up to CHAIN_HOPS more, each the nearest unhit enemy within CHAIN_JUMP
+    // of the last one, each jump CHAIN_FALLOFF of the one before.
+    damage(target, u.damage);
+    const done = [target];
+    let last = target, dmg = u.damage;
+    for (let hop = 0; hop < CHAIN_HOPS; hop++) {
+      let next: Target | null = null, best = Infinity;
+      for (const e of enemies) {
+        if (done.some(d => same(d, e))) continue;
+        const d = edge(e, tx(last), ty(last)) - radius(last);
+        if (d <= CHAIN_JUMP && d < best) { best = d; next = e }
+      }
+      if (!next) break;
+      dmg *= CHAIN_FALLOFF;
+      damage(next, dmg);
+      done.push(next);
+      u.chainXs.push(tx(next));
+      u.chainYs.push(ty(next));
+      last = next;
+    }
+  } else {
+    damage(target, u.damage);
+  }
+}
+
+function damage(t: Target, amount: number) {
+  if (t.kind === 'unit') t.u.hp -= amount;
+  else t.t.hp = Math.max(0, t.t.hp - amount);
 }
 
 // Most enemy towers destroyed wins; tie-break on total tower health left.

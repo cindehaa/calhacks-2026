@@ -3,7 +3,7 @@ import { ARENA_H, ARENA_W, DEPLOY_DELAY, LANE_X, MID_Y, TOWER_RADIUS, UNIT_RADIU
 import { keyBackground } from './chroma';
 import type { DropView } from './drops';
 import { drawInput, type InputView } from './input/draw';
-import { Fx, roundRect, towerKey } from './fx';
+import { Fx, quirks, roundRect, towerKey } from './fx';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 
 export interface DrawUnit {
@@ -17,6 +17,24 @@ export interface DrawUnit {
   delay: number;
   attackSeq?: number; // bumps on every hit; drives lunges and shots
   range?: number; // > 1 shoots projectiles
+}
+// Troop quirks and look the renderer reads, under SimUnit's names. Optional, so feeds without
+// them still draw (motion 'other', element 'none'). Kept off DrawUnit so MatchUnit can carry the
+// strict enum types; read them through quirks(u).
+export interface DrawQuirks {
+  attack?: string; // single | splash | breath | chain
+  targets?: string; // any | buildings
+  trait?: string; // 'flying' draws higher
+  motion?: string;
+  element?: string;
+  windup?: boolean;
+  windupT?: number; // seconds charged toward the current hit, 0..0.8
+  attackSpeed?: number; // hits per second, for predicting the next hit
+  slowT?: number;
+  lastTargetX?: number; // where the latest hit landed
+  lastTargetY?: number;
+  chainXs?: number[]; // extra chain hops of the latest hit
+  chainYs?: number[];
 }
 export interface DrawTower { side: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
 export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; battleCry?: string; voiceStyle?: string }
@@ -52,6 +70,7 @@ interface Group {
   lx: number;
   ly: number;
   lr: number;
+  buildings: boolean;
 }
 
 const C = {
@@ -300,6 +319,11 @@ export class Board {
       const a = this.fx.anim(u.id, r);
       const team = mine ? C.mine : C.theirs;
 
+      // Flying units hover a body-height up and bob; their shadow stays small and soft on the ground.
+      const q = quirks(u);
+      const flying = !air && q.trait === 'flying';
+      const fly = flying ? r * 1.1 + Math.sin(now * 3 + Number(u.id % 11n)) * r * 0.1 : 0;
+
       // Ground shadow (stays put while the body hops).
       if (air) {
         // Landing mark: a tinted pad that firms up as the drop nears.
@@ -313,78 +337,109 @@ export class Board {
         g.fill();
         g.stroke();
         g.globalAlpha = 1;
+      } else if (flying) {
+        g.fillStyle = 'rgba(0,0,0,0.18)';
+        g.beginPath();
+        g.ellipse(sx, sy + r * 0.72, r * 0.6, r * 0.22, 0, 0, Math.PI * 2);
+        g.fill();
       } else {
         g.fillStyle = 'rgba(0,0,0,0.32)';
         g.beginPath();
-        g.ellipse(sx, sy + r * 0.72, r * 0.95, r * 0.36, 0, 0, Math.PI * 2);
+        g.ellipse(sx + a.dx * 0.5, sy + r * 0.72, r * 0.95 * (0.9 + 0.1 * a.sx), r * 0.36, 0, 0, Math.PI * 2);
         g.fill();
       }
 
-      // Body.
-      g.save();
-      g.globalAlpha = alpha;
-      g.translate(sx + a.dx, sy + a.dy - lift);
-      g.scale(a.sx, a.sy);
-      const img = troop?.spriteUrl ? this.sprite(troop.spriteUrl) : null;
-      if (img) {
-        g.strokeStyle = team;
-        g.lineWidth = 2;
-        g.beginPath();
-        g.ellipse(0, r * 0.75, r * 0.95, r * 0.38, 0, 0, Math.PI * 2);
-        g.stroke();
-        const s = r * 2.9;
-        g.drawImage(img, -s / 2, -s * 0.62, s, s);
-        if (a.flash > 0) {
-          g.globalCompositeOperation = 'lighter';
-          g.globalAlpha = alpha * a.flash * 0.9;
-          g.drawImage(img, -s / 2, -s * 0.62, s, s);
-        }
-      } else {
-        g.fillStyle = mine ? C.mineDark : C.theirsDark;
-        g.beginPath();
-        g.arc(0, 0, r, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = 'rgba(255,255,255,0.08)';
-        g.beginPath();
-        g.arc(-r * 0.2, -r * 0.25, r * 0.7, 0, Math.PI * 2);
-        g.fill();
-        g.strokeStyle = team;
-        g.lineWidth = Math.max(1.5, r * 0.16);
-        g.beginPath();
-        g.arc(0, 0, r, 0, Math.PI * 2);
-        g.stroke();
-        const glyph = this.glyphFor(u.troopId, troop);
-        const c = glyphImage(glyph, r * 1.3);
-        const w = c.width / k;
-        g.drawImage(c, -w / 2, -w / 2, w, w);
-        if (a.flash > 0) {
-          g.globalAlpha = alpha * a.flash * 0.85;
-          g.fillStyle = '#ffffff';
-          g.beginPath();
-          g.arc(0, 0, r, 0, Math.PI * 2);
-          g.fill();
-        }
+      const bx = sx + a.dx, by = sy + a.dy - lift - fly;
+      // Charge glow (cast, windup) behind the body.
+      if (a.glow > 0.02) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.fillStyle = a.glowColor;
+        g.globalAlpha = 0.18 * a.glow;
+        g.beginPath(); g.arc(bx, by, r * (1.3 + 0.5 * a.glow), 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 0.3 * a.glow;
+        g.beginPath(); g.arc(bx, by, r * (1.05 + 0.2 * a.glow), 0, Math.PI * 2); g.fill();
+        g.restore();
       }
-      g.restore();
+      // Dash smear: two faint ghosts trailing behind.
+      if (a.smear > 0) {
+        for (let i = 2; i >= 1; i--) this.drawBody(u, troop, mine, bx + a.smx * i, by + a.smy * i, r, a.sx, a.sy, a.rot, alpha * 0.22 * a.smear, 0, k);
+      }
+      this.drawBody(u, troop, mine, bx, by, r, a.sx, a.sy, a.rot, alpha, a.flash, k);
 
-      if (!air && u.hp < u.maxHp) this.bar(sx - r, sy - r - 6 + a.dy * 0.5, 2 * r, 3, u.hp / u.maxHp, team);
+      if (!air && u.hp < u.maxHp) this.bar(sx - r, sy - r - 6 + a.dy * 0.5 - fly, 2 * r, 3, u.hp / u.maxHp, team);
+      const top = lift + fly;
 
       // Feed the label pass.
       let gr = this.groups.get(u.troopId);
       if (!gr) {
         gr = this.groupPool.pop() ?? ({} as Group);
         gr.troopId = u.troopId; gr.side = u.side; gr.n = 0; gr.sumX = 0; gr.minY = Infinity; gr.maxY = -Infinity;
-        gr.r = 0; gr.delay = u.delay; gr.leadId = u.id; gr.lx = sx; gr.ly = sy - lift; gr.lr = r;
+        gr.r = 0; gr.delay = u.delay; gr.leadId = u.id; gr.lx = sx; gr.ly = sy - top; gr.lr = r;
+        gr.buildings = q.targets === 'buildings';
         this.groups.set(u.troopId, gr);
       }
       gr.n++;
       gr.sumX += sx;
-      if (sy - lift - r < gr.minY) gr.minY = sy - lift - r;
-      if (sy - lift + r > gr.maxY) gr.maxY = sy - lift + r;
+      if (sy - top - r < gr.minY) gr.minY = sy - top - r;
+      if (sy - top + r > gr.maxY) gr.maxY = sy - top + r;
       if (r > gr.r) gr.r = r;
       if (u.delay < gr.delay) gr.delay = u.delay;
-      if (u.id < gr.leadId) { gr.leadId = u.id; gr.lx = sx; gr.ly = sy - lift; gr.lr = r }
+      if (u.id < gr.leadId) { gr.leadId = u.id; gr.lx = sx; gr.ly = sy - top; gr.lr = r }
     }
+  }
+
+  // One unit's body at (x, y): its sprite with a team ring, or the placeholder disc and glyph.
+  private drawBody(u: DrawUnit, troop: DrawTroop | undefined, mine: boolean, x: number, y: number, r: number,
+    scx: number, scy: number, rot: number, alpha: number, flash: number, k: number): void {
+    const g = this.ctx;
+    const team = mine ? C.mine : C.theirs;
+    g.save();
+    g.globalAlpha = alpha;
+    g.translate(x, y);
+    if (rot) g.rotate(rot);
+    g.scale(scx, scy);
+    const img = troop?.spriteUrl ? this.sprite(troop.spriteUrl) : null;
+    if (img) {
+      g.strokeStyle = team;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.ellipse(0, r * 0.75, r * 0.95, r * 0.38, 0, 0, Math.PI * 2);
+      g.stroke();
+      const s = r * 2.9;
+      g.drawImage(img, -s / 2, -s * 0.62, s, s);
+      if (flash > 0) {
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = alpha * flash * 0.9;
+        g.drawImage(img, -s / 2, -s * 0.62, s, s);
+      }
+    } else {
+      g.fillStyle = mine ? C.mineDark : C.theirsDark;
+      g.beginPath();
+      g.arc(0, 0, r, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.08)';
+      g.beginPath();
+      g.arc(-r * 0.2, -r * 0.25, r * 0.7, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = team;
+      g.lineWidth = Math.max(1.5, r * 0.16);
+      g.beginPath();
+      g.arc(0, 0, r, 0, Math.PI * 2);
+      g.stroke();
+      const glyph = this.glyphFor(u.troopId, troop);
+      const c = glyphImage(glyph, r * 1.3);
+      const w = c.width / k;
+      g.drawImage(c, -w / 2, -w / 2, w, w);
+      if (flash > 0) {
+        g.globalAlpha = alpha * flash * 0.85;
+        g.fillStyle = '#ffffff';
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+    g.restore();
   }
 
   // Cost pills on each troop's lead unit, and one name per troop that dodges the others.
@@ -424,7 +479,8 @@ export class Board {
       const mine = gr.side === v.mySide;
       let name = troop.name;
       if (name.length > 16) name = name.slice(0, 15) + '…';
-      const w = this.textWidth(name);
+      const icon = gr.buildings ? 12 : 0; // a small tower before the name: it only chases buildings
+      const w = this.textWidth(name) + icon;
       const cx = Math.max(left + w / 2, Math.min(right - w / 2, gr.sumX / gr.n));
       const gap = gr.r * 0.2;
       const tries = [gr.maxY + 14 + gap, gr.minY - 9 - gap, gr.maxY + 27 + gap, gr.minY - 22 - gap];
@@ -432,7 +488,8 @@ export class Board {
         if (this.boxFree(cx - w / 2 - 2, y - 10, cx + w / 2 + 2, y + 3, i)) {
           boxes.push(cx - w / 2 - 2, y - 10, cx + w / 2 + 2, y + 3);
           owner.push(-1);
-          this.outlined(name, cx, y, 11, mine ? C.mineLight : C.theirsLight);
+          this.outlined(name, cx + icon / 2, y, 11, mine ? C.mineLight : C.theirsLight);
+          if (icon) this.towerIcon(cx - w / 2 + 4, y - 4, mine ? C.mineLight : C.theirsLight);
           break;
         }
       }
@@ -497,6 +554,18 @@ export class Board {
     g.strokeText(s, x, y);
     g.fillStyle = color;
     g.fillText(s, x, y);
+  }
+
+  // A tiny crenellated tower, about 8 px, centred on (x, y).
+  private towerIcon(x: number, y: number, color: string): void {
+    const g = this.ctx;
+    g.fillStyle = 'rgba(8,10,20,0.85)';
+    g.fillRect(x - 5, y - 6, 10, 12);
+    g.fillStyle = color;
+    g.fillRect(x - 3.5, y - 2, 7, 6.5);
+    g.fillRect(x - 3.5, y - 4.5, 2, 2.5);
+    g.fillRect(x - 1, y - 4.5, 2, 2.5);
+    g.fillRect(x + 1.5, y - 4.5, 2, 2.5);
   }
 
   private ring([x, y]: [number, number], color: string, width: number): void {
