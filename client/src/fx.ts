@@ -530,6 +530,14 @@ export class Fx {
         Math.cos(a) * s, Math.sin(a) * s, 2 + Math.random() * 3, 0.8 + Math.random() * 0.5,
         0.16 + Math.random() * 0.2, i % 3 === 0 ? '#5d6278' : color, 1);
     }
+    // Ice shards off the frosted walls: bright, quick and small.
+    const ice = this.reduced ? 4 : 14;
+    for (let i = 0; i < ice; i++) {
+      const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 3;
+      this.particle(t.x + Math.cos(a) * 0.6, t.y + Math.sin(a) * 0.6, 0.3 + Math.random() * 1.2,
+        Math.cos(a) * s, Math.sin(a) * s, 3 + Math.random() * 2.5, 0.6 + Math.random() * 0.4,
+        0.08 + Math.random() * 0.1, i % 2 ? '#dbe9f4' : '#9cc3e0', 1);
+    }
     const m = this.reduced ? 4 : 12;
     for (let i = 0; i < m; i++) {
       const a = (i / m) * Math.PI * 2, s = 1.5 + Math.random();
