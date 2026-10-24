@@ -12,7 +12,7 @@ import { Juice } from './juice';
 import { SummonCircles } from './summon';
 import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View } from './render';
 import { Scenery } from './scenery';
-import { poseFrame } from './sprites';
+import { poseFrame, spriteFailed } from './sprites';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 import { improvised } from './designer';
 
@@ -502,7 +502,8 @@ export class PovBoard {
         m.mat.map = this.imageTexture(img);
       } else {
         w = h = r * 2.6 * BODY;
-        m.mat.map = this.tokenTexture(troopGlyph(troop?.name ?? '?', troop?.description), mine);
+        const glyph = troopGlyph(troop?.name ?? '?', troop?.description);
+        m.mat.map = spriteFailed(troop?.description) ? this.sketchTexture(glyph, mine) : this.tokenTexture(glyph, mine);
       }
       m.h = h;
       const mat = m.mat;
@@ -605,6 +606,44 @@ export class PovBoard {
     g.arc(64, 64, 56, 0, Math.PI * 2);
     g.stroke();
     g.drawImage(glyphImage(glyph, 72), 26, 26, 76, 76);
+    t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.textures.set(key, t);
+    return t;
+  }
+
+  // No art coming: the token redrawn as an ink sketch on frost paper. Cross-hatching, a doubled
+  // hand-drawn rim in the team colour and the glyph inked in greys, like a study for a card.
+  private sketchTexture(glyph: string, mine: boolean): THREE.CanvasTexture {
+    const key = 'sketch|' + glyph + '|' + (mine ? 1 : 0);
+    let t = this.textures.get(key);
+    if (t) return t;
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d')!;
+    c.width = c.height = 128;
+    g.fillStyle = '#dbe9f4';
+    g.beginPath();
+    g.arc(64, 64, 55, 0, Math.PI * 2);
+    g.fill();
+    g.save();
+    g.clip();
+    g.strokeStyle = 'rgba(23,27,46,0.22)';
+    g.lineWidth = 1.5;
+    for (let i = -128; i < 128; i += 9) { g.beginPath(); g.moveTo(i, 128); g.lineTo(i + 128, 0); g.stroke() }
+    g.strokeStyle = 'rgba(23,27,46,0.12)';
+    for (let i = -128; i < 128; i += 13) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 128, 128); g.stroke() }
+    g.restore();
+    g.strokeStyle = mine ? C.mine : C.theirs;
+    g.lineCap = 'round';
+    for (const [dx, dy, w, a0] of [[0, 0, 6, 0.1], [1.5, -1, 2.5, 2.2]] as const) {
+      g.lineWidth = w;
+      g.beginPath();
+      g.arc(64 + dx, 64 + dy, 55 - w / 3, a0, a0 + Math.PI * 1.93);
+      g.stroke();
+    }
+    g.filter = 'grayscale(1) brightness(0.35) contrast(1.6)';
+    g.drawImage(glyphImage(glyph, 72), 26, 26, 76, 76);
+    g.filter = 'none';
     t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     this.textures.set(key, t);
