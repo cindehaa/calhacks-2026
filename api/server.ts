@@ -36,7 +36,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/api/warm') {
       return send(res, 200, await warm());
     }
-    // A 60 s Cartesia token for the browser's STT and TTS sockets. 503 means use the fallbacks.
+    // A 60 s Cartesia token for the browser's STT socket. 503 means use the fallbacks.
     if (req.method === 'POST' && req.url === '/api/voice-token') {
       if (!hasCartesiaKey()) return send(res, 503, { error: 'no CARTESIA_API_KEY' });
       try {
@@ -104,5 +104,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`api on http://localhost:${PORT} (designer: ${hasKey() ? designerName() : `offline, no key for ${designerName()}`})`);
-  console.log(`voice: ${hasCartesiaKey() ? 'Cartesia' : 'no CARTESIA_API_KEY, browser speech and no cries'} · sprites: ${hasFalKey() ? 'fal' : 'no FAL_KEY, placeholder tokens'}`);
+  console.log(`voice: ${hasCartesiaKey() ? 'Cartesia' : 'no CARTESIA_API_KEY, browser speech'} · sprites: ${hasFalKey() ? 'fal' : 'no FAL_KEY, placeholder tokens'}`);
 });

@@ -1,4 +1,4 @@
-// Cartesia access tokens. The browser opens the STT and TTS websockets itself, straight to
+// Cartesia access tokens. The browser opens the STT websocket itself, straight to
 // Cartesia, with a short-lived token minted here, so the API key never leaves this process and
 // no audio passes through the proxy. A token only has to be valid when a socket opens.
 export const CARTESIA_VERSION = '2026-08-14';
@@ -14,7 +14,7 @@ export async function voiceToken(): Promise<{ token: string; expiresIn: number; 
       'Cartesia-Version': CARTESIA_VERSION,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ grants: { stt: true, tts: true }, expires_in: TOKEN_SECONDS }),
+    body: JSON.stringify({ grants: { stt: true }, expires_in: TOKEN_SECONDS }),
     signal: AbortSignal.timeout(4000),
   });
   if (!r.ok) throw new Error(`cartesia token: ${r.status} ${(await r.text()).slice(0, 120)}`);

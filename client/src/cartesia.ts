@@ -5,7 +5,7 @@ let cached: { token: string; version: string; until: number } | null = null;
 let unavailableUntil = 0; // after a 503 (no key) or failure, don't ask again for a while
 
 // Null when Cartesia can't be used (no key in .env, api down); callers fall back.
-export async function cartesiaUrl(path: '/stt/websocket' | '/tts/websocket', params: Record<string, string> = {}): Promise<string | null> {
+export async function cartesiaUrl(path: '/stt/websocket', params: Record<string, string> = {}): Promise<string | null> {
   const now = Date.now();
   if (!cached || cached.until < now) {
     if (now < unavailableUntil) return null;

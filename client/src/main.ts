@@ -2,7 +2,6 @@ import { ANCHORS } from '../../shared/anchors';
 import { ELIXIR_MAX, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import type { TroopDesign } from '../../shared/troop';
-import { cries } from './cries';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController } from './input/controller';
@@ -63,8 +62,6 @@ let local: LocalMatch | null = null; // vs Bot, entirely in this tab
 let aim: [number, number] | null = null; // hover point on your half, world coords
 let lock: [number, number] | null = null; // clicked spot for typed troops
 let warmedFor = '';
-let criedFor = '';
-const cried = new Set<bigint>(); // troops that have had their turn to shout
 const drops = new Drops(); // your drops from let-go to landing: board feedback and timings
 const arted = new WeakSet<DrawTroop>(); // bot-match troops already sent for art
 
@@ -244,7 +241,7 @@ async function designAt(nonce: number, spot: [number, number], description: stri
     const { design, cost, ms, source, early } = await designTroop(description);
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
-    status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms${tags ? ` (${tags})` : ''}`);
+    status(`${design.name} (${cost}) · ${ms} ms${tags ? ` (${tags})` : ''}`);
     void deployWithArt(nonce, spot, description, design, art);
   } catch (e) {
     cancelAt(nonce, `designer failed: ${(e as Error).message}`);
@@ -342,7 +339,6 @@ function frame() {
   if (m.status === 'playing' && warmedFor !== m.key) {
     warmedFor = m.key;
     warmDesigner();
-    cries.warm();
     input.warm();
   }
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
@@ -354,7 +350,6 @@ function frame() {
 
   showTimings();
   const units: DrawUnit[] = m.units();
-  shout(m, units);
   if (local) artForBot(local);
 
   board.draw({
@@ -386,25 +381,6 @@ function showTimings() {
   const head = last ? `release → stats ${Math.round(releaseToStats(last)!)} ms` : 'release → stats …';
   el.textContent = [head, ...timingLines(drops.list)].join('\n');
   el.classList.toggle('slow', !!last && releaseToStats(last)! > 2500);
-}
-
-// A troop shouts its battle cry as it lands. Online you only hear your own troops (the opponent's
-// laptop plays theirs; two laptops side by side would double up), vs Bot you hear both sides.
-function shout(m: MatchSource, units: DrawUnit[]) {
-  const troops = m.troops();
-  const fresh = criedFor !== m.key;
-  if (fresh) {
-    criedFor = m.key;
-    cried.clear();
-  }
-  for (const u of units) {
-    if (u.delay > 0 || cried.has(u.troopId)) continue;
-    cried.add(u.troopId);
-    const t = troops.get(u.troopId);
-    // Joining mid-match: troops already on the board stay quiet.
-    if (fresh || !t?.battleCry || (u.side !== m.side && m !== local)) continue;
-    cries.speak(t.battleCry, t.voiceStyle ?? '');
-  }
 }
 
 // The bot's troops are anchors, so their art is drawn once and cached by the api like yours.

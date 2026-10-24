@@ -15,7 +15,7 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 |---|---|
 | `shared/` | Plain TypeScript used everywhere: `sim.ts` (the combat `step()`), `troop.ts` (stat schema, clamps, `price()`), `anchors.ts` (the 10 reference troops), `arena.ts` (board and match constants), `prompt.ts` (the troop-designer prompt). |
 | `server/` | SpacetimeDB module: rooms, deploys, and the 20 Hz tick that runs `step()`. |
-| `client/` | Vite + TypeScript browser game: lobby, canvas arena, keyboard / mouse / text input, Cartesia STT and battle cries. |
+| `client/` | Vite + TypeScript browser game: lobby, canvas arena, keyboard / mouse / text input, Cartesia STT. |
 | `api/` | Small Node proxy that holds the API keys. `POST /api/troop` turns a description into a priced troop with Claude, `POST /api/voice-token` mints a 60 s Cartesia token for the browser's sockets, `POST /api/sprite` draws a troop with fal and serves it at `/api/sprite/<id>.png` (cached in `.cache/sprites/`). |
 | `meta/` | Spec and progress log. |
 
@@ -35,7 +35,7 @@ npm run api                   # terminal 2: key proxy on :8787
 npm run dev                   # terminal 3: game on http://localhost:5173
 ```
 
-Every key is optional and the game still runs without it: no `ANTHROPIC_API_KEY` uses the offline designer, no `CARTESIA_API_KEY` falls back to the browser's speech recognition and plays no battle cries, no `FAL_KEY` keeps the emoji placeholder tokens. `npm run api` prints which of them it found.
+Every key is optional and the game still runs without it: no `ANTHROPIC_API_KEY` uses the offline designer, no `CARTESIA_API_KEY` falls back to the browser's speech recognition, no `FAL_KEY` keeps the emoji placeholder tokens. `npm run api` prints which of them it found.
 
 Open http://localhost:5173 in two tabs (each tab is its own player), create a room in one and join it from the other, or both press **Join DEMO**. From a second laptop on the same network, open `http://<this-laptop-ip>:5173`.
 
@@ -54,8 +54,8 @@ To use Maincloud instead of a local server: `spacetime login`, `spacetime publis
 - After you let go, your words, "designing…" and a silhouette show at the spot until the troop appears. `T` (or `?timings` in the URL) shows how long each step took; release → stats is the one that must beat the 2.5 s delay.
 - `V` (or the 3D button) cycles the top-down board and the POV views.
 - The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your elixir, is refused with what it would have cost.
-- Art is drawn while you talk and lands on the troop a second or two after it does; until then it fights as its placeholder token. Each troop shouts its battle cry as it lands, in its own voice. Online you hear only your own troops' cries (the other laptop plays theirs); vs Bot you hear both. A cry that would overlap another is skipped.
-- **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes sound effects and battle cries.
+- Art is drawn while you talk and lands on the troop a second or two after it does; until then it fights as its placeholder token.
+- **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes sound effects.
 
 ## Designer benchmark
 
