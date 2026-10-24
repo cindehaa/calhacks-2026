@@ -6,6 +6,7 @@ import { COUNTDOWN, ELIXIR_START, TICK_HZ, canDeploy, clampDeploy, type Side } f
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, newUnit, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, VoiceStyle } from '../../shared/troop';
+import { decodeMode } from '../../shared/wordpower';
 
 const TICK_MICROS = BigInt(Math.round(1_000_000 / TICK_HZ));
 const PENDING_TTL_MICROS = 15_000_000n; // a lock nobody followed up on
@@ -294,11 +295,12 @@ export const deployTroop = spacetimedb.reducer(
     motion: t.string(),
     element: t.string(),
     flavor: t.string(),
+    power: t.string(), // word power mode (shared/wordpower.ts), '' or 'off' for elixir pricing
   },
   (ctx, a) => {
     const { r, side } = myMatch(ctx);
     const elixir = side === 0 ? r.elixir0 : r.elixir1;
-    const { design, cost, error } = priceDeploy({
+    const { design, cost, charge, extra, error } = priceDeploy({
       name: a.name,
       health: a.health,
       damage: a.damage,
@@ -316,7 +318,7 @@ export const deployTroop = spacetimedb.reducer(
       motion: a.motion as Motion,
       element: a.element as Element,
       flavor: a.flavor,
-    }, elixir);
+    }, elixir, a.description, decodeMode(a.power));
     if (error) throw new SenderError(error);
 
     // Land where the spot was locked, DEPLOY_DELAY after the lock.
@@ -330,6 +332,7 @@ export const deployTroop = spacetimedb.reducer(
     } else if (!canDeploy(side, x, y, towers)) {
       throw new SenderError('deploy on your own half');
     }
+    delay += extra;
 
     const tr = ctx.db.troop.insert({
       id: 0n,
@@ -361,7 +364,7 @@ export const deployTroop = spacetimedb.reducer(
       const { id: _id, side: _side, ...u } = newUnit(0, side, ux, uy, design, delay);
       ctx.db.unit.insert({ ...u, id: 0n, roomCode: r.code, troopId: tr.id, side });
     }
-    ctx.db.room.code.update(side === 0 ? { ...r, elixir0: r.elixir0 - cost } : { ...r, elixir1: r.elixir1 - cost });
+    ctx.db.room.code.update(side === 0 ? { ...r, elixir0: r.elixir0 - charge } : { ...r, elixir1: r.elixir1 - charge });
   }
 );
 

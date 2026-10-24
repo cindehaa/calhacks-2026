@@ -14,6 +14,7 @@ import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
 import { showTutorialOnce } from './tutorial';
+import { initWordPower } from './wordpower_ui';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const flat = new Board($<HTMLCanvasElement>('board'));
@@ -165,10 +166,14 @@ function status(msg: string, bad = false) {
   $('status').classList.toggle('bad', bad);
 }
 
+const wp = initWordPower(status); // word power: detail buys strength, time pays (P switches)
+
 // Resolves true once the server took it. On a refusal, cancels the lock and says why.
 async function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign, spriteUrl = ''): Promise<boolean> {
   try {
     await match()?.deployTroop(nonce, x, y, description, d, spriteUrl);
+    const lockedAt = drops.get(nonce)?.t.lock;
+    wp.deployed(description, lockedAt === undefined ? 0 : (performance.now() - lockedAt) / 1000);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
@@ -196,6 +201,8 @@ async function deployWithArt(nonce: number, spot: [number, number], description:
 function deployAnchor(i: number) {
   const a = ANCHORS[i];
   if (!a || match()?.status !== 'playing') return;
+  const wait = wp.gate();
+  if (wait) return void status(wait, true);
   const spot = spotOrDefault();
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
@@ -222,9 +229,16 @@ if (import.meta.env.DEV) {
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
 function beginAt(spot: [number, number]): number | null {
   if (match()?.status !== 'playing') return null;
+  const wait = wp.gate();
+  if (wait) {
+    sfx.play('buzz');
+    status(wait, true);
+    return null;
+  }
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
   drops.begin(nonce, spot, performance.now());
+  wp.live('');
   return nonce;
 }
 
@@ -237,6 +251,7 @@ function cancelAt(nonce: number, msg: string) {
 
 async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
+  wp.live(description);
   drops.heard(nonce, description, performance.now());
   const art = requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
@@ -244,7 +259,7 @@ async function designAt(nonce: number, spot: [number, number], description: stri
     const { design, cost, ms, source, early } = await designTroop(description);
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
-    status(`${design.name} (${cost}) · ${ms} ms${tags ? ` (${tags})` : ''}`);
+    status(`${design.name} (${wp.cost(description, cost)}) · ${ms} ms${tags ? ` (${tags})` : ''}`);
     void deployWithArt(nonce, spot, description, design, art);
   } catch (e) {
     cancelAt(nonce, `designer failed: ${(e as Error).message}`);
@@ -269,6 +284,7 @@ const input = new InputController(board.canvas, {
   typedText: () => $<HTMLInputElement>('descInput').value,
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
   prefetch: words => {
+    wp.live(words);
     prefetchDesign(words);
     prefetchSprite(words);
   },
@@ -333,6 +349,7 @@ function frame() {
   renderLobby();
   renderResult();
   const m = match();
+  wp.frame(m);
   if (!m) {
     $('roomInfo').textContent = '';
     board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' });

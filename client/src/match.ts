@@ -3,6 +3,7 @@
 import { TICK_HZ, type Side } from '../../shared/arena';
 import type { SimUnit } from '../../shared/sim';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from '../../shared/troop';
+import { OFF, encodeMode, type PowerMode } from '../../shared/wordpower';
 import type { Net } from './net';
 import type { DrawPending, DrawTower, DrawTroop, DrawUnit } from './render';
 
@@ -41,6 +42,7 @@ export interface MatchSource {
   readonly time: number; // match seconds elapsed
   readonly elixir: number; // yours
   readonly winner: Side | -1 | null; // -1 draw, null while undecided
+  power: PowerMode; // word power mode the deploys are priced under
   units(): MatchUnit[]; // positions already smoothed between ticks
   towers(): MatchTower[];
   troops(): Map<bigint, DrawTroop>;
@@ -82,6 +84,7 @@ export class Glide {
 // The player's room on the SpacetimeDB connection. A thin view over the subscribed tables.
 export class OnlineMatch implements MatchSource {
   private glide = new Glide();
+  power: PowerMode = OFF;
 
   constructor(readonly net: Net) {
     net.conn.db.unit.onUpdate((_ctx, _old, row) => this.glide.moved(row.id, row.x, row.y));
@@ -157,7 +160,7 @@ export class OnlineMatch implements MatchSource {
       nonce, x, y, description, name: d.name, health: d.health, damage: d.damage, attackSpeed: d.attack_speed,
       moveSpeed: d.move_speed, range: d.range, count: d.count, battleCry: d.battle_cry, voiceStyle: d.voice_style,
       spriteUrl, attack: d.attack, targets: d.targets, onHit: d.on_hit, windup: d.windup, trait: d.trait,
-      motion: d.motion, element: d.element, flavor: d.flavor,
+      motion: d.motion, element: d.element, flavor: d.flavor, power: encodeMode(this.power),
     });
   }
 

@@ -7,12 +7,15 @@ import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, typ
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, newUnit, step, type SimState } from '../../shared/sim';
 import type { TroopDesign } from '../../shared/troop';
+import { OFF, Pacer, usesPower, type PowerMode } from '../../shared/wordpower';
 import { Glide, quirkView, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
 import type { DrawPending, DrawTroop } from './render';
 
 const DT = 1 / TICK_HZ;
 const PENDING_TTL = 15; // seconds; a lock nobody followed up on (same as the server)
 const BOT: Side = 1;
+// With word power on, how much detail the bot's drops get (its anchor descriptions are short).
+const BOT_DETAIL: Record<BotLevel, [number, number]> = { easy: [0, 2], normal: [1, 5], hard: [3, 8] };
 
 interface Lock { side: Side; nonce: number; x: number; y: number; at: number } // at = sim time
 
@@ -34,6 +37,8 @@ export class LocalMatch implements MatchSource {
   private acc = 0;
   private last = 0;
   private raf = 0;
+  private pacer = new Pacer(); // the bot's word-power pacing; yours is gated in the client
+  power: PowerMode = OFF; // word power (shared/wordpower.ts); main can switch it mid-match
 
   constructor(readonly level: BotLevel = 'normal', private onLeave: () => void = () => {}, autorun = true, private rand = Math.random) {
     this.label = level === 'normal' ? 'vs Bot' : `vs Bot (${level})`;
@@ -116,6 +121,7 @@ export class LocalMatch implements MatchSource {
     this.unitTroop.clear();
     this.mem = newBotMemory();
     this.botMove = null;
+    this.pacer.reset();
     this.status = 'playing';
     this.winner = null;
   }
@@ -129,13 +135,16 @@ export class LocalMatch implements MatchSource {
       const { nonce, move } = this.botMove;
       this.botMove = null;
       const a = ANCHORS[move.anchor];
+      const [lo, hi] = BOT_DETAIL[this.level];
+      const detail = usesPower(this.power) ? lo + Math.floor(this.rand() * (hi - lo + 1)) : undefined;
       try {
-        this.deploy(BOT, nonce, move.x, move.y, a.description, a, '');
+        this.deploy(BOT, nonce, move.x, move.y, a.description, a, '', detail);
       } catch {
         this.unlock(BOT, nonce);
       }
       return;
     }
+    if (this.pacer.wait(BOT, this.s.time) > 0) return;
     const move = botDecide(this.s, BOT, this.mem, cfg, this.rand);
     if (!move) return;
     const nonce = this.nextId++;
@@ -166,9 +175,9 @@ export class LocalMatch implements MatchSource {
     return this.locks.find(l => l.side === side && l.nonce === nonce);
   }
 
-  private deploy(side: Side, nonce: number, x: number, y: number, description: string, raw: TroopDesign, spriteUrl: string) {
+  private deploy(side: Side, nonce: number, x: number, y: number, description: string, raw: TroopDesign, spriteUrl: string, detail?: number) {
     this.mustPlay();
-    const { design, cost, error } = priceDeploy(raw, this.s.elixir[side]);
+    const { design, cost, charge, extra, quote, error } = priceDeploy(raw, this.s.elixir[side], description, this.power, detail);
     if (error) throw new Error(error);
     const l = this.findLock(side, nonce);
     let delay = arrivalDelay(0);
@@ -179,6 +188,8 @@ export class LocalMatch implements MatchSource {
     } else if (!canDeploy(side, x, y, this.s.towers)) {
       throw new Error('deploy on your own half');
     }
+    delay += extra;
+    if (quote && side === BOT) this.pacer.deployed(BOT, this.s.time, quote, delay, this.power);
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, {
       name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style, flavor: design.flavor,
@@ -188,6 +199,6 @@ export class LocalMatch implements MatchSource {
       this.unitTroop.set(id, troopId);
       this.s.units.push(newUnit(id, side, ux, uy, design, delay));
     }
-    this.s.elixir[side] -= cost;
+    this.s.elixir[side] -= charge;
   }
 }

@@ -2,20 +2,29 @@
 // can't drift. Pure: callers own the rows, the clock and how errors are thrown.
 import { DEPLOY_DELAY, MIN_DEPLOY_DELAY, clampTo, deployZones, formation, zoneAt, type Side, type TowerState } from './arena';
 import { MAX_COST, price, sanitizeDesign, type TroopDesign } from './troop';
+import { OFF, empower, quote, usesPower, type PowerMode, type Quote } from './wordpower';
 
 export interface PricedDeploy {
   design: TroopDesign;
-  cost: number;
+  cost: number; // the cost pill
+  charge: number; // elixir taken; equals cost unless word power makes troops free
+  extra: number; // seconds added to the deploy delay (word power)
+  quote: Quote | null; // word power's numbers, null when it's off
   // 'too expensive: N' or 'not enough elixir: N'; the client parses N to say what it would have cost.
   error: string | null;
 }
 
-// Stats can come from anywhere (Claude, a client), so always re-clamp and re-price.
-export function priceDeploy(raw: Partial<TroopDesign>, elixir: number): PricedDeploy {
+// Stats can come from anywhere (Claude, a client), so always re-clamp and re-price. With word
+// power on, the description (not the stats) decides strength: see shared/wordpower.ts.
+export function priceDeploy(raw: Partial<TroopDesign>, elixir: number, description = '', mode: PowerMode = OFF, detail?: number): PricedDeploy {
   const design = sanitizeDesign(raw);
+  if (usesPower(mode)) {
+    const q = quote(description, mode, elixir, detail);
+    return { design: empower(design, q.budget), cost: q.budget, charge: q.charge, extra: q.extra, quote: q, error: q.error };
+  }
   const cost = price(design);
   const error = cost > MAX_COST ? `too expensive: ${cost}` : cost > elixir ? `not enough elixir: ${cost}` : null;
-  return { design, cost, error };
+  return { design, cost, charge: cost, extra: 0, quote: null, error };
 }
 
 // Troops land DEPLOY_DELAY after the lock; if generation ran long, still telegraph the drop.

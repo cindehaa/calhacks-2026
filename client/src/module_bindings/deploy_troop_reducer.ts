@@ -33,4 +33,5 @@ export default {
   motion: __t.string(),
   element: __t.string(),
   flavor: __t.string(),
+  power: __t.string(),
 };
