@@ -2,6 +2,7 @@
 // turn the camera on don't download it.
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import type { Pt2 } from './homography';
+import { sideFromLabel, type Side } from './handpick';
 import type { Landmark } from './pose';
 
 const VERSION = '0.10.14'; // keep in step with package.json
@@ -14,6 +15,7 @@ export interface HandFrame {
   world: Landmark[]; // metres, hand-centred
   vw: number;
   vh: number;
+  side: Side | null; // the player's own hand, labels already unmirrored
 }
 
 // Wrist, thumb, four fingers, palm: the usual 21-landmark skeleton, for the preview.
@@ -56,7 +58,7 @@ export class HandTracker {
     const opts = (delegate: 'GPU' | 'CPU') => ({
       baseOptions: { modelAssetPath: MODEL_URL, delegate },
       runningMode: 'VIDEO' as const,
-      numHands: 1,
+      numHands: 2, // the mic hand is seen too, so the pointing hand can be chosen over it (handpick.ts)
       minHandDetectionConfidence: 0.5,
       minHandPresenceConfidence: 0.5,
       minTrackingConfidence: 0.5,
@@ -71,15 +73,17 @@ export class HandTracker {
     this.landmarker = lmk;
   }
 
-  // Undefined when there's no new video frame yet, null when no hand is in view.
-  detect(now: number): HandFrame | null | undefined {
+  // Undefined when there's no new video frame yet, else every hand in view (up to two).
+  detect(now: number): HandFrame[] | undefined {
     const v = this.video;
     if (!this.landmarker || v.readyState < 2 || v.currentTime === this.lastVideoTime) return undefined;
     this.lastVideoTime = v.currentTime;
     this.lastTs = Math.max(now, this.lastTs + 1); // MediaPipe needs strictly rising timestamps
     const res = this.landmarker.detectForVideo(v, this.lastTs);
-    if (!res.landmarks?.length) return null;
-    return { lm: res.landmarks[0], world: res.worldLandmarks[0], vw: v.videoWidth || 1, vh: v.videoHeight || 1 };
+    return (res.landmarks ?? []).map((lm, i) => ({
+      lm, world: res.worldLandmarks[i], vw: v.videoWidth || 1, vh: v.videoHeight || 1,
+      side: sideFromLabel(res.handedness?.[i]?.[0]?.categoryName),
+    }));
   }
 
   stop(): void {

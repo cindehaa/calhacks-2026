@@ -13,6 +13,7 @@ import { sfx } from '../sfx';
 import { OneEuro } from './filter';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
 import { drawHandView } from './handview';
+import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { PinchDetector, extension, thumbDownScore } from './pose';
 import { AutoSpeech } from './cartesia_stt';
@@ -58,7 +59,7 @@ export interface DeployHow {
   transcript: string;
 }
 
-interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean }
+interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref }
 
 // A fire waiting for the recogniser to finish its last words: those from audio up to cut. The cut
 // happens FIRE_GRACE_MS after the fire (cut is Infinity until then: every word is the troop's).
@@ -106,11 +107,13 @@ export class InputController {
   readonly listeners: { signal: ((s: Signal) => void)[]; intent: ((i: Intent, ok: boolean) => void)[] } = { signal: [], intent: [] };
   private pinchT = -Infinity;
   private prefs: Prefs = {
-    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, camera: false, mic: false, mouseKeys: true,
+    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, camera: false, mic: false, mouseKeys: true, hand: 'auto',
     ...load<Partial<Prefs>>(KEYS.prefs),
   };
 
-  private hand: HandFrame | null = null;
+  private hand: HandFrame | null = null; // the control hand
+  private others: HandFrame[] = []; // hands in view that aren't (the mic hand, usually)
+  private picker = new HandPicker();
   private handCursor: Pt | null = null;
   private mouse: Pt | null = null;
   private flashes: InputView['flashes'] = [];
@@ -137,6 +140,7 @@ export class InputController {
 
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
     this.vad.o.thresholdDb = this.prefs.vadDb;
+    this.picker.pref = this.prefs.hand;
     this.speech.setGated(false); // always listening
     this.speech.onPartial = (t, e) => this.words(t, false, e);
     this.speech.onFinal = (t, e) => this.words(t, true, e);
@@ -200,6 +204,14 @@ export class InputController {
           this.publish({ kind: 'hand', t: performance.now(), visible: false });
         },
         clear: () => (this.handCursor = null),
+        // Synthetic MediaPipe frames, up to two hands: { lm, world, side: 'left' | 'right' | null }.
+        // Goes through the control-hand choice like the camera does. Returns the choice.
+        hands: (hs: Omit<HandFrame, 'vw' | 'vh'>[]) => {
+          const t = performance.now();
+          this.onHandFrames(hs.map(h => ({ vw: 1280, vh: 720, ...h })), t);
+          return { control: this.hand ? hs.findIndex(h => h.lm === this.hand!.lm) : -1, reasons: this.lastPick, cursor: this.handCursor };
+        },
+        setPref: (p: HandPref) => this.setHandPref(p),
       };
     }
     const loop = () => {
@@ -216,6 +228,19 @@ export class InputController {
   // alongside the hand, and the fallback if vision fails; Space and Esc work either way.
   get mouseKeys(): boolean {
     return this.prefs.mouseKeys;
+  }
+
+  // Which hand points: 'auto' picks it (handpick.ts), 'left' or 'right' only ever accepts that one.
+  get handPref(): HandPref {
+    return this.prefs.hand;
+  }
+
+  setHandPref(p: HandPref): void {
+    this.prefs.hand = this.picker.pref = p;
+    this.picker.reset();
+    save(KEYS.prefs, this.prefs);
+    this.el.querySelectorAll<HTMLSelectElement>('[data-act="hand"]').forEach(s => (s.value = p));
+    document.querySelectorAll<HTMLSelectElement>('select[data-hand-pref]').forEach(s => (s.value = p));
   }
 
   setMouseKeys(on: boolean): void {
@@ -277,7 +302,7 @@ export class InputController {
 
   private tick(now: number): void {
     const f = this.tracker?.detect(now);
-    if (f !== undefined) this.onHandFrame(f, now);
+    if (f !== undefined) this.onHandFrames(f, now);
     if (this.mic.on) {
       const db = this.mic.levelDb();
       const ev = this.vad.push(now, db);
@@ -297,6 +322,16 @@ export class InputController {
     this.drawOverlay();
     if (now - this.lastPanel > 250) this.renderPanel();
     else this.renderHint();
+  }
+
+  // Every hand in view: one is chosen to control (handpick.ts), the rest are ignored. Pinch and
+  // thumbs down are only measured on the control hand.
+  private lastPick: string[] = [];
+  private onHandFrames(fs: HandFrame[], now: number): void {
+    const p = this.picker.update(fs, now);
+    this.lastPick = p.reasons;
+    this.others = fs.filter((_, i) => i !== p.control);
+    this.onHandFrame(p.control >= 0 ? fs[p.control] : null, now);
   }
 
   private onHandFrame(f: HandFrame | null, now: number): void {
@@ -611,6 +646,8 @@ export class InputController {
       this.tracker?.stop();
       this.tracker = null;
       this.hand = null;
+      this.others = [];
+      this.picker.reset();
       this.resetHand();
       this.camStatus = '';
       this.remember('camera', false);
@@ -708,6 +745,7 @@ export class InputController {
         <button data-act="setup" class="ghost">Run setup again</button>
         <label><input type="checkbox" data-act="mouseKeys"> Mouse and keyboard</label>
         <label><input type="checkbox" data-act="preview"> Camera preview</label>
+        <label>Pointing hand <select data-act="hand"><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
       </div>`;
@@ -724,6 +762,7 @@ export class InputController {
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;
     q<HTMLInputElement>('mouseKeys').checked = this.prefs.mouseKeys;
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
+    q<HTMLSelectElement>('hand').value = this.prefs.hand;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
     this.el.addEventListener('click', e => {
       const b = (e.target as HTMLElement).closest('button');
@@ -743,6 +782,7 @@ export class InputController {
       const t = e.target as HTMLInputElement;
       if (t.dataset.act === 'mouseKeys') this.prefs.mouseKeys = t.checked;
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
+      if (t.dataset.act === 'hand') return this.setHandPref(t.value as HandPref);
       if (t.dataset.act === 'vadDb') this.prefs.vadDb = this.vad.o.thresholdDb = Number(t.value);
       save(KEYS.prefs, this.prefs);
       this.renderPanel();
@@ -758,7 +798,8 @@ export class InputController {
     $('.inPreview').hidden = !this.tracker || !this.prefs.preview;
     this.handView.hidden = !this.tracker;
     const pose = this.thumbDown >= THUMB_DOWN.score ? 'thumbs down' : this.hand ? `fingers ${extension(this.hand.world).toFixed(1)}` : '';
-    const cam = this.tracker ? this.camStatus || (this.hand ? `hand · ${pose}` : 'no hand in view') : '';
+    const ignored = this.others.length ? ` · ${this.others.length} ignored` : '';
+    const cam = this.tracker ? this.camStatus || (this.hand ? `hand${this.hand.side ? ` (${this.hand.side})` : ''} · ${pose}${ignored}` : this.others.length ? 'no pointing hand' : 'no hand in view') : '';
     const mic = this.mic.on ? `${this.vad.level.toFixed(0)} dB${this.vad.speaking ? ' · speaking' : ''} · ${this.heard}` : this.heard;
     $('.inStatus').textContent = [cam, mic].filter(Boolean).join('\n');
     $('[data-val="vadDb"]').textContent = `${this.prefs.vadDb} dB`;
@@ -837,17 +878,30 @@ export class InputController {
       g.stroke();
       g.setLineDash([]);
     }
+    const bones = (lm: HandFrame['lm']) => {
+      g.beginPath();
+      for (const [a, b] of HAND_CONNECTIONS) {
+        g.moveTo((1 - lm[a].x) * w, lm[a].y * h);
+        g.lineTo((1 - lm[b].x) * w, lm[b].y * h);
+      }
+      g.stroke();
+    };
+    // Ignored hands (the mic hand): a dim dashed outline, so it's clear they don't count.
+    g.strokeStyle = 'rgba(255,255,255,0.28)';
+    g.lineWidth = 1;
+    g.setLineDash([3, 3]);
+    for (const o of this.others) bones(o.lm);
+    g.setLineDash([]);
     const lm = this.hand?.lm;
     if (!lm) return;
     const P = (i: number): Pt2 => [(1 - lm[i].x) * w, lm[i].y * h];
-    g.strokeStyle = 'rgba(255,255,255,0.8)';
+    // The control hand: a soft green glow under the skeleton.
+    g.strokeStyle = 'rgba(74,222,128,0.35)';
+    g.lineWidth = 5;
+    bones(lm);
+    g.strokeStyle = 'rgba(255,255,255,0.9)';
     g.lineWidth = 1.5;
-    g.beginPath();
-    for (const [a, b] of HAND_CONNECTIONS) {
-      g.moveTo(...P(a));
-      g.lineTo(...P(b));
-    }
-    g.stroke();
+    bones(lm);
     const state = this.cursorState(performance.now());
     g.fillStyle = state === 'fire' ? '#4aa3ff' : state === 'cancel' ? '#fbbf24' : '#ff5d6c';
     g.beginPath();

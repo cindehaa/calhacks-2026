@@ -17,6 +17,10 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   const el = document.getElementById('setup')!;
   const q = <T extends HTMLElement = HTMLElement>(sel: string) => el.querySelector<T>(sel)!;
   input.attachPreview(q<HTMLCanvasElement>('.setupCam canvas'));
+  // Which hand points (the other may be holding the mic): remembered with the input prefs.
+  const handSel = q<HTMLSelectElement>('select[data-hand-pref]');
+  handSel.value = input.handPref;
+  handSel.addEventListener('change', () => input.setHandPref(handSel.value as 'auto' | 'left' | 'right'));
   let raf = 0;
   let asking = false; // waiting on the browser's permission prompt
 
