@@ -3,7 +3,7 @@
 
 export type SfxName =
   | 'deploy' | 'incoming' | 'land' | 'hit' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
-  | 'count' | 'fight' | 'double' | 'win' | 'lose' | 'slam' | 'zap' | 'whoosh';
+  | 'count' | 'fight' | 'double' | 'win' | 'lose' | 'slam' | 'zap' | 'whoosh' | 'boom' | 'puff' | 'stun';
 
 const MUTE_KEY = 'arena.muted';
 const VOLUME = 0.35;
@@ -11,7 +11,7 @@ const VOLUME = 0.35;
 // Minimum gap between two plays of the same sound, in seconds. Keeps swarms from roaring.
 const GAP: Partial<Record<SfxName, number>> = {
   hit: 0.06, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3,
-  slam: 0.1, zap: 0.1, whoosh: 0.08,
+  slam: 0.1, zap: 0.1, whoosh: 0.08, boom: 0.12, puff: 0.15, stun: 0.12,
 };
 
 function readMuted(): boolean {
@@ -129,6 +129,18 @@ class Sfx {
         break;
       case 'whoosh': // slash or breath
         this.noiseHit(ac, out, t, 0.16, 0.22, 'bandpass', 1800, 600, 1.2);
+        break;
+      case 'boom': // death burst: short low blast
+        this.tone(ac, out, t, 'sine', 140, 35, 0.35, 0.8);
+        this.noiseHit(ac, out, t, 0.4, 0.5, 'lowpass', 2400, 160, 0.8);
+        break;
+      case 'puff': // spawner minion: soft pop
+        this.noiseHit(ac, out, t, 0.12, 0.2, 'bandpass', 1200, 500, 1);
+        this.tone(ac, out, t, 'sine', 300, 520, 0.08, 0.12);
+        break;
+      case 'stun': // stun lands: bright ding
+        this.tone(ac, out, t, 'triangle', 1760, 1500, 0.18, 0.18);
+        this.tone(ac, out, t + 0.04, 'triangle', 2350, 2000, 0.14, 0.1);
         break;
       case 'count':
         this.tone(ac, out, t, 'triangle', 660, 660, 0.14, 0.35);

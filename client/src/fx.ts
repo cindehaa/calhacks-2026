@@ -4,7 +4,7 @@
 import { COUNTDOWN, DOUBLE_ELIXIR_AT, TOWER_RADIUS, UNIT_RADIUS } from '../../shared/arena';
 import type { DrawQuirks, DrawTower, DrawUnit, View } from './render';
 import { sfx } from './sfx';
-import { anticipation, elementColors, hitInterval } from './tokens';
+import { anticipation, elementColors, hitInterval, inPose } from './tokens';
 
 type ToScreen = (x: number, y: number) => [number, number];
 
@@ -49,6 +49,10 @@ interface UTrack {
   element: string;
   windup: boolean;
   windupFrac: number; // 0..1 from the sim's windupT, -1 when the feed doesn't carry it
+  trait: string;
+  stunT: number; // last seen, to catch a new stun
+  burnAcc: number; // particle emission accumulators (particles owed this frame)
+  dustAcc: number;
 }
 
 interface TTrack { side: number; x: number; y: number; hp: number; seq: number; seen: number; flashAt: number; downAt: number }
@@ -185,7 +189,10 @@ export class Fx {
           seen: this.frame, seed: Number(u.id % 997n), landedAt: u.delay > 0 ? -1 : now - 10, flashAt: -10,
           hitAt: -1, interval: 0, tdx: 0, tdy: u.side === 0 ? 1 : -1, ranged: (u.range ?? 1) > 1, phase: 0, moving: 0,
           vx: 0, vy: 0, motion: 'other', element: 'none', windup: false, windupFrac: -1,
+          trait: quirks(u).trait ?? 'none', stunT: quirks(u).stunT ?? 0, burnAcc: 0, dustAcc: 0,
         };
+        // A unit that pops up on the ground next to a friendly spawner is its minion.
+        if (live && u.delay <= 0.3 && this.frame > 1 && this.nearSpawner(t)) this.spawnPuff(t, now);
         this.units.set(u.id, t);
         continue;
       }
@@ -194,11 +201,14 @@ export class Fx {
       t.element = q.element ?? 'none';
       t.windup = !!q.windup;
       t.windupFrac = q.windupT !== undefined ? Math.min(1, Math.max(0, q.windupT / 0.8)) : -1;
+      t.trait = q.trait ?? 'none';
       if (live) {
         if (t.delay > 0 && u.delay <= 0) this.land(t, now);
         if (u.hp < t.hp - 0.01) this.hurt(u.id, t, t.hp - u.hp, u.side === v.mySide, now);
         if (u.attackSeq !== undefined && u.attackSeq > t.seq && u.delay <= 0) this.attack(t, u, v, now);
+        if (u.delay <= 0) this.statusFx(t, q, now);
       }
+      t.stunT = q.stunT ?? 0;
       const d = Math.hypot(u.x - t.x, u.y - t.y);
       t.phase += d * 5.5;
       const target = d > 0.0015 ? 1 : 0;
@@ -214,7 +224,10 @@ export class Fx {
     }
     for (const [id, t] of this.units) {
       if (t.seen === this.frame) continue;
-      if (live && t.delay <= 0) this.poof(t);
+      if (live && t.delay <= 0) {
+        this.poof(t);
+        if (t.trait === 'death_burst') this.burst(t);
+      }
       this.units.delete(id);
     }
   }
@@ -385,6 +398,74 @@ export class Fx {
       pts.push(x0 + (dx * i) / 4 + nx * o, y0 + (dy * i) / 4 + ny * o);
     }
     pts.push(x1, y1);
+  }
+
+  // Tier 2/3 status effects that emit while they last: flames while burning, dust behind a
+  // charging unit, and a flash with sparks when a stun lands. Rates are per second.
+  private statusFx(t: UTrack, q: DrawQuirks, now: number): void {
+    const dt = this.dt, n = this.reduced ? 0.4 : 1;
+    const z = t.trait === 'flying' ? 0.65 : 0.15;
+    if ((q.burnT ?? 0) > 0) {
+      t.burnAcc += dt * 14 * n;
+      for (; t.burnAcc >= 1; t.burnAcc--) {
+        const c = Math.random();
+        this.particle(t.x + (Math.random() - 0.5) * 0.45, t.y + (Math.random() - 0.5) * 0.2, z + Math.random() * 0.2,
+          (Math.random() - 0.5) * 0.3, 0, 1.6 + Math.random(), 0.4 + Math.random() * 0.2, 0.06 + Math.random() * 0.05,
+          c < 0.4 ? '#ff5a1f' : c < 0.8 ? '#ff9a2a' : '#ffe08a', 0);
+      }
+    } else t.burnAcc = 0;
+    if ((q.chargeDist ?? 0) >= 2 && t.moving > 0.3) {
+      t.dustAcc += dt * 18 * n;
+      const v = Math.hypot(t.vx, t.vy) || 1;
+      for (; t.dustAcc >= 1; t.dustAcc--) {
+        this.particle(t.x - (t.vx / v) * 0.35 + (Math.random() - 0.5) * 0.3, t.y - (t.vy / v) * 0.35, 0.04,
+          -(t.vx / v) * (0.6 + Math.random() * 0.6), -(t.vy / v) * (0.6 + Math.random() * 0.6), 0.4, 0.45, 0.1 + Math.random() * 0.06, COLORS.dust, 0);
+      }
+    } else t.dustAcc = 0;
+    if ((q.stunT ?? 0) > t.stunT + 0.05) {
+      t.flashAt = now;
+      for (let i = 0; i < 7 * n; i++) {
+        const a = Math.random() * Math.PI * 2, s = 1.5 + Math.random() * 1.5;
+        this.particle(t.x, t.y, z + 0.3, Math.cos(a) * s, Math.sin(a) * s, 2, 0.35, 0.05, i % 2 ? '#fff27a' : '#ffffff', 2);
+      }
+      sfx.play('stun');
+    }
+  }
+
+  private nearSpawner(n: UTrack): boolean {
+    for (const t of this.units.values()) {
+      if (t.trait === 'spawner' && t.side === n.side && t.delay <= 0 && Math.hypot(t.x - n.x, t.y - n.y) < 1.6) return true;
+    }
+    return false;
+  }
+
+  // A spawner's minion appears: a puff of smoke and a small ring.
+  private spawnPuff(t: UTrack, now: number): void {
+    t.landedAt = now; // gets the landing squash
+    const color = t.side === this.mySide ? COLORS.mineLight : COLORS.theirsLight;
+    this.ring(t.x, t.y, 0.15, 0.75, 0.3, color, 2);
+    const n = this.reduced ? 3 : 8;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.5, s = 0.8 + Math.random() * 0.8;
+      this.particle(t.x, t.y, 0.15, Math.cos(a) * s, Math.sin(a) * s, 0.5, 0.5, 0.14 + Math.random() * 0.08, i % 2 ? '#d9deef' : color, 0);
+    }
+    sfx.play('puff');
+  }
+
+  // death_burst: the unit explodes on death, out to the 1.5-tile damage radius.
+  private burst(t: UTrack): void {
+    const el = elementColors(t.element);
+    const main = el?.[0] ?? '#ff8a2a', light = el?.[1] ?? '#ffe08a';
+    this.ring(t.x, t.y, 0.3, 1.5, 0.4, light, 5);
+    this.ring(t.x, t.y, 0.2, 1.2, 0.3, main, 3);
+    const n = this.reduced ? 8 : 22;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 3;
+      this.particle(t.x, t.y, 0.3, Math.cos(a) * s, Math.sin(a) * s, 1 + Math.random() * 2, 0.4 + Math.random() * 0.3,
+        0.12 + Math.random() * 0.12, i % 3 === 0 ? light : main, i % 4 === 0 ? 2 : 0);
+    }
+    if (!this.reduced) this.kick(5, 0.3);
+    sfx.play('boom');
   }
 
   private kick(amp: number, dur: number): void {
@@ -672,6 +753,12 @@ export class Fx {
     return !!t && t.hitAt >= 0 && this.now - t.hitAt < window;
   }
 
+  // Show the attack-pose frame now: just before and up to 200 ms after each strike.
+  posing(id: bigint): boolean {
+    const t = this.units.get(id);
+    return !!t && t.delay <= 0 && inPose(this.now, t.hitAt, t.interval);
+  }
+
   landedAge(id: bigint): number {
     const t = this.units.get(id);
     return t && t.landedAt >= 0 ? this.now - t.landedAt : -1;
@@ -699,6 +786,20 @@ export class Fx {
   // Under the units: impact rings.
   drawGround(g: CanvasRenderingContext2D, toScreen: ToScreen, T: number): void {
     const now = this.now;
+    // heal_aura: a soft green disc out to its 2-tile reach, pulsing once a second.
+    for (const t of this.units.values()) {
+      if (t.trait !== 'heal_aura' || t.delay > 0) continue;
+      const [sx, sy] = toScreen(t.x, t.y);
+      const p = (now + t.seed * 0.01) % 1;
+      g.fillStyle = '#6fe08a';
+      g.globalAlpha = 0.07 + 0.04 * Math.sin(p * Math.PI);
+      g.beginPath(); g.ellipse(sx, sy, 2 * T, 2 * T * 0.8, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#8af0a2';
+      g.lineWidth = 2;
+      g.globalAlpha = 0.45 * (1 - p);
+      g.beginPath(); g.ellipse(sx, sy, 2 * T * (0.3 + 0.7 * p), 2 * T * 0.8 * (0.3 + 0.7 * p), 0, 0, Math.PI * 2); g.stroke();
+    }
+    g.globalAlpha = 1;
     for (const r of this.rings) {
       const p = (now - r.t0) / r.dur;
       const e = 1 - (1 - p) * (1 - p);

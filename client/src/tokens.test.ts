@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANTICIPATION, anticipation, elementColors, hitInterval } from './tokens';
+import { ANTICIPATION, anticipation, elementColors, hitInterval, inPose } from './tokens';
 
 test('the wind-up starts 150 ms before the predicted hit and is full on it', () => {
   assert.equal(anticipation(10.5, 10, 1), 0);
@@ -24,4 +24,12 @@ test('elements colour effects; none keeps team colours', () => {
   assert.equal(elementColors('none'), null);
   assert.equal(elementColors(undefined), null);
   assert.equal(elementColors('fire')?.[0], '#ff8a2a');
+});
+
+test('the pose frame shows around each strike only', () => {
+  assert.equal(inPose(10, -1, 1), false); // never hit
+  assert.equal(inPose(10.1, 10, 1), true); // just struck
+  assert.equal(inPose(10.5, 10, 1), false); // between hits: base sprite
+  assert.equal(inPose(10.97, 10, 1), true); // about to strike again
+  assert.equal(inPose(12, 10, 1), false); // stopped fighting
 });

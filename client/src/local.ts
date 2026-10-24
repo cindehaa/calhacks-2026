@@ -82,6 +82,12 @@ export class LocalMatch implements MatchSource {
     if (this.status !== 'playing') return;
     this.runBot();
     const res = step(this.s, dt);
+    // Spawner minions join their spawner's troop, under an id from our own counter.
+    for (const { unit, parentId } of res.spawned) {
+      unit.id = this.nextId++;
+      const troopId = this.unitTroop.get(parentId);
+      if (troopId !== undefined) this.unitTroop.set(unit.id, troopId);
+    }
     for (const id of res.deadUnitIds) {
       this.unitTroop.delete(id);
       this.glide.drop(BigInt(id));
@@ -175,7 +181,7 @@ export class LocalMatch implements MatchSource {
     }
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, {
-      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style,
+      name: design.name, cost, spriteUrl: spriteUrl.slice(0, 2048), description, battleCry: design.battle_cry, voiceStyle: design.voice_style, flavor: design.flavor,
     });
     for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
       const id = this.nextId++;

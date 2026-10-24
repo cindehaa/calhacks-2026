@@ -4,7 +4,8 @@ import { keyBackground } from './chroma';
 import type { DropView } from './drops';
 import { drawInput, type InputView } from './input/draw';
 import { Fx, quirks, roundRect, towerKey } from './fx';
-import { glyphImage, sizeScale, troopGlyph } from './tokens';
+import { poseFrame } from './sprites';
+import { glyphImage, sizeScale, tinted, troopGlyph } from './tokens';
 
 export interface DrawUnit {
   id: bigint;
@@ -30,14 +31,20 @@ export interface DrawQuirks {
   windup?: boolean;
   windupT?: number; // seconds charged toward the current hit, 0..0.8
   attackSpeed?: number; // hits per second, for predicting the next hit
+  onHit?: string; // none | burn | slow | stun
+  burnT?: number; // status timers, seconds left; > 0 while active
   slowT?: number;
+  stunT?: number;
+  shield?: number; // shield hp left, of maxShield
+  maxShield?: number;
+  chargeDist?: number; // tiles moved since the last hit; charged at 2
   lastTargetX?: number; // where the latest hit landed
   lastTargetY?: number;
   chainXs?: number[]; // extra chain hops of the latest hit
   chainYs?: number[];
 }
 export interface DrawTower { side: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
-export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; battleCry?: string; voiceStyle?: string }
+export interface DrawTroop { name: string; cost: number; spriteUrl: string; description?: string; battleCry?: string; voiceStyle?: string; flavor?: string }
 export interface DrawPending { side: number; x: number; y: number; age: number }
 
 export interface View {
@@ -366,6 +373,7 @@ export class Board {
         for (let i = 2; i >= 1; i--) this.drawBody(u, troop, mine, bx + a.smx * i, by + a.smy * i, r, a.sx, a.sy, a.rot, alpha * 0.22 * a.smear, 0, k);
       }
       this.drawBody(u, troop, mine, bx, by, r, a.sx, a.sy, a.rot, alpha, a.flash, k);
+      if (!air) this.drawStatus(q, bx, by, r, now, Number(u.id % 13n));
 
       if (!air && u.hp < u.maxHp) this.bar(sx - r, sy - r - 6 + a.dy * 0.5 - fly, 2 * r, 3, u.hp / u.maxHp, team);
       const top = lift + fly;
@@ -399,19 +407,34 @@ export class Board {
     g.translate(x, y);
     if (rot) g.rotate(rot);
     g.scale(scx, scy);
-    const img = troop?.spriteUrl ? this.sprite(troop.spriteUrl) : null;
+    const base = troop?.spriteUrl ? this.sprite(troop.spriteUrl) : null;
+    // Motion layer 2: once the base sprite is in, ask for the attack-pose frame (one request per
+    // troop description, cached) and swap it in around each strike.
+    const pose = base && troop?.description ? poseFrame(troop.description, troop.flavor ?? '') : null;
+    const img = pose && this.fx.posing(u.id) ? pose : base;
+    const slowed = (quirks(u).slowT ?? 0) > 0;
     if (img) {
       g.strokeStyle = team;
       g.lineWidth = 2;
       g.beginPath();
       g.ellipse(0, r * 0.75, r * 0.95, r * 0.38, 0, 0, Math.PI * 2);
       g.stroke();
+      // Fit the longer side to the sprite box, feet on the same line, so a wide pose doesn't stretch.
       const s = r * 2.9;
-      g.drawImage(img, -s / 2, -s * 0.62, s, s);
+      const iw = (img as HTMLImageElement).naturalWidth || (img as HTMLCanvasElement).width || 1;
+      const ih = (img as HTMLImageElement).naturalHeight || (img as HTMLCanvasElement).height || 1;
+      const w = s * iw / Math.max(iw, ih), h = s * ih / Math.max(iw, ih);
+      const x0 = -w / 2, y0 = s * 0.38 - h;
+      g.drawImage(img, x0, y0, w, h);
+      if (slowed) {
+        g.globalAlpha = alpha * 0.45;
+        g.drawImage(tinted(img, '#4f9dff'), x0, y0, w, h);
+        g.globalAlpha = alpha;
+      }
       if (flash > 0) {
         g.globalCompositeOperation = 'lighter';
         g.globalAlpha = alpha * flash * 0.9;
-        g.drawImage(img, -s / 2, -s * 0.62, s, s);
+        g.drawImage(img, x0, y0, w, h);
       }
     } else {
       g.fillStyle = mine ? C.mineDark : C.theirsDark;
@@ -431,6 +454,14 @@ export class Board {
       const c = glyphImage(glyph, r * 1.3);
       const w = c.width / k;
       g.drawImage(c, -w / 2, -w / 2, w, w);
+      if (slowed) {
+        g.globalAlpha = alpha * 0.4;
+        g.fillStyle = '#4f9dff';
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 2);
+        g.fill();
+        g.globalAlpha = alpha;
+      }
       if (flash > 0) {
         g.globalAlpha = alpha * flash * 0.85;
         g.fillStyle = '#ffffff';
@@ -440,6 +471,45 @@ export class Board {
       }
     }
     g.restore();
+  }
+
+  // Status overlays on a landed unit's body at (x, y): the shield ring (its arc is the shield
+  // left) and stun stars circling the head. Flames, dust and the heal pulse come from Fx.
+  private drawStatus(q: DrawQuirks, x: number, y: number, r: number, now: number, seed: number): void {
+    const g = this.ctx;
+    const max = q.maxShield ?? 0, sh = q.shield ?? 0;
+    if (max > 0 && sh > 0) {
+      const R = r * 1.28, frac = Math.min(1, sh / max);
+      g.save();
+      g.strokeStyle = '#bfe8ff';
+      g.lineWidth = 2;
+      g.globalAlpha = 0.25;
+      g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.stroke();
+      g.globalAlpha = 0.9;
+      g.lineWidth = 2.5;
+      g.lineCap = 'round';
+      g.beginPath(); g.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); g.stroke();
+      g.restore();
+    }
+    if ((q.stunT ?? 0) > 0) {
+      g.save();
+      g.fillStyle = '#fff27a';
+      const hy = y - r * 1.15;
+      for (let i = 0; i < 3; i++) {
+        const a = now * 6 + seed + (i / 3) * Math.PI * 2;
+        const sx = x + Math.cos(a) * r * 0.7, sy = hy + Math.sin(a) * r * 0.22;
+        const s = Math.max(2.5, r * 0.22) * (0.8 + 0.2 * Math.sin(a));
+        g.globalAlpha = 0.65 + 0.35 * Math.sin(a);
+        g.beginPath(); // four-point sparkle
+        g.moveTo(sx, sy - s);
+        g.quadraticCurveTo(sx, sy, sx + s, sy);
+        g.quadraticCurveTo(sx, sy, sx, sy + s);
+        g.quadraticCurveTo(sx, sy, sx - s, sy);
+        g.quadraticCurveTo(sx, sy, sx, sy - s);
+        g.fill();
+      }
+      g.restore();
+    }
   }
 
   // Cost pills on each troop's lead unit, and one name per troop that dodges the others.

@@ -408,10 +408,18 @@ export const tick = spacetimedb.reducer({ onSchedule: matchTimer }, { timer: mat
 
   const byId = new Map(unitRows.map(u => [Number(u.id), u]));
   for (const id of res.deadUnitIds) ctx.db.unit.id.delete(byId.get(id)!.id);
+  const born = new Set(res.spawned.map(b => b.unit));
   for (const u of state.units) {
+    if (born.has(u)) continue;
     const row = byId.get(u.id)!;
     const { id: _id, side: _side, ...state } = u;
     ctx.db.unit.id.update({ ...row, ...state });
+  }
+  // Spawner minions belong to their spawner's troop; the row id comes from autoInc.
+  for (const { unit, parentId } of res.spawned) {
+    const parent = byId.get(parentId)!;
+    const { id: _id, side: _side, ...u } = unit;
+    ctx.db.unit.insert({ ...u, id: 0n, roomCode: r.code, troopId: parent.troopId, side: unit.side });
   }
   const towerById = new Map(towerRows.map(tw => [Number(tw.id), tw]));
   for (const tw of state.towers) {
