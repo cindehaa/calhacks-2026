@@ -22,7 +22,6 @@ export function initSetup(input: InputController, onClose: () => void): { open()
 
   function open(first = false) {
     el.hidden = false;
-    input.listenFreely(true);
     q('[data-act="skip"]').textContent = first ? 'Skip, use mouse and keys' : 'Close';
     cancelAnimationFrame(raf);
     render();
@@ -31,7 +30,6 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   function close(how: string) {
     logEvent(`setup:${how}`);
     el.hidden = true;
-    input.listenFreely(false);
     cancelAnimationFrame(raf);
     markDone();
     onClose();
@@ -68,7 +66,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   function render() {
     raf = requestAnimationFrame(render);
     const s = input.setupState();
-    // The mic is what matters: without a camera, Space or the mouse stands in for the pinch.
+    // The mic is what matters: without a camera, Space or a click stands in for the flick.
     const devicesOk = s.cameraReady && s.mic;
     const starting = s.camera && !s.cameraReady;
     const errors = [s.camStatus, s.micStatus].filter(m => m.includes('failed'));
@@ -77,7 +75,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
       asking ? 'allow the camera and mic when the browser asks'
       : starting ? s.camStatus
       : devicesOk ? 'camera and mic are on'
-      : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: hold Space or the mouse to talk`
+      : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: say a troop, then click or press Space to send it`
       : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
       : 'aim with your hand, speak to summon');
     const dev = q<HTMLButtonElement>('[data-act="devices"]');

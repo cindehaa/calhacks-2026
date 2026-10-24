@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FlickDetector } from './flick';
-import type { Landmark } from './pinch';
+import type { Landmark } from './pose';
 
 // An upright hand 100 px tall in a 640×480 frame; dy moves the fingertips, wy moves the whole hand.
 function hand(dy: number, wy = 0): Landmark[] {

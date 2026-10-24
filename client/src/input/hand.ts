@@ -2,7 +2,7 @@
 // turn the camera on don't download it.
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import type { Pt2 } from './homography';
-import type { Landmark } from './pinch';
+import type { Landmark } from './pose';
 
 const VERSION = '0.10.14'; // keep in step with package.json
 const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}/wasm`;
@@ -22,18 +22,9 @@ export const HAND_CONNECTIONS: [number, number][] = [
   [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
 ];
 
-// Which part of the hand aims. The knuckle is steadier than the fingertip and barely moves in a
-// pinch; the palm centre (wrist and the four knuckles) moves least of all when fingers do things.
-export type AimPoint = 'knuckle' | 'tip' | 'palm';
-const AIM_LANDMARKS: Record<AimPoint, number[]> = { knuckle: [5], tip: [8], palm: [0, 5, 9, 13, 17] };
-
-// Mirrored so moving your hand right moves the cursor right.
-export function pointerOf(lm: Landmark[], aim: AimPoint = 'knuckle'): Pt2 {
-  const ids = AIM_LANDMARKS[aim];
-  const x = ids.reduce((s, i) => s + lm[i].x, 0) / ids.length;
-  const y = ids.reduce((s, i) => s + lm[i].y, 0) / ids.length;
-  return [1 - x, y];
-}
+// The index fingertip aims, whatever the rest of the hand is doing. Mirrored so moving your hand
+// right moves the cursor right.
+export const pointerOf = (lm: Landmark[]): Pt2 => [1 - lm[8].x, lm[8].y];
 
 export class HandTracker {
   readonly video: HTMLVideoElement;
