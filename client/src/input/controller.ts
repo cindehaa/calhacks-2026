@@ -5,7 +5,7 @@
 // clicking the board with words waiting: the troop goes where you were pointing just before.
 // Close your hand into a fist, press Esc or say "cancel" to throw the words away. Typed text,
 // number keys and click-to-type work as before.
-import { drawCursor, MISS_MS, type CursorState, type InputView } from './draw';
+import { drawCursor, drawDwell, MISS_MS, type CursorState, type InputView } from './draw';
 import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
 import { OneEuro } from './filter';
@@ -19,6 +19,7 @@ import { chooseDescription, isCancel, isMismatch, Transcript } from './speech';
 import { KEYS, load, save } from './store';
 import { CursorHistory, type Pt } from './trail';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
+import { activateUi, menuBack, menuMode, menuPointer } from './menus';
 import './input.css';
 
 type Spot = [number, number]; // world coords
@@ -134,14 +135,32 @@ export class InputController {
     const typing = (t: EventTarget | null) =>
       (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) && !idleBox(t);
     addEventListener('keydown', e => {
-      if (e.key === 'Escape') this.clear('key');
-      else if (e.code === 'Space' && !typing(e.target)) {
+      if (e.key === 'Escape') {
+        this.clear('key');
+        if (this.menus()) menuBack();
+      } else if (e.code === 'Space' && !typing(e.target)) {
         e.preventDefault(); // no page scroll, no clicking a focused button
         if (idleBox(e.target)) (e.target as HTMLInputElement).blur();
-        if (!e.repeat) this.fire(this.cursor(), 'key');
+        if (e.repeat) return;
+        // On a menu Space clicks the button under the hand or mouse, else the focused or main one.
+        if (this.menus()) activateUi(this.handCursor, { fallback: true, playing: this.host.playing() });
+        else this.fire(this.cursor(), 'key');
       }
     });
     this.mountUi();
+    // Dev builds: drive the hand cursor without a camera (window.__hand.move(x, y), .flick(),
+    // .clear()), for headless checks of the menus.
+    if (import.meta.env.DEV) {
+      (window as unknown as { __hand: unknown }).__hand = {
+        move: (x: number, y: number) => (this.handCursor = { x, y }),
+        flick: () => {
+          if (!this.handCursor) return;
+          this.flickT = performance.now();
+          this.flicked(this.handCursor);
+        },
+        clear: () => (this.handCursor = null),
+      };
+    }
     const loop = () => {
       requestAnimationFrame(loop);
       this.tick(performance.now());
@@ -204,7 +223,7 @@ export class InputController {
     const playing = this.host.playing(), at = this.cursor();
     const words = this.firing ? '' : this.prompt.text;
     return {
-      cursor: this.handCursor && playing ? { ...this.handCursor, state: this.cursorState(performance.now()) }
+      cursor: this.handCursor && playing && !this.menus() ? { ...this.handCursor, state: this.cursorState(performance.now()) }
         : this.lostCursor && playing && performance.now() - this.lostAt < FADE_MS ? { ...this.lostCursor, state: 'open', fade: 1 - (performance.now() - this.lostAt) / FADE_MS } : null,
       prompt: playing && at && (words || this.vad.speaking) ? { x: at.x, y: at.y, text: words, speaking: this.vad.speaking } : null,
       flashes: this.flashes,
@@ -224,6 +243,7 @@ export class InputController {
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
     this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
+    menuPointer.update(now, this.handCursor, this.host.playing());
     // Once the countdown is over, so it isn't missed under the versus card.
     if (this.fellBack && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) {
       this.fellBack = false;
@@ -251,11 +271,18 @@ export class InputController {
     const onset = this.flicker.update(now, f.lm, f.vw, f.vh);
     if (onset !== null && this.fist.allowsFlick(now)) {
       this.flickT = now;
-      const aim = this.trail.at(onset) ?? this.handCursor;
+      this.flicked(this.trail.at(onset) ?? this.handCursor);
+    }
+    this.drawPreviews();
+  }
+
+  // On a menu a flick clicks the button the hand is on; in a match it fires, as before.
+  private flicked(aim: Pt): void {
+    if (this.menus()) activateUi(aim, { playing: this.host.playing() });
+    else {
       this.noteSlip(aim);
       this.fire(aim, 'flick');
     }
-    this.drawPreviews();
   }
 
   // The hand left the camera (or the camera stopped): the cursor fades where it was, and after a
@@ -275,6 +302,11 @@ export class InputController {
     this.trail.clear();
     this.flicker.reset();
     this.fist.reset();
+  }
+
+  // The hand works the menus (home, setup, dialogs, result) rather than aiming troops.
+  private menus(): boolean {
+    return menuMode(this.host.playing());
   }
 
   private cursor(): Pt | null {
@@ -470,9 +502,10 @@ export class InputController {
   }
 
   private drawOverlay(): void {
-    // The board draws the cursor during a match; in the lobby and the setup screen it's drawn
-    // here, above everything.
-    const p = this.handCursor && !this.host.playing() ? this.handCursor : null;
+    // The board draws the cursor during a match; on menus (the lobby, setup, a dialog over the
+    // match) it's drawn here, above everything, with the dwell ring filling round it.
+    const now = performance.now(), dwell = menuPointer.dwellProgress(now);
+    const p = this.handCursor && (!this.host.playing() || this.menus() || dwell > 0) ? this.handCursor : null;
     if (!p && !this.overlayDrawn) return;
     const c = this.overlay, dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
     if (c.width !== w * dpr || c.height !== h * dpr) {
@@ -482,7 +515,8 @@ export class InputController {
     const g = c.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
-    if (p) drawCursor(g, p.x, p.y, this.cursorState(performance.now()));
+    if (p && (!this.host.playing() || this.menus())) drawCursor(g, p.x, p.y, this.cursorState(now));
+    if (p && dwell > 0) drawDwell(g, p.x, p.y, dwell);
     this.overlayDrawn = !!p;
   }
 

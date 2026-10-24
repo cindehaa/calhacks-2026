@@ -47,7 +47,7 @@
     <div class="titleInner">
       <h1 class="wordmark">Arena</h1>
       <p class="tagline">Say a troop. Watch it fight.</p>
-      <button id="enterBtn" class="pressStart">Press any key</button>
+      <button id="enterBtn" data-primary class="pressStart">Press any key</button>
     </div>
   </div>
 
@@ -87,7 +87,7 @@
 
     <div class="orders">
       <div class="orderSide">
-        <button id="botBtn" class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Practice</b><small>Play against the bot</small></span></button>
+        <button id="botBtn" data-primary class="slab stone small"><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><b>Practice</b><small>Play against the bot</small></span></button>
         <div id="botLevel" class="levels" role="radiogroup" aria-label="Bot difficulty">
           <button role="radio" data-level="easy">Easy</button><button role="radio" data-level="normal">Normal</button><button role="radio" data-level="hard">Hard</button>
         </div>
@@ -118,7 +118,7 @@
       <div class="houses">
         <div class="houseMe" id="slotMe"></div><span class="vs">VS</span><div class="houseFoe" id="slotFoe"></div>
       </div>
-      <button id="startBtn" class="slab amber wide" disabled><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>Start match</b><small id="startSub">Waiting for your friend to join</small></span></span></button>
+      <button id="startBtn" data-primary class="slab amber wide" disabled><span class="face"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b>Start match</b><small id="startSub">Waiting for your friend to join</small></span></span></button>
       <div class="gDivider"><i></i><span class="gLabel muted">Or join a friend’s room</span><i></i></div>
       <form id="joinForm" class="codeRow" autocomplete="off">
         <div class="codeSlabs"><input class="codeIn" maxlength="1" aria-label="Code letter 1" spellcheck="false"><input class="codeIn" maxlength="1" aria-label="Code letter 2" spellcheck="false"><input class="codeIn" maxlength="1" aria-label="Code letter 3" spellcheck="false"><input class="codeIn" maxlength="1" aria-label="Code letter 4" spellcheck="false"></div>
@@ -138,7 +138,7 @@
     <div class="gPanel menuPanel"><div class="gFace">
       <h2 id="pauseTitle">Paused</h2>
       <p class="sub" id="pauseDetail"></p>
-      <button id="resumeBtn" class="slab amber"><span class="face"><b>Resume</b></span></button>
+      <button id="resumeBtn" data-primary class="slab amber"><span class="face"><b>Resume</b></span></button>
       <button id="restartBtn" class="slab stone"><span class="face"><b>Restart match</b></span></button>
       <button id="quitBtn" class="slab stone"><span class="face"><b>Quit to home</b></span></button>
     </div></div>
@@ -148,7 +148,7 @@
     <div class="gPanel menuPanel"><div class="gFace">
       <h2 id="forfeitTitle">Forfeit this match?</h2>
       <p class="sub">Your opponent wins right away and you lose points. The match keeps going while you decide.</p>
-      <button id="keepBtn" class="slab amber"><span class="face"><b>Keep playing</b></span></button>
+      <button id="keepBtn" data-primary class="slab amber"><span class="face"><b>Keep playing</b></span></button>
       <button id="forfeitYes" class="slab red"><span class="face"><b>Forfeit</b></span></button>
     </div></div>
   </div>
@@ -186,7 +186,7 @@
         <div class="stats" id="stats"></div>
       </div></div>
       <div class="actions">
-        <button id="rematchBtn" class="slab amber battle mid"><span class="face"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b id="rematchText">Rematch</b><small id="rematchSub">Same opponent</small></span></span></button>
+        <button id="rematchBtn" data-primary class="slab amber battle mid"><span class="face"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg><span class="bLabel"><b id="rematchText">Rematch</b><small id="rematchSub">Same opponent</small></span></span></button>
         <button id="lobbyBtn" class="slab stone"><span class="face"><b>Home</b></span></button>
       </div>
     </div>
@@ -200,7 +200,7 @@
         <li data-step="devices"><span class="stepDot"></span><div><b>Camera and mic</b><span class="sub" data-msg></span></div><button data-act="devices">Turn on</button></li>
         <li data-step="voice"><span class="stepDot"></span><div><b>Say hello</b><span class="sub" data-msg></span></div><span class="setupMeter"><i></i></span></li>
       </ol>
-      <div class="tutFoot"><button data-act="skip" class="ghost">Skip, use mouse and keys</button><button data-act="done">Let’s play</button></div>
+      <div class="tutFoot"><button data-act="skip" class="ghost">Skip, use mouse and keys</button><button data-act="done" data-primary>Let’s play</button></div>
     </div>
   </div>
 
@@ -216,7 +216,7 @@
         <li><span>Keys <kbd>1</kbd>–<kbd>0</kbd> drop the starter troops.</span></li>
         <li><span>Not what you asked for? Say <b>“that’s wrong”</b> or press <kbd>X</kbd>.</span></li>
       </ol>
-      <div class="tutFoot"><button id="tutClose">Got it</button><span class="sub">Reopen with <kbd>?</kbd> · mute with <kbd>M</kbd></span></div>
+      <div class="tutFoot"><button id="tutClose" data-primary>Got it</button><span class="sub">Reopen with <kbd>?</kbd> · mute with <kbd>M</kbd></span></div>
       <div class="tutTimer"><i></i></div>
     </div>
   </div>
