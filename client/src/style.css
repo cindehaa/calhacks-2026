@@ -524,3 +524,15 @@ body.inHub #inputPanel { display: none; }
 @keyframes creep { from { transform: scale(.2); opacity: 0; } }
 .result .slab.battle .face::after { animation: sheen 1s 2s cubic-bezier(.4, 0, .2, 1); }
 @media (prefers-reduced-motion: reduce) { .result *, .result .banner.frosted { animation: none !important; } }
+
+/* the virtual hand, bottom right during a match (input/handview.ts) */
+#handView { position: fixed; right: 12px; bottom: 12px; z-index: 5; width: 140px; padding: 6px 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); border-bottom: 4px solid #0b0e22;
+  background: linear-gradient(160deg, #212853e0 0 56%, #1a2045e0 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; font-family: var(--chakra); }
+#handView[hidden], body.inHub #handView { display: none; }
+#handView canvas { width: 128px; height: 120px; }
+#handView .hvState { font: 700 12px var(--chakra); letter-spacing: .08em; white-space: nowrap; text-transform: uppercase; color: var(--muted); text-align: center; }
+#handView[data-state="open"] .hvState { color: var(--amber); }
+#handView[data-state="fire"] .hvState { color: #fff1c4; }
+#handView[data-state="fist"] .hvState { color: #ff9aa4; }
+#handView[data-state="none"] canvas { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239cc3e0' stroke-opacity='.35' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-4 0v1M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") center / 52px no-repeat; }

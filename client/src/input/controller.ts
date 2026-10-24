@@ -9,6 +9,7 @@ import { drawCursor, FLASH_MS, type CursorState, type InputView } from './draw';
 import { OneEuro } from './filter';
 import { FlickDetector } from './flick';
 import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
+import { drawHandView } from './handview';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
 import { FistDetector } from './pose';
 import { AutoSpeech } from './cartesia_stt';
@@ -94,6 +95,7 @@ export class InputController {
   private el = document.createElement('div');
   private overlay = document.createElement('canvas'); // the hand cursor outside a match
   private preview!: HTMLCanvasElement;
+  private handView = document.createElement('div'); // the virtual hand, bottom right
   private hintEl = document.getElementById('talkHint'); // how to fire, under the board
 
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
@@ -464,6 +466,10 @@ export class InputController {
     this.preview = this.el.querySelector('.inPreview canvas')!;
     this.overlay.id = 'inputOverlay';
     document.body.appendChild(this.overlay);
+    this.handView.id = 'handView';
+    this.handView.hidden = true;
+    this.handView.innerHTML = '<canvas></canvas><span class="hvState"></span>';
+    document.body.appendChild(this.handView);
 
     const q = <T extends HTMLElement>(act: string) => this.el.querySelector<T>(`[data-act="${act}"]`)!;
     const menu = this.el.querySelector<HTMLElement>('.inMenu')!;
@@ -501,6 +507,7 @@ export class InputController {
     $('[data-act="cam"]').classList.toggle('on', !!this.tracker);
     $('[data-act="mic"]').classList.toggle('on', this.mic.on);
     $('.inPreview').hidden = !this.tracker || !this.prefs.preview;
+    this.handView.hidden = !this.tracker;
     const s = this.slips;
     const slip = s.length ? ` · flick slip ${s[s.length - 1]}px (avg ${Math.round(s.reduce((a, b) => a + b, 0) / s.length)})` : '';
     const pose = this.fist.closed ? 'fist' : `fingers ${this.fist.ext.toFixed(1)}`;
@@ -537,9 +544,22 @@ export class InputController {
   // (the touchpad area).
   private drawPreviews(): void {
     if (!this.tracker) return;
+    this.drawHandView();
     if (this.prefs.preview) this.drawPreview(this.preview, 160);
     const s = this.setupPreview;
     if (s?.clientWidth) this.drawPreview(s, s.clientWidth);
+  }
+
+  // What the tracker sees of your hand, as a virtual hand, with the gesture it reads.
+  private drawHandView(): void {
+    const state = this.cursorState(performance.now());
+    const label = !this.tracker?.ready ? 'Starting camera…'
+      : !this.hand ? 'Show your hand'
+      : state === 'fist' ? 'Fist · clearing' : state === 'fire' ? 'Flick · sent' : 'Aiming';
+    const el = this.handView.querySelector<HTMLElement>('.hvState')!;
+    if (el.textContent !== label) el.textContent = label;
+    this.handView.dataset.state = this.hand ? state : 'none';
+    drawHandView(this.handView.querySelector('canvas')!, this.hand?.world ?? null, state);
   }
 
   private drawPreview(c: HTMLCanvasElement, w: number): void {
