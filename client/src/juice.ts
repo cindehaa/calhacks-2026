@@ -95,6 +95,8 @@ export class Juice {
   private shakeAmp = 0;
   private shakeDecay = 4;
   private coins: Coin[] = [];
+  private lastFire = 0; // newest deploy flash seen (performance.now ms), for the camera nudge
+  private nudgeAt = -10;
   private refusedSeen: string[] = [];
   private air: Airborne[] = [];
 
@@ -145,6 +147,13 @@ export class Juice {
     return -5 * k;
   }
 
+  // A small dip of the head toward the board when you fire (flick, click or Space), in radians.
+  pitchNudge(real: number): number {
+    const s = real - this.nudgeAt;
+    if (this.reduced || s < 0 || s > 0.35) return 0;
+    return -0.018 * Math.sin((s / 0.35) * Math.PI) * (1 - s / 0.35);
+  }
+
   private kick(amp: number, decay: number): void {
     if (amp > this.shakeAmp) { this.shakeAmp = amp; this.shakeDecay = decay }
   }
@@ -160,6 +169,9 @@ export class Juice {
   observe(v: View, t: number, real: number, fx: Fx): void {
     this.frame++;
     this.mySide = v.mySide;
+    for (const f of v.input?.flashes ?? []) {
+      if (f.kind === 'deploy' && f.t > this.lastFire) { this.lastFire = f.t; this.nudgeAt = real }
+    }
     const live = v.status === undefined || v.status === 'playing';
 
     // The troops on the board this frame, by troop: centroid, health, how long until they land.

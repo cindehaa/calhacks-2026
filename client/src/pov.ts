@@ -383,7 +383,7 @@ export class PovBoard {
     const [shx, shy] = this.fx.shake();
     const [jx, jy, roll] = this.juice.shake(real);
     this.cam.position.set(Math.sin(now * 0.7) * 0.05 + shx * 0.01 + jx, e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01 + jy, MID_Y - e.y);
-    this.cam.rotation.set(e.pitch + this.pitch, this.yaw, roll);
+    this.cam.rotation.set(e.pitch + this.pitch + this.juice.pitchNudge(real), this.yaw, roll);
     const fov = e.fov + this.juice.fovKick(real);
     if (this.cam.fov !== fov) {
       this.cam.fov = fov;

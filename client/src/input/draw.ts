@@ -1,12 +1,14 @@
 // Hand cursor, the words waiting to be sent, and fire / cancel flashes, drawn over the board in
 // screen px.
+import { micRing, wordsFlash, wordsPill } from './wordfx';
 
 export type CursorState = 'open' | 'fire' | 'fist';
 
 export interface InputView {
   cursor: { x: number; y: number; state: CursorState } | null; // hand cursor only; the mouse has its own ring
   prompt: { x: number; y: number; text: string; speaking: boolean } | null; // at the cursor, hand or mouse
-  flashes: { x: number; y: number; kind: 'deploy' | 'cancel'; label: string; t: number }[];
+  flashes: { x: number; y: number; kind: 'deploy' | 'cancel'; label: string; t: number; words?: string }[]; // words: what was sent or cleared, for wordfx.ts
+  mic?: { x: number; y: number; db: number; speaking: boolean } | null; // mic on: its level, at the cursor
   hint: string;
 }
 
@@ -18,18 +20,21 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
   const p = v.prompt;
   if (p) {
     const dot = p.speaking ? 1 + 0.3 * Math.sin(now / 90) : 1;
-    pill(g, p.text ? `“${clip(p.text, 40)}”` : 'listening…', p.x, p.y - 34, p.text ? C.text : C.muted);
+    if (p.text) wordsPill(g, `“${clip(p.text, 40)}”`, p.x, p.y - 34, C.text, now); // element words lit
+    else pill(g, 'listening…', p.x, p.y - 34, C.muted);
     if (p.speaking) circle(g, p.x + 26, p.y - 46, 3.5 * dot, null, 0, C.voice);
   }
   for (const f of v.flashes) {
     const a = (now - f.t) / FLASH_MS;
     if (a < 0 || a >= 1) continue;
+    if (f.words) wordsFlash(g, f.kind, f.words, f.x, f.y, a); // words into an orb, or crumpled
     g.globalAlpha = 1 - a;
     if (f.kind === 'deploy') circle(g, f.x, f.y, 16 + a * 36, C.good, 3);
     else cross(g, f.x, f.y, 14, C.bad);
     if (f.label) text(g, f.label, f.x, f.y - 30 - a * 10, 13, f.kind === 'deploy' ? C.good : C.bad);
     g.globalAlpha = 1;
   }
+  if (v.mic) micRing(g, v.mic.x, v.mic.y, v.mic.db, v.mic.speaking);
   if (v.cursor) drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.state);
   if (v.hint) text(g, v.hint, innerWidth / 2, 70, 13, C.warn);
   g.restore();

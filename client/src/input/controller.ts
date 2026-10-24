@@ -197,6 +197,7 @@ export class InputController {
       cursor: this.handCursor && playing ? { ...this.handCursor, state: this.cursorState(performance.now()) } : null,
       prompt: playing && at && (words || this.vad.speaking) ? { x: at.x, y: at.y, text: words, speaking: this.vad.speaking } : null,
       flashes: this.flashes,
+      mic: playing && this.mic.on && at ? { x: at.x, y: at.y, db: this.vad.level, speaking: this.vad.speaking } : null,
       hint: this.tracker?.ready && !this.hand && playing ? 'no hand in view' : '',
     };
   }
@@ -286,7 +287,7 @@ export class InputController {
     if (nonce === null) return false;
     // The prompt keeps taking words until the recogniser has finished the last of them.
     this.firing = { nonce, spot, at: p, by, words: this.prompt };
-    this.flash(p, 'deploy', '');
+    this.flash(p, 'deploy', '', said || typed);
     this.host.released?.(nonce, said);
     void this.land(this.firing);
     return true;
@@ -316,7 +317,7 @@ export class InputController {
     this.prompt = new Transcript();
     if (this.mic.on) void this.speech.flush(FLUSH_MS);
     const at = f?.at ?? this.cursor();
-    if (why !== 'mismatch' && at) this.flash(at, 'cancel', 'cleared');
+    if (why !== 'mismatch' && at) this.flash(at, 'cancel', 'cleared', words);
     if (f) this.host.cancel(f.nonce, `cancelled (${why})`, words);
     this.host.event?.('prompt:cleared', `${why}: ${words}`);
     if (why !== 'mismatch') this.host.status('');
@@ -352,8 +353,8 @@ export class InputController {
     this.host.mismatch?.();
   }
 
-  private flash(p: Pt, kind: 'deploy' | 'cancel', label: string): void {
-    this.flashes.push({ x: p.x, y: p.y, kind, label, t: performance.now() });
+  private flash(p: Pt, kind: 'deploy' | 'cancel', label: string, words = ''): void {
+    this.flashes.push({ x: p.x, y: p.y, kind, label, t: performance.now(), words });
   }
 
   // ---------- camera and mic ----------
