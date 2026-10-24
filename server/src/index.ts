@@ -2,18 +2,10 @@
 // Combat itself lives in shared/sim.ts; this file only moves rows in and out of it.
 import { ScheduleAt } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import {
-  DEPLOY_DELAY,
-  ELIXIR_START,
-  MIN_DEPLOY_DELAY,
-  TICK_HZ,
-  clampToHalf,
-  formation,
-  onOwnHalf,
-  type Side,
-} from '../../shared/arena';
+import { ELIXIR_START, TICK_HZ, clampToHalf, onOwnHalf, type Side } from '../../shared/arena';
+import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
-import { MAX_COST, price, sanitizeDesign, type VoiceStyle } from '../../shared/troop';
+import type { VoiceStyle } from '../../shared/troop';
 
 const TICK_MICROS = BigInt(Math.round(1_000_000 / TICK_HZ));
 const PENDING_TTL_MICROS = 15_000_000n; // a lock nobody followed up on
@@ -266,7 +258,8 @@ export const deployTroop = spacetimedb.reducer(
   },
   (ctx, a) => {
     const { r, side } = myMatch(ctx);
-    const design = sanitizeDesign({
+    const elixir = side === 0 ? r.elixir0 : r.elixir1;
+    const { design, cost, error } = priceDeploy({
       name: a.name,
       health: a.health,
       damage: a.damage,
@@ -276,19 +269,15 @@ export const deployTroop = spacetimedb.reducer(
       count: a.count,
       battle_cry: a.battleCry,
       voice_style: a.voiceStyle as VoiceStyle,
-    });
-    const cost = price(design);
-    if (cost > MAX_COST) throw new SenderError(`too expensive: ${cost}`);
-    const elixir = side === 0 ? r.elixir0 : r.elixir1;
-    if (cost > elixir) throw new SenderError(`not enough elixir: ${cost}`);
+    }, elixir);
+    if (error) throw new SenderError(error);
 
     // Land where the spot was locked, DEPLOY_DELAY after the lock.
     const p = findPending(ctx, a.nonce);
-    let x = a.x, y = a.y, delay = DEPLOY_DELAY;
+    let x = a.x, y = a.y, delay = arrivalDelay(0);
     if (p) {
       x = p.x; y = p.y;
-      const waited = Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6;
-      delay = Math.max(MIN_DEPLOY_DELAY, DEPLOY_DELAY - waited);
+      delay = arrivalDelay(Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6);
       ctx.db.pending.id.delete(p.id);
     } else if (!onOwnHalf(side, y)) {
       throw new SenderError('deploy on your own half');
@@ -312,8 +301,7 @@ export const deployTroop = spacetimedb.reducer(
       voiceStyle: design.voice_style,
       spriteUrl: a.spriteUrl.slice(0, 2048),
     });
-    for (const [dx, dy] of formation(design.count)) {
-      const [ux, uy] = clampToHalf(side, x + dx, y + dy);
+    for (const [ux, uy] of unitSpots(side, x, y, design.count)) {
       ctx.db.unit.insert({
         id: 0n,
         roomCode: r.code,

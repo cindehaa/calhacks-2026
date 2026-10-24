@@ -14,12 +14,14 @@ export interface Net {
 }
 
 export function connect(onReady: (net: Net) => void, onStatus: (s: string) => void): void {
+  let connected = false;
   DbConnection.builder()
     .withUri(HOST)
     .withDatabaseName(DB_NAME)
     .withToken(sessionStorage.getItem(TOKEN_KEY) || undefined)
     .onConnect((conn, identity, token) => {
       sessionStorage.setItem(TOKEN_KEY, token);
+      connected = true;
       onStatus('connected');
       conn
         .subscriptionBuilder()
@@ -27,7 +29,8 @@ export function connect(onReady: (net: Net) => void, onStatus: (s: string) => vo
         .onError(() => onStatus('subscription failed'))
         .subscribeToAllTables();
     })
-    .onDisconnect(() => onStatus('disconnected'))
+    // A failed first connect also fires onDisconnect; keep the "can't reach" message.
+    .onDisconnect(() => connected && onStatus('disconnected'))
     .onConnectError((_ctx, err) => onStatus(`can't reach ${HOST} (${err.message})`))
     .build();
 }
