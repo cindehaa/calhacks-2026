@@ -245,7 +245,7 @@ export class Juice {
   private impact(tr: Track, fx: Fx): void {
     const k = tr.size, mine = tr.side === this.mySide;
     this.kick(0.012 + 0.3 * k * k, 7 - 3 * k);
-    fx.ring(tr.x, tr.y, 0.3, 0.9 + 3 * k, 0.32 + 0.3 * k, 'rgba(225,238,255,0.95)', 3 + 2 * k);
+    fx.ring(tr.x, tr.y, 0.3, 0.9 + 3 * k, 0.32 + 0.3 * k, 'rgba(225,238,255,0.95)', Math.min(3.9, 3 + 2 * k)); // under 4: pov.ts flashes rings of 4+ as explosions
     if (k > 0.25) fx.ring(tr.x, tr.y, 0.2, 0.6 + 2 * k, 0.5 + 0.3 * k, mine ? 'rgba(74,163,255,0.8)' : 'rgba(255,93,108,0.8)', 2);
     const n = Math.round((this.reduced ? 2 : 4) + (this.reduced ? 8 : 22) * k);
     for (let i = 0; i < n; i++) {
@@ -379,7 +379,7 @@ export class Juice {
       const since = tr.landedAt < 0 ? 0 : t - tr.landedAt;
       if (since > 2.6) continue;
       const fadeIn = Math.min(1, (t - tr.firstSeen) * 6), fadeOut = since > 2.1 ? 1 - (since - 2.1) / 0.5 : 1;
-      const lift = tr.landedAt < 0 ? 5.6 : 3.2;
+      const lift = tr.landedAt < 0 ? 5.7 : 4.3; // over the name and the cost pill
       const q = project(tr.x, tr.y, lift);
       if (q) this.bubble(g, q[0], q[1], words, Math.max(0, Math.min(fadeIn, fadeOut)), t);
     }
@@ -394,7 +394,8 @@ export class Juice {
     const lines = words ? wrap(g, `“${words}”`, maxW, 2) : [];
     const w = words ? Math.max(...lines.map(l => g.measureText(l).width)) + pad * 2 : 46;
     const h = words ? lines.length * (size + 3) + pad * 1.4 : 24;
-    const bx = Math.round(x - w / 2), by = Math.round(y - h - 10);
+    const bx = Math.round(x - w / 2), by = Math.max(6, Math.round(y - h - 10)); // kept on screen for far drops
+    y = by + h + 10;
     // Body and tail, cut like the menus' chamfered slabs.
     const c = 6;
     g.beginPath();

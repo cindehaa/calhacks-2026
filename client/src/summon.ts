@@ -26,7 +26,7 @@ void main() {
   float band = smoothstep(0.84, 0.86, r) * (1.0 - smoothstep(0.96, 0.98, r));
   float filled = step(a, uFrac);
   float head = exp(-abs(a - uFrac) * 60.0) * step(0.001, uFrac);
-  alpha += band * (0.18 + 0.8 * filled + 0.6 * head);
+  alpha += band * (0.35 + 0.65 * filled + 0.6 * head);
   // Dashed inner ring, turning.
   float inner = smoothstep(0.6, 0.62, r) * (1.0 - smoothstep(0.66, 0.68, r));
   alpha += inner * step(0.5, fract(a * 16.0 + uTime * 0.35)) * 0.55;
@@ -75,7 +75,7 @@ export class SummonCircles {
     u.uFrac.value = frac;
     u.uTime.value = now;
     (u.uColor.value as THREE.Color).copy(mine ? MINE : THEIRS);
-    u.uAlpha.value = Math.min(1, 0.4 + frac * 2);
+    u.uAlpha.value = Math.min(1, 0.75 + frac);
     m.scale.setScalar(1 + 0.06 * Math.sin(now * 5) * frac);
     this.at(x, y, 0.045, m.position);
     m.visible = true;
