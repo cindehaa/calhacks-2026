@@ -1,7 +1,7 @@
-// Three.js POV view of the board: you stand behind your own towers and look down the arena.
-// Takes the same View and answers the same toWorld as Board, so input and deploys don't change.
-// The 3D scene renders into its own canvas; names, bars, effects and the hand cursor go on the
-// flat board's 2D canvas, which sits on top and stays the one that gets the mouse.
+// The board, in 3D: you stand behind your own towers and look down the arena. Each frame's View
+// goes in; toWorld turns a screen point into the board spot under it, for aiming and deploys.
+// The scene renders into its own canvas; names, bars, effects and the hand cursor go on a 2D
+// canvas on top, which is also the one that gets the mouse.
 import * as THREE from 'three';
 import {
   ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, deployZones, towerRadius, type Side,
@@ -9,15 +9,12 @@ import {
 import { Fx, roundRect, towerKey } from './fx';
 import { drawInput } from './input/draw';
 import type { DrawTower, DrawTroop, DrawUnit, View } from './render';
+import { spriteArt } from './render';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
 
-// Where you stand, in your own view coords (your back line is y = 0): height and resting pitch.
-export const EYES = {
-  tower: { y: -1, h: 8.5, pitch: -0.66 }, // over your king's shoulder, princess towers out front
-  high: { y: -6, h: 13, pitch: -0.78 },
-  low: { y: -3, h: 2.6, pitch: -0.12 },
-} as const;
-export type Eye = keyof typeof EYES;
+// Where you stand, in your own view coords (your back line is y = 0): over your king's shoulder,
+// princess towers out front. Height and resting pitch.
+const EYE = { y: -1, h: 8.5, pitch: -0.66 };
 
 const C = {
   bg: '#0a0c1a',
@@ -36,11 +33,10 @@ const FONT = 'system-ui, sans-serif';
 const DROP_HEIGHT = 3; // tiles; troops hang here until the last 0.3 s of the deploy delay
 
 interface TowerMesh { grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number; hp: number }
-interface UnitMesh { sprite: THREE.Sprite; shadow: THREE.Mesh; tex: string; seen: number }
+interface UnitMesh { sprite: THREE.Sprite; shadow: THREE.Mesh; tex: string; art: boolean; seen: number }
 
 export class PovBoard {
   readonly fx = new Fx();
-  eye: Eye = 'tower';
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private cam = new THREE.PerspectiveCamera(62, 1, 0.05, 250);
@@ -77,9 +73,9 @@ export class PovBoard {
   private shadowMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.35, depthWrite: false });
   private ringGeo = new THREE.RingGeometry(0.85, 1, 48);
 
-  constructor(private canvas: HTMLCanvasElement, overlay: HTMLCanvasElement) {
-    this.g = overlay.getContext('2d')!;
-    const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true }));
+  constructor(gl: HTMLCanvasElement, readonly canvas: HTMLCanvasElement) {
+    this.g = canvas.getContext('2d')!;
+    const r = (this.renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true }));
     r.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -127,14 +123,13 @@ export class PovBoard {
     this.resize();
   }
 
-  show(on: boolean): void {
-    this.canvas.hidden = !on;
-  }
-
   resize(): void {
     this.w = innerWidth;
     this.h = innerHeight;
     this.renderer.setSize(this.w, this.h, false);
+    const dpr = devicePixelRatio || 1;
+    this.canvas.width = this.w * dpr;
+    this.canvas.height = this.h * dpr;
     // Centre the view on the part of the screen above the dock, so the near bank isn't under it.
     const dock = (document.getElementById('dock')?.offsetHeight ?? 130) + 20;
     this.cam.aspect = this.w / Math.max(1, this.h - dock);
@@ -297,7 +292,7 @@ export class PovBoard {
     const k = 1 - Math.exp(-dt * 2.5);
     this.yaw += (-nx * 0.22 - this.yaw) * k;
     this.pitch += (ny * 0.1 - this.pitch) * k;
-    const e = EYES[this.eye];
+    const e = EYE;
     const [shx, shy] = this.fx.shake();
     this.cam.position.set(Math.sin(now * 0.7) * 0.05 + shx * 0.01, e.h + Math.sin(now * 1.4) * 0.03 + shy * 0.01, MID_Y - e.y);
     this.cam.rotation.set(e.pitch + this.pitch, this.yaw, 0);
@@ -363,16 +358,21 @@ export class PovBoard {
     for (const u of v.units) {
       const troop = v.troops.get(u.troopId);
       const mine = u.side === v.mySide;
-      const tex = troopGlyph(troop?.name ?? '?', troop?.description) + '|' + (mine ? 1 : 0);
+      // Generated art once it has loaded, else the team disc with the troop's glyph.
+      const art = troop?.spriteUrl ? spriteArt(troop.spriteUrl) : null;
+      const tex = (art ? 'art|' + troop!.spriteUrl : 'glyph|' + troopGlyph(troop?.name ?? '?', troop?.description)) + '|' + (mine ? 1 : 0);
       let m = this.units.get(u.id);
       if (!m || m.tex !== tex) {
-        if (m) this.scene.remove(m.sprite);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.texture(tex, mine), transparent: true }));
+        if (m) {
+          this.scene.remove(m.sprite);
+          m.sprite.material.dispose();
+        }
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.texture(tex, mine, art), transparent: true }));
         sprite.center.set(0.5, 0);
         const shadow = m?.shadow ?? new THREE.Mesh(this.shadowGeo, this.shadowMat);
         shadow.rotation.x = -Math.PI / 2;
         this.scene.add(sprite, shadow);
-        m = { sprite, shadow, tex, seen: 0 };
+        m = { sprite, shadow, tex, art: !!art, seen: 0 };
         this.units.set(u.id, m);
       }
       m.seen = this.frame;
@@ -383,7 +383,7 @@ export class PovBoard {
       const mat = m.sprite.material;
       mat.opacity = air ? (u.delay > 0.3 ? 0.5 : 0.5 + 0.5 * (1 - u.delay / 0.3)) : 1;
       mat.color.setScalar(1 + a.flash * 1.5);
-      const s = r * 2.6;
+      const s = r * (m.art ? 3.4 : 2.6); // art has empty margin around the troop
       m.sprite.scale.set(s * a.sx, s * a.sy, 1);
       this.at(u.x, u.y, lift - a.dy, m.sprite.position);
       m.sprite.position.x += a.dx;
@@ -398,12 +398,26 @@ export class PovBoard {
     }
   }
 
-  private texture(key: string, mine: boolean): THREE.CanvasTexture {
+  private texture(key: string, mine: boolean, art: HTMLCanvasElement | null): THREE.CanvasTexture {
     let t = this.textures.get(key);
     if (t) return t;
     const c = document.createElement('canvas');
-    c.width = c.height = 128;
     const g = c.getContext('2d')!;
+    if (art) {
+      // The troop standing on a team-coloured ring at its feet (the art is cropped feet-down).
+      c.width = c.height = 256;
+      g.strokeStyle = mine ? C.mine : C.theirs;
+      g.lineWidth = 8;
+      g.beginPath();
+      g.ellipse(128, 236, 92, 16, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.drawImage(art, 28, 20, 200, 220);
+      t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      this.textures.set(key, t);
+      return t;
+    }
+    c.width = c.height = 128;
     g.fillStyle = mine ? C.mineDark : C.theirsDark;
     g.beginPath();
     g.arc(64, 64, 56, 0, Math.PI * 2);
@@ -411,7 +425,7 @@ export class PovBoard {
     g.lineWidth = 8;
     g.strokeStyle = mine ? C.mine : C.theirs;
     g.stroke();
-    g.drawImage(glyphImage(key.slice(0, key.lastIndexOf('|')), 72), 26, 26, 76, 76);
+    g.drawImage(glyphImage(key.slice('glyph|'.length, key.lastIndexOf('|')), 72), 26, 26, 76, 76);
     t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     this.textures.set(key, t);

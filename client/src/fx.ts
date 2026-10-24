@@ -446,7 +446,7 @@ export class Fx {
   }
 
   private screenDir(wx: number, wy: number): [number, number] {
-    // Matches Board.toScreen: side 0 flips y, side 1 flips x.
+    // As seen from your side of the board (yours at the bottom): side 0 flips y, side 1 flips x.
     return this.mySide === 0 ? [wx, -wy] : [-wx, wy];
   }
 
