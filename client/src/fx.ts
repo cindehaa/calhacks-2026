@@ -1,9 +1,9 @@
 // Game feel: watches each frame's View, diffs it against the last one by id (hp, attackSeq,
 // delay, which units exist) and turns the differences into short-lived effects and sounds.
 // Pure client-side decoration; nothing here feeds back into the game.
-import { COUNTDOWN, DOUBLE_ELIXIR_AT, TOWER_RADIUS, UNIT_RADIUS } from '../../shared/arena';
+import { COUNTDOWN, DOUBLE_ELIXIR_AT, MATCH_SECONDS, TOWER_RADIUS, UNIT_RADIUS } from '../../shared/arena';
 import type { DrawTower, DrawUnit, View } from './render';
-import { sfx } from './sfx';
+import { sfx, soundKind, type SoundKind } from './sfx';
 
 type ToScreen = (x: number, y: number) => [number, number];
 
@@ -40,6 +40,7 @@ interface UTrack {
   ranged: boolean;
   phase: number; // walk cycle, advances with distance walked
   moving: number; // 0..1, smoothed
+  kind: SoundKind; // which family of the sound pack it plays
 }
 
 interface TTrack { side: number; x: number; y: number; hp: number; seq: number; seen: number; flashAt: number; downAt: number }
@@ -126,7 +127,7 @@ export class Fx {
         this.countStep = -1;
       }
       if (v.status === 'done' && this.status === 'playing') {
-        sfx.play(v.winner === -1 ? 'lose' : v.winner === v.mySide ? 'win' : 'lose');
+        sfx.play(v.winner === -1 ? 'draw' : v.winner === v.mySide ? 'win' : 'lose');
         this.countdownAt = -10;
       }
       this.status = v.status;
@@ -141,6 +142,9 @@ export class Fx {
       this.doubleAt = now;
       sfx.play('double');
     }
+    const ten = MATCH_SECONDS - 10;
+    if (v.status === 'playing' && this.prevTime >= 0 && this.prevTime < ten && time >= ten) sfx.play('lastTen');
+    sfx.setMusic(v.status === 'playing' ? (time >= DOUBLE_ELIXIR_AT ? 'overtime' : 'battle') : 'menu');
     this.prevTime = v.status === 'playing' ? time : -1;
   }
 
@@ -152,6 +156,7 @@ export class Fx {
           side: u.side, x: u.x, y: u.y, hp: u.hp, seq: u.attackSeq ?? 0, delay: u.delay, range: u.range ?? 1,
           seen: this.frame, seed: Number(u.id % 997n), landedAt: u.delay > 0 ? -1 : now - 10, flashAt: -10,
           lungeAt: -10, ldx: 0, ldy: 0, ranged: (u.range ?? 1) > 1, phase: 0, moving: 0,
+          kind: this.kindOf(u, v),
         };
         this.units.set(u.id, t);
         continue;
@@ -159,6 +164,7 @@ export class Fx {
       if (live) {
         if (t.delay > 0 && u.delay <= 0) this.land(t, now);
         if (u.hp < t.hp - 0.01) this.hurt(u.id, t, t.hp - u.hp, u.side === v.mySide, now);
+        if (u.attackSeq !== undefined && u.attackSeq > t.seq && u.delay <= 0) sfx.play('attack', t.kind);
         if (u.attackSeq !== undefined && u.attackSeq > t.seq && u.delay <= 0) this.attack(t, u, v, now);
       }
       const d = Math.hypot(u.x - t.x, u.y - t.y);
@@ -207,6 +213,15 @@ export class Fx {
     for (const [k, t] of this.towers) if (t.seen !== this.frame) this.towers.delete(k);
   }
 
+  // A unit's sound family, from its troop's words and stats; swarms are told apart by how many
+  // units the troop has on the board.
+  private kindOf(u: DrawUnit, v: View): SoundKind {
+    const troop = v.troops.get(u.troopId);
+    let n = 0;
+    for (const o of v.units) if (o.troopId === u.troopId) n++;
+    return soundKind(`${troop?.name ?? ''} ${troop?.description ?? ''}`, u.range ?? 1, u.maxHp, n);
+  }
+
   // ---------- spawning effects ----------
 
   private land(t: UTrack, now: number): void {
@@ -219,13 +234,13 @@ export class Fx {
       const s = 1.2 + Math.random() * 1.2;
       this.particle(t.x + Math.cos(a) * 0.3, t.y + Math.sin(a) * 0.3, 0.05, Math.cos(a) * s, Math.sin(a) * s, 0.3, 0.45, 0.22, COLORS.dust, 0);
     }
-    sfx.play('land');
+    sfx.play('land', t.kind);
   }
 
   private hurt(id: bigint, t: UTrack, amt: number, mine: boolean, now: number): void {
     t.flashAt = now;
     this.floater(id, t.x, t.y, amt, mine ? COLORS.theirsLight : '#ffffff', 9);
-    sfx.play('hit');
+    sfx.play('hit', t.kind);
   }
 
   private attack(t: UTrack, u: DrawUnit, v: View, now: number): void {
@@ -258,7 +273,7 @@ export class Fx {
       }
     }
     this.ring(t.x, t.y, 0.2, 0.8, 0.25, 'rgba(255,255,255,0.7)', 2);
-    sfx.play('death');
+    sfx.play('death', t.kind);
   }
 
   private crumble(t: TTrack, now: number): void {

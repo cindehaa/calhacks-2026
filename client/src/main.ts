@@ -210,6 +210,7 @@ function sendDeploy(nonce: number, [x, y]: [number, number], description: string
       call(match()?.cancelDeploy(nonce), () => {});
       sfx.play('buzz');
       const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
+      if (m?.[1] === 'not enough elixir') sfx.play('tooExpensive');
       status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
     }
   );

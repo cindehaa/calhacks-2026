@@ -1,16 +1,79 @@
-// Synthesized sound effects (WebAudio, no files). The AudioContext starts on the first user
-// gesture, as browsers require. M or the speaker button mutes; the choice is remembered.
+// Sound: the generated pack in client/public/audio (per-troop-type effects, game stingers, the
+// announcer and music), with the old synthesized blips as the fallback until a file has loaded
+// or if it fails. The AudioContext starts on the first user gesture, as browsers require. M or
+// the speaker button mutes everything, music included; the choice is remembered.
 
 export type SfxName =
-  | 'deploy' | 'incoming' | 'land' | 'hit' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
-  | 'count' | 'fight' | 'double' | 'win' | 'lose';
+  | 'deploy' | 'incoming' | 'land' | 'hit' | 'attack' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
+  | 'count' | 'fight' | 'double' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw';
+
+// The pack's troop families; each has spawn, attack_1/2, hit_1/2 and death.
+export const SOUND_KINDS = ['beast', 'blade', 'heavy', 'magic', 'mech', 'ranged', 'swarm'] as const;
+export type SoundKind = (typeof SOUND_KINDS)[number];
+export type MusicTrack = 'menu' | 'battle' | 'overtime';
+
+const AUDIO = '/audio/';
+const GAME = ['deploy_land', 'deploy_pending', 'double_elixir', 'match_start', 'tower_destroyed', 'tower_hit_1', 'tower_hit_2', 'victory', 'defeat'];
+const VOICE = ['double_elixir', 'draw', 'last_ten', 'match_start', 'too_expensive', 'tower_down'];
+const UNIT = ['spawn', 'attack_1', 'attack_2', 'hit_1', 'hit_2', 'death'];
+const SAMPLES = [
+  ...GAME.map(n => `sfx/game/${n}`),
+  ...VOICE.map(n => `voice/announcer/${n}`),
+  ...SOUND_KINDS.flatMap(k => UNIT.map(n => `sfx/${k}/${n}`)),
+];
+
+// What each event plays from the pack: one of `pick` (at random), plus an announcer line. Unit
+// events use the troop's family. Anything with nothing to play here falls back to the synth.
+function samplesFor(name: SfxName, kind?: SoundKind): { pick: string[]; voice?: string; gain: number } {
+  const unit = (...n: string[]) => (kind ? n.map(x => `sfx/${kind}/${x}`) : []);
+  switch (name) {
+    case 'deploy': return { pick: ['sfx/game/deploy_pending'], gain: 0.7 };
+    case 'land': return { pick: kind ? unit('spawn') : ['sfx/game/deploy_land'], gain: 0.9 };
+    case 'attack': return { pick: unit('attack_1', 'attack_2'), gain: 0.45 };
+    case 'hit': return { pick: unit('hit_1', 'hit_2'), gain: 0.4 };
+    case 'death': return { pick: unit('death'), gain: 0.7 };
+    case 'towerHit': return { pick: ['sfx/game/tower_hit_1', 'sfx/game/tower_hit_2'], gain: 0.6 };
+    case 'towerDown': return { pick: ['sfx/game/tower_destroyed'], voice: 'tower_down', gain: 1 };
+    case 'fight': return { pick: ['sfx/game/match_start'], voice: 'match_start', gain: 0.9 };
+    case 'double': return { pick: ['sfx/game/double_elixir'], voice: 'double_elixir', gain: 0.9 };
+    case 'lastTen': return { pick: [], voice: 'last_ten', gain: 1 };
+    case 'tooExpensive': return { pick: [], voice: 'too_expensive', gain: 1 };
+    case 'win': return { pick: ['sfx/game/victory'], gain: 1 };
+    case 'lose': return { pick: ['sfx/game/defeat'], gain: 1 };
+    case 'draw': return { pick: ['sfx/game/defeat'], voice: 'draw', gain: 0.8 };
+    default: return { pick: [], gain: 1 };
+  }
+}
+
+const VOICE_GAIN = 1.4;
+const MUSIC_GAIN = 0.32;
+const AMBIENCE_GAIN = 0.25;
+
+// Which family a troop sounds like, from its words and stats. First match wins.
+const KIND_WORDS: [RegExp, SoundKind][] = [
+  [/\b(bees?|swarm|horde|ants?|rats?|bats?|imps?|minions?|flock|pack of|army of)\b/, 'swarm'],
+  [/robot|mech|cyborg|android|droid|drone|tank|cannon|rocket|missile|machine|turret|catapult/, 'mech'],
+  [/wizard|mage|witch|warlock|sorcer|fairy|pixie|ghost|spirit|phantom|angel|demon|lich|spell|magic|elemental|lightning|thunder|fire|flame|ice|frost/, 'magic'],
+  [/dragon|wyvern|wolf|bear|lion|tiger|horse|boar|frog|toad|shark|snake|serpent|spider|gorilla|ape|monkey|beast|monster|dinosaur|raptor|rex|cat|dog|hound|eagle|hawk|crab|octopus|kraken|elephant|mammoth|unicorn|bull/, 'beast'],
+  [/archer|\bbows?\b|arrow|sniper|gunner|rifle|\bguns?\b|bomb|lobber|grenade|thrower|slinger|crossbow|marksman|ranger/, 'ranged'],
+  [/golem|giant|ogre|troll|titan|colossus|stone|boulder|juggernaut|brute|behemoth/, 'heavy'],
+];
+
+export function soundKind(words: string, range: number, maxHp: number, groupSize: number): SoundKind {
+  const w = words.toLowerCase();
+  for (const [re, k] of KIND_WORDS) if (re.test(w)) return k;
+  if (groupSize >= 4) return 'swarm';
+  if (range > 1) return 'ranged';
+  if (maxHp >= 1500) return 'heavy';
+  return 'blade';
+}
 
 const MUTE_KEY = 'arena.muted';
 const VOLUME = 0.35;
 
 // Minimum gap between two plays of the same sound, in seconds. Keeps swarms from roaring.
 const GAP: Partial<Record<SfxName, number>> = {
-  hit: 0.06, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3,
+  hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
 };
 
 function readMuted(): boolean {
@@ -26,6 +89,12 @@ class Sfx {
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private last = new Map<SfxName, number>();
+  private buffers = new Map<string, AudioBuffer>(); // pack files that have loaded
+  private loading = false;
+  private music = new Map<string, HTMLAudioElement>(); // looping tracks, by path
+  private musicGain: GainNode | null = null;
+  private wanted: MusicTrack | null = null; // set before the context exists, applied on unlock
+  private playing: MusicTrack | null = null;
   private listeners = new Set<(muted: boolean) => void>();
 
   constructor() {
@@ -59,7 +128,66 @@ class Sfx {
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       }
       if (this.ctx.state === 'suspended') void this.ctx.resume();
+      if (!this.loading) {
+        this.loading = true;
+        void this.load();
+      }
+      this.applyMusic();
     } catch { /* no audio, no problem */ }
+  }
+
+  // Fetch and decode the pack (~1 MB of short files), a few at a time. Until each lands, its
+  // events play the synth version.
+  private async load(): Promise<void> {
+    const ac = this.ctx;
+    if (!ac) return;
+    const queue = [...SAMPLES];
+    const worker = async () => {
+      for (let key = queue.shift(); key; key = queue.shift()) {
+        try {
+          const r = await fetch(`${AUDIO}${key}.mp3`);
+          if (r.ok) this.buffers.set(key, await ac.decodeAudioData(await r.arrayBuffer()));
+        } catch { /* keep the synth for this one */ }
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+  }
+
+  // Background music: menu in the lobby, battle during a match, overtime in the last 30 s, with
+  // arena ambience under the fight. Streams from <audio> elements routed through the master gain.
+  setMusic(track: MusicTrack | null): void {
+    if (track === this.wanted) return;
+    this.wanted = track;
+    this.applyMusic();
+  }
+
+  private applyMusic(): void {
+    const ac = this.ctx, out = this.master;
+    if (!ac || !out || this.wanted === this.playing) return;
+    if (!this.musicGain) {
+      this.musicGain = ac.createGain();
+      this.musicGain.gain.value = 1;
+      this.musicGain.connect(out);
+    }
+    const want = new Set<string>();
+    if (this.wanted) want.add(`music/${this.wanted}`);
+    if (this.wanted === 'battle' || this.wanted === 'overtime') want.add('sfx/game/arena_ambience');
+    for (const [key, el] of this.music) if (!want.has(key)) el.pause();
+    for (const key of want) {
+      let el = this.music.get(key);
+      if (!el) {
+        el = new Audio(`${AUDIO}${key}.mp3`);
+        el.loop = true;
+        el.preload = 'auto';
+        const g = ac.createGain();
+        g.gain.value = key.startsWith('music/') ? MUSIC_GAIN : AMBIENCE_GAIN;
+        ac.createMediaElementSource(el).connect(g).connect(this.musicGain);
+        this.music.set(key, el);
+      }
+      if (key.startsWith('music/')) el.currentTime = 0;
+      el.play().catch(() => { /* blocked or missing: silence is fine */ });
+    }
+    this.playing = this.wanted;
   }
 
   setMuted(m: boolean): void {
@@ -73,7 +201,8 @@ class Sfx {
 
   onMuteChange(f: (muted: boolean) => void): void { this.listeners.add(f) }
 
-  play(name: SfxName): void {
+  // `kind` picks the troop family for unit events (land, attack, hit, death).
+  play(name: SfxName, kind?: SoundKind): void {
     const ac = this.ctx, out = this.master;
     if (!ac || !out || this.muted || ac.state !== 'running') return;
     const now = ac.currentTime;
@@ -81,8 +210,25 @@ class Sfx {
     if (gap && now - (this.last.get(name) ?? -1) < gap) return;
     this.last.set(name, now);
     try {
-      this.synth(name, ac, out, now);
+      const s = samplesFor(name, kind);
+      const ready = s.pick.filter(k => this.buffers.has(k));
+      if (ready.length) this.sample(ready[Math.floor(Math.random() * ready.length)], s.gain, name === 'hit' || name === 'attack');
+      else this.synth(name, ac, out, now);
+      if (s.voice) this.sample(`voice/announcer/${s.voice}`, VOICE_GAIN, false);
     } catch { /* ignore */ }
+  }
+
+  // One shot of a loaded file. Busy sounds get a little pitch wobble so repeats don't drone.
+  private sample(key: string, gain: number, wobble: boolean): void {
+    const ac = this.ctx, out = this.master, buf = this.buffers.get(key);
+    if (!ac || !out || !buf) return;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    if (wobble) src.playbackRate.value = 0.92 + Math.random() * 0.16;
+    const g = ac.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(out);
+    src.start();
   }
 
   private synth(name: SfxName, ac: AudioContext, out: GainNode, t: number): void {
@@ -119,6 +265,7 @@ class Sfx {
         this.tone(ac, out, t + 0.14, 'sawtooth', 120, 100, 0.13, 0.22, 900);
         break;
       case 'count':
+      case 'lastTen':
         this.tone(ac, out, t, 'triangle', 660, 660, 0.14, 0.35);
         break;
       case 'fight':
@@ -132,6 +279,7 @@ class Sfx {
         for (const [i, f] of [523, 659, 784, 1047, 1319].entries()) this.tone(ac, out, t + i * 0.1, 'triangle', f, f, i === 4 ? 0.9 : 0.25, 0.35);
         break;
       case 'lose':
+      case 'draw':
         for (const [i, f] of [392, 311, 262, 196].entries()) this.tone(ac, out, t + i * 0.18, 'triangle', f, f * 0.98, i === 3 ? 0.9 : 0.3, 0.32);
         break;
     }
