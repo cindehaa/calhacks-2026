@@ -4,6 +4,7 @@ import type { BotLevel } from '../../shared/bot';
 import type { TroopDesign } from '../../shared/troop';
 import { cries } from './cries';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
+import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController } from './input/controller';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
@@ -24,6 +25,7 @@ let lock: [number, number] | null = null; // clicked spot for typed troops
 let warmedFor = '';
 let criedFor = '';
 const cried = new Set<bigint>(); // troops that have had their turn to shout
+const drops = new Drops(); // your drops from let-go to landing: board feedback and timings
 const arted = new WeakSet<DrawTroop>(); // bot-match troops already sent for art
 
 // ---------- connection ----------
@@ -38,6 +40,8 @@ connect(
 );
 // Start drawing right away: vs Bot works even if the server never answers.
 requestAnimationFrame(frame);
+// The first designer call is 2–3 s cold. Warm it now, not at match start, so the lobby absorbs it.
+warmDesigner();
 
 const me = () => online?.me();
 const myRoom = () => online?.room();
@@ -124,6 +128,7 @@ function status(msg: string, bad = false) {
 async function sendDeploy(nonce: number, [x, y]: [number, number], description: string, d: TroopDesign, spriteUrl = ''): Promise<boolean> {
   try {
     await match()?.deployTroop(nonce, x, y, description, d, spriteUrl);
+    drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
@@ -131,6 +136,7 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     sfx.play('buzz');
     const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
     status(m ? `${d.name} would cost ${m[2]} — ${m[1] === 'too expensive' ? 'over the 10 limit' : 'not enough elixir'}` : msg, true);
+    drops.refused(nonce, m ? `would cost ${m[2]}${m[1] === 'too expensive' ? ', over 10' : ''}` : 'refused', performance.now());
     return false;
   }
 }
@@ -161,20 +167,26 @@ function beginAt(spot: [number, number]): number | null {
   if (match()?.status !== 'playing') return null;
   const nonce = ++nonceSeq;
   call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
+  drops.begin(nonce, spot, performance.now());
   return nonce;
 }
 
+// An empty message cancels quietly (a quick click that wasn't a hold-to-talk).
 function cancelAt(nonce: number, msg: string) {
   call(match()?.cancelDeploy(nonce), () => {});
-  status(msg, true);
+  drops.cancelled(nonce);
+  status(msg, !!msg);
 }
 
 async function designAt(nonce: number, spot: [number, number], description: string) {
   status(`designing “${description}”…`);
+  drops.heard(nonce, description, performance.now());
   const art = requestSprite(description); // in parallel with the designer; often already started
+  void art.then(url => url && drops.art(nonce, performance.now()));
   try {
     const { design, cost, ms, source, early } = await designTroop(description);
     const tags = [source === 'offline' && 'offline', early && 'early'].filter(Boolean).join(', ');
+    drops.designed(nonce, design.name, tags, performance.now());
     status(`${design.name} (${cost}) · “${design.battle_cry}” · ${ms} ms${tags ? ` (${tags})` : ''}`);
     void deployWithArt(nonce, spot, description, design, art);
   } catch (e) {
@@ -203,6 +215,7 @@ const input = new InputController(board.canvas, {
     prefetchDesign(words);
     prefetchSprite(words);
   },
+  released: (nonce, words) => drops.release(nonce, words, performance.now()),
 });
 
 $<HTMLFormElement>('describe').onsubmit = e => {
@@ -228,6 +241,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (/^[0-9]$/.test(e.key)) deployAnchor((Number(e.key) + 9) % 10);
+  else if (e.key === 't' || e.key === 'T') $('timings').hidden = !$('timings').hidden;
   else if (e.key === 'Escape') lock = null;
   else if (e.key === 'Enter' || e.key === '/') {
     e.preventDefault();
@@ -241,7 +255,7 @@ board.canvas.addEventListener('mousemove', e => {
 });
 board.canvas.addEventListener('mouseleave', () => (aim = null));
 board.canvas.addEventListener('click', () => {
-  if (!aim) return;
+  if (input.tookClick() || !aim) return; // a hold-to-talk press already deployed or cancelled
   lock = aim;
   $('descInput').focus();
 });
@@ -272,6 +286,7 @@ function frame() {
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
 
+  showTimings();
   const units: DrawUnit[] = m.units();
   shout(m, units);
   if (local) artForBot(local);
@@ -285,10 +300,26 @@ function frame() {
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
     input: input.view(),
+    drops: m.status === 'playing' ? drops.views(performance.now()) : [],
     time: m.time,
     status: m.status,
     winner: m.winner ?? undefined,
   });
+}
+
+// Debug readout, off by default (T toggles): per drop, how long the pinch was held, then from
+// letting go to the final words, the stats and the art. Release → stats has to beat the 2.5 s delay.
+let timingsAt = 0;
+if (new URLSearchParams(location.search).has('timings')) $('timings').hidden = false;
+function showTimings() {
+  const el = $('timings');
+  const now = performance.now();
+  if (el.hidden || now - timingsAt < 250) return;
+  timingsAt = now;
+  const last = [...drops.list].reverse().find(d => releaseToStats(d) !== null);
+  const head = last ? `release → stats ${Math.round(releaseToStats(last)!)} ms` : 'release → stats …';
+  el.textContent = [head, ...timingLines(drops.list)].join('\n');
+  el.classList.toggle('slow', !!last && releaseToStats(last)! > 2500);
 }
 
 // A troop shouts its battle cry as it lands. Online you only hear your own troops (the opponent's

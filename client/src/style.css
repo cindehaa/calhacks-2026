@@ -61,3 +61,8 @@ button.round svg { width: 18px; height: 18px; }
 @keyframes tutdrain { to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .tutTimer.run i { animation: none; } }
 #tutorial { z-index: 10; }
+
+/* Debug timing readout (T toggles). */
+#timings { position: fixed; right: 12px; top: 64px; z-index: 5; margin: 0; padding: 6px 9px; max-width: min(560px, calc(100vw - 24px)); font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); background: rgba(13, 16, 32, 0.88); border: 1px solid #2a3050; border-radius: 8px; white-space: pre-wrap; pointer-events: none; }
+#timings::first-line { color: #4ade80; font-weight: 700; }
+#timings.slow::first-line { color: var(--theirs); }

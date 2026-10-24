@@ -1,6 +1,7 @@
 // Canvas drawing. World units are tiles; the board is rotated so your side is at the bottom.
 import { ARENA_H, ARENA_W, DEPLOY_DELAY, LANE_X, MID_Y, TOWER_RADIUS, UNIT_RADIUS, type Side } from '../../shared/arena';
 import { keyBackground } from './chroma';
+import type { DropView } from './drops';
 import { drawInput, type InputView } from './input/draw';
 import { Fx, roundRect, towerKey } from './fx';
 import { glyphImage, sizeScale, troopGlyph } from './tokens';
@@ -30,6 +31,7 @@ export interface View {
   aim: [number, number] | null; // world coords, own half only
   lock: [number, number] | null;
   input?: InputView; // hand cursor, pinch / voice lock and transcript, in screen px
+  drops?: DropView[]; // your released drops still waiting on words or stats, world coords
   // Optional match state, for banners and stingers (3-2-1, double elixir, win/lose).
   time?: number; // match seconds elapsed
   status?: string; // 'lobby' | 'playing' | 'done'
@@ -152,6 +154,7 @@ export class Board {
     // Pending locks: where a troop is about to land.
     const now = performance.now() / 1000;
     for (const p of v.pendings) this.drawPending(p, p.side === v.mySide, now);
+    for (const d of v.drops ?? []) this.drawDrop(d, now);
 
     this.drawUnits(v);
     this.fx.drawAir(g, this.toScreenFn, T);
@@ -240,6 +243,37 @@ export class Board {
     const text = left > 0.05 ? left.toFixed(1) : '…';
     this.outlined(text, sx, sy + 4, 12, mine ? C.text : C.theirsLight);
     if (!mine) this.pill('INCOMING', sx, sy - T * 0.9 - 14, 10, '#7d2431', C.theirs, '#ffffff');
+  }
+
+  // Your drop between letting go and the troop appearing: a pulsing silhouette inside the
+  // pending ring, the words you said above it, and "designing…" (then the name) over those.
+  private drawDrop(d: DropView, now: number): void {
+    const g = this.ctx, T = this.tile;
+    const [sx, sy] = this.toScreen(d.x, d.y);
+    const refused = d.phase === 'refused';
+    const fade = refused ? Math.max(0, 1 - d.age / 1400) : 1;
+    g.save();
+    if (!refused) {
+      // Silhouette: head and shoulders, breathing while it waits.
+      const pulse = 0.5 + 0.5 * Math.sin(now * 6);
+      const k = T * (0.62 + 0.05 * pulse);
+      g.globalAlpha = 0.28 + 0.22 * pulse;
+      g.fillStyle = C.mineLight;
+      g.beginPath();
+      g.arc(sx, sy - k * 0.55, k * 0.3, 0, Math.PI * 2);
+      g.fill();
+      g.beginPath();
+      g.moveTo(sx - k * 0.55, sy + k * 0.5);
+      g.quadraticCurveTo(sx - k * 0.55, sy - k * 0.2, sx, sy - k * 0.22);
+      g.quadraticCurveTo(sx + k * 0.55, sy - k * 0.2, sx + k * 0.55, sy + k * 0.5);
+      g.closePath();
+      g.fill();
+    }
+    g.globalAlpha = fade;
+    const top = sy - T * 0.9 - 14;
+    this.pill(d.text, sx, top, 11, 'rgba(13,16,32,0.9)', refused ? C.theirs : C.mine, refused ? C.theirsLight : C.text);
+    if (d.sub) this.outlined(d.sub, sx, top - 14, 11, refused ? C.theirsLight : d.phase === 'designing' && d.sub !== 'designing…' ? C.mineLight : C.text);
+    g.restore();
   }
 
   private drawUnits(v: View): void {
