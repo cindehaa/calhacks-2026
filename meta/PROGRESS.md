@@ -2,7 +2,7 @@
 
 Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the top, decisions dated at the bottom. Update it whenever something lands, changes or gets cut.
 
-**Last updated:** 2026-10-24 · **Submission:** Devpost, 9:00 AM PT Sat Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Oct 25
+**Last updated:** 2026-10-24 (night) · **Submission:** Devpost, 9:00 AM PT Sat Oct 25 (aim for 7:00 AM) · **Feature freeze:** about 6:00 AM Oct 25
 
 ## Where we are
 
@@ -37,15 +37,15 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 
 ## Next up
 
-**To finish phase 1**
-- [ ] Put a real `ANTHROPIC_API_KEY` in `.env` and run the 30 test descriptions through `/api/troop`. Check the prompt fixes: "god" gets ordinary stats, "1000 ants" isn't max count, Pikachu's cry doesn't say "Pika", blob names vary.
-- [ ] Two laptops on one network, or Maincloud: one match end to end.
+**Waiting on keys**
+- [ ] `ANTHROPIC_API_KEY` in `.env`: run the 30 test descriptions through `/api/troop` and check the prompt fixes ("god", "1000 ants", Pikachu, blob names). Without a key the offline designer is used.
+- [ ] Cartesia STT to replace the browser's speech recognition (behind `SpeechSource` in `client/src/input/speech.ts`), then TTS battle cries; fal sprites.
 
-**Phase 2 (the cut line)**
-- [ ] Cartesia STT push-to-talk: stream mic audio through `api/` while a key or mouse button is held, show the transcript live, deploy on release.
-- [ ] Tune elixir rate, tower damage and K from the first real matches.
-
-**Phase 3 and later** — hand tracking (port the finger-lab settings below into `client/src/hand.ts`), headless balance sim on `shared/sim.ts`, bot mode, code animations (units already carry `attackSeq`), sprites and TTS cries.
+**Can do now**
+- [ ] Decide on the balance sim's pricing fixes (see [sim/README.md](../sim/README.md)): charge per tile of range, drop the speed charge, retune Sniper / Goblin / Knight.
+- [ ] Start designing on the partial transcript, and prompt caching (from the latency research).
+- [ ] Real-webcam test of hand tracking and calibration; two laptops on one network or Maincloud.
+- [ ] Optional `?bot` URL to jump straight into a bot match at the judging table.
 
 ## What prep settled
 
@@ -175,6 +175,10 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Deploys are two calls: `begin_deploy` locks the spot and starts the 2.5 s clock, `deploy_troop` sends the stats. |
 | 2026-10-24 | Three towers a side, one per lane; units walk straight at the nearest enemy tower unless an enemy unit is within 5.5 tiles. |
 | 2026-10-24 | Anchors expanded to 10; tower damage 60/s, range 6 (first pass). |
+| 2026-10-24 | 3 s pre-match countdown on the server and in bot matches: no deploys or elixir until "Fight!". |
+| 2026-10-24 | Sound on by default (M mutes). Voice listening is always on while the mic is on; pinching mid-sentence makes it push-to-talk. |
+| 2026-10-24 | Players never pick swarm size: the designer sets count from the creature (small swarmers 8, medium 3–5, big 2–3). Dragon = heavy ranged. |
+| 2026-10-24 | Claude call: 4.5 s timeout, no retries, offline designer as fallback. Bot opponent is local only (browser), never on the server. |
 
 ## Open questions
 
