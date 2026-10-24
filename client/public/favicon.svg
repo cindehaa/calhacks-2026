@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- An ember on frozen stone: a faceted flame, lit from the upper left, on a night-slate tile. -->
+  <rect width="64" height="64" rx="14" fill="#171b2e"/>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="#2a3050" stroke-width="2"/>
+  <!-- extruded side -->
+  <path d="M36 8L45 22L51 36L49 49L41 59L32 62L23 59L15 49L14 36L19 19L26 29Z" fill="#5c3200"/>
+  <!-- facets, fanned from the centre -->
+  <g stroke-linejoin="round">
+    <path d="M32 40L36 5L45 19Z" fill="#ffb02e"/>
+    <path d="M32 40L45 19L51 33Z" fill="#ffb02e"/>
+    <path d="M32 40L51 33L49 46Z" fill="#d4870f"/>
+    <path d="M32 40L49 46L41 56Z" fill="#d4870f"/>
+    <path d="M32 40L41 56L32 59Z" fill="#d4870f"/>
+    <path d="M32 40L32 59L23 56Z" fill="#ffb02e"/>
+    <path d="M32 40L23 56L15 46Z" fill="#ffb02e"/>
+    <path d="M32 40L15 46L14 33Z" fill="#ffd27a"/>
+    <path d="M32 40L14 33L19 16Z" fill="#ffd27a"/>
+    <path d="M32 40L19 16L26 26Z" fill="#ffd27a"/>
+    <path d="M32 40L26 26L36 5Z" fill="#ffd27a"/>
+  </g>
+  <!-- hot core -->
+  <path d="M33 29L32 53L27 50L25 42Z" fill="#fff1c9"/>
+  <path d="M33 29L39 42L37 50L32 53Z" fill="#ffe08a"/>
+</svg>
