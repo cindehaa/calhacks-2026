@@ -138,11 +138,11 @@ export const ANNOUNCER = {
   voice: '0834f3df-e650-4766-a20c-5a93a43aa6e3',
   lines: {
     match_start: { text: 'Let the battle begin!', emotion: 'excited' },
-    double_elixir: { text: 'Double elixir!', emotion: 'enthusiastic' },
+    double_embers: { text: 'Double embers!', emotion: 'enthusiastic' },
     last_ten: { text: 'Ten seconds left!', emotion: 'anticipation' },
     tower_down: { text: 'A tower has fallen!', emotion: 'amazed' },
     match_end: { text: 'Time! The battle is over!', emotion: 'triumphant' },
     draw: { text: "It's a draw!", emotion: 'surprised' },
-    too_expensive: { text: 'Not enough elixir!', emotion: 'sarcastic' },
+    not_enough_embers: { text: 'Not enough embers!', emotion: 'sarcastic' },
   },
 };

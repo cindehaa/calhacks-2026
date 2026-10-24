@@ -447,11 +447,11 @@
     "duration": 1,
     "loop": false
   },
-  "voice/announcer/double_elixir": {
-    "file": "voice/announcer/double_elixir.mp3",
+  "voice/announcer/double_embers": {
+    "file": "voice/announcer/double_embers.mp3",
     "kind": "voice",
     "model": "cartesia/sonic-3.6",
-    "prompt": "Double elixir!",
+    "prompt": "Double embers!",
     "loop": false
   },
   "voice/announcer/draw": {
@@ -482,11 +482,11 @@
     "prompt": "Let the battle begin!",
     "loop": false
   },
-  "voice/announcer/too_expensive": {
-    "file": "voice/announcer/too_expensive.mp3",
+  "voice/announcer/not_enough_embers": {
+    "file": "voice/announcer/not_enough_embers.mp3",
     "kind": "voice",
     "model": "cartesia/sonic-3.6",
-    "prompt": "Not enough elixir!",
+    "prompt": "Not enough embers!",
     "loop": false
   },
   "voice/announcer/tower_down": {

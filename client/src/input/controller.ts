@@ -584,7 +584,7 @@ export class InputController {
     sfx.play('miss');
     if (this.hinted) return;
     this.hinted = true;
-    const send = this.tracker ? 'pinch' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? 'pinch thumb and middle finger' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
     notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
   }
@@ -781,7 +781,7 @@ export class InputController {
     const send = this.tracker ? 'pinch thumb and middle finger' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'make a fist' : 'press Esc';
     if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;
-    return `Say the troop, then ${send} to send it · ${clear} to clear`;
+    return `Say the troop, then ${send} to send it · ${clear} to cancel`;
   }
 
   // Mirrored camera frame with the skeleton, and the screen's edges projected back into it
@@ -799,7 +799,7 @@ export class InputController {
     const state = this.cursorState(performance.now());
     const label = !this.tracker?.ready ? 'Starting camera…'
       : !this.hand ? 'Show your hand'
-      : state === 'fist' ? 'Fist · clearing' : state === 'fire' ? 'Pinch · sent' : 'Aiming';
+      : state === 'fist' ? 'Fist · cancel' : state === 'fire' ? 'Pinch · send' : 'Aiming';
     const el = this.handView.querySelector<HTMLElement>('.hvState')!;
     if (el.textContent !== label) el.textContent = label;
     this.handView.dataset.state = this.hand ? state : 'none';

@@ -5,7 +5,7 @@
 
 export type SfxName =
   | 'deploy' | 'incoming' | 'land' | 'hit' | 'attack' | 'death' | 'towerHit' | 'towerDown' | 'buzz'
-  | 'count' | 'fight' | 'double' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw'
+  | 'count' | 'fight' | 'double' | 'overtime' | 'lastTen' | 'tooExpensive' | 'win' | 'lose' | 'draw'
   | 'click' | 'versus' | 'joined' | 'forfeit' | 'slam' | 'zap' | 'whoosh' | 'boom' | 'puff' | 'stun'
   // Juice (juice.ts): cost roll ticks and the settle chime, the name stamp, a refused troop's coin
   // shattering, the size-scaled landing thud and the shimmer when late art lands. Synth only.
@@ -20,8 +20,7 @@ export type MusicTrack = 'menu' | 'battle' | 'overtime';
 
 const AUDIO = '/audio/';
 const GAME = ['deploy_land', 'deploy_pending', 'double_elixir', 'match_end', 'match_start', 'tower_destroyed', 'tower_hit_1', 'tower_hit_2', 'victory', 'defeat'];
-// The announcer's "Double elixir!" and "Not enough elixir!" lines are left out: players hear embers now.
-const VOICE = ['draw', 'last_ten', 'match_start', 'tower_down'];
+const VOICE = ['double_embers', 'draw', 'last_ten', 'match_start', 'not_enough_embers', 'tower_down'];
 const UNIT = ['spawn', 'attack_1', 'attack_2', 'hit_1', 'hit_2', 'death'];
 const SAMPLES = [
   ...GAME.map(n => `sfx/game/${n}`),
@@ -42,9 +41,10 @@ function samplesFor(name: SfxName, kind?: SoundKind): { pick: string[]; voice?: 
     case 'towerHit': return { pick: ['sfx/game/tower_hit_1', 'sfx/game/tower_hit_2'], gain: 0.6 };
     case 'towerDown': return { pick: ['sfx/game/tower_destroyed'], voice: 'tower_down', gain: 1 };
     case 'fight': return { pick: ['sfx/game/match_start'], voice: 'match_start', gain: 0.9 };
-    case 'double': return { pick: ['sfx/game/double_elixir'], gain: 0.9 };
+    case 'double': return { pick: ['sfx/game/double_elixir'], voice: 'double_embers', gain: 0.9 };
+    case 'overtime': return { pick: ['sfx/game/double_elixir'], gain: 0.9 }; // triple embers: no "double" line
     case 'lastTen': return { pick: [], voice: 'last_ten', gain: 1 };
-    case 'tooExpensive': return { pick: [], gain: 1 }; // the buzz already plays; no spoken line
+    case 'tooExpensive': return { pick: [], voice: 'not_enough_embers', gain: 1 };
     case 'win': return { pick: ['sfx/game/victory'], gain: 1 };
     case 'lose': return { pick: ['sfx/game/defeat'], gain: 1 };
     case 'draw': return { pick: ['sfx/game/defeat'], voice: 'draw', gain: 0.8 };
@@ -381,6 +381,7 @@ class Sfx {
         for (const [i, f] of [523, 659, 784, 1047].entries()) this.tone(ac, out, t + i * 0.05, 'triangle', f, f, 0.45, 0.3);
         this.noiseHit(ac, out, t, 0.3, 0.25, 'bandpass', 800, 3000, 1.2);
         break;
+      case 'overtime':
       case 'double': // two bright chimes
         for (const [i, f] of [988, 1319, 988, 1319].entries()) this.tone(ac, out, t + i * 0.11, 'sine', f, f, 0.22, 0.32);
         break;

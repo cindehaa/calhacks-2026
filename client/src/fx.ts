@@ -187,7 +187,7 @@ export class Fx {
     }
     if (crossed(MATCH_SECONDS)) {
       this.banner = { at: now, title: 'OVERTIME', sub: 'next tower down wins · triple embers' };
-      sfx.play('double');
+      sfx.play('overtime');
     }
     if (crossed(TIEBREAK_AT)) {
       this.banner = { at: now, title: 'TIEBREAKER', sub: 'all towers lose health · first to fall loses' };
