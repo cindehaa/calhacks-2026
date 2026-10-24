@@ -194,12 +194,14 @@ export function routeWords(epoch: number, firingCut: number | null, dropped: num
 }
 
 // Whether a fire should start a deploy and wait for its words. With words already heard or typed,
-// always. With none yet, only if the mic is listening and heard speech in the last moment: the
-// recogniser runs most of a second behind the voice, so the words are still on their way.
+// always. With none yet, only if the mic is listening, heard speech in the last moment, and that
+// speech started after the last fire: the recogniser runs most of a second behind the voice, so
+// the words are still on their way. Loudness alone isn't enough: in a noisy room the mic is always
+// loud, and every stray pinch became a deploy cancelled with nothing heard.
 export const RECENT_SPEECH_MS = 1500;
-export function fireWaits(o: { said: string; typed: string; listening: boolean; msSinceSpeech: number }): boolean {
+export function fireWaits(o: { said: string; typed: string; listening: boolean; msSinceSpeech: number; spokeSinceFire: boolean }): boolean {
   if (o.said.trim() || o.typed.trim()) return true;
-  return o.listening && o.msSinceSpeech <= RECENT_SPEECH_MS;
+  return o.listening && o.spokeSinceFire && o.msSinceSpeech <= RECENT_SPEECH_MS;
 }
 
 // How long a fire waits for its words to be finalised. The 2.5 s deploy delay hides this.

@@ -68,6 +68,7 @@ interface Track { center: [number, number]; gripSince: number | null; anchor: [n
 export interface Pick {
   control: number; // index into the hands passed in, -1 for none
   reasons: string[]; // per hand: why it was or wasn't chosen, for the debug view
+  fresh: boolean; // control was just chosen (first hand, or another took over), not followed
 }
 
 const dist = (a: [number, number], b: [number, number]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -101,6 +102,7 @@ export class HandPicker {
       else if (pick < 0) return this.done(-1, reasons.map(r => r || 'waiting for control hand'));
     }
     // Or choose one.
+    const fresh = pick < 0;
     if (pick < 0) {
       let best = -Infinity;
       fs.forEach((f, i) => {
@@ -112,11 +114,11 @@ export class HandPicker {
     if (pick < 0) { this.ctl = null; return this.done(-1, reasons) }
     this.ctl = { center: fs[pick].center, side: hands[pick].side, seen: now };
     reasons[pick] = 'control';
-    return this.done(pick, reasons.map(r => r || 'other hand'));
+    return this.done(pick, reasons.map(r => r || 'other hand'), fresh);
   }
 
-  private done(control: number, reasons: string[]): Pick {
-    return { control, reasons };
+  private done(control: number, reasons: string[], fresh = false): Pick {
+    return { control, reasons, fresh };
   }
 
   private follow(hands: HandIn[], fs: HandFeatures[], allowed: boolean[]): number {

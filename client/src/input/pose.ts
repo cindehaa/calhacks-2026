@@ -74,23 +74,50 @@ export function pinchMetric(lm: Landmark[], vw: number, vh: number): number {
   return Math.min(d(INDEX), d(MIDDLE));
 }
 
-// True once per pinch, on the frame it closes; it has to open past `off` before the next.
+// A pinch closing this soon after the last one fired doesn't fire: in prod, a pointing hand's
+// thumb resting on the curled middle finger re-closed every 300-500 ms and fired empty deploys.
+export const PINCH_COOLDOWN_MS = 500;
+
+// What the last pinch looked like as it closed, for the logs.
+export interface PinchShot { ratio: number; openMs: number; sinceLastMs: number; held: number }
+
+// True once per pinch, on the frame it closes; it has to open past `off` before the next, and
+// not within cooldownMs of the last one that fired.
 export class PinchDetector {
   ratio = 1;
+  last: PinchShot | null = null;
   private hyst: Hysteresis;
-  constructor(readonly o = PINCH_DEFAULTS) {
+  private firedAt = -Infinity;
+  private openedAt = -Infinity;
+  private held = 0; // closes swallowed by the cooldown since the last fire
+  constructor(readonly o = { ...PINCH_DEFAULTS, cooldownMs: PINCH_COOLDOWN_MS }) {
     this.hyst = new Hysteresis(o.on, o.off);
   }
   get closed(): boolean {
     return this.hyst.on;
   }
-  update(lm: Landmark[], vw: number, vh: number): boolean {
-    return this.push(pinchMetric(lm, vw, vh));
+  update(lm: Landmark[], vw: number, vh: number, t: number): boolean {
+    return this.push(pinchMetric(lm, vw, vh), t);
   }
-  push(ratio: number): boolean {
+  push(ratio: number, t: number): boolean {
     this.ratio = ratio;
     const was = this.hyst.on;
-    return this.hyst.update(ratio) && !was;
+    const now = this.hyst.update(ratio);
+    if (was && !now) this.openedAt = t;
+    if (!now || was) return false;
+    if (t - this.firedAt < this.o.cooldownMs) {
+      this.held++;
+      return false;
+    }
+    this.last = { ratio, openMs: t - this.openedAt, sinceLastMs: t - this.firedAt, held: this.held };
+    this.firedAt = t;
+    this.held = 0;
+    return true;
+  }
+  // A different hand took control: its first pinch counts only after it has been seen open, so a
+  // hand that arrives already closed (one wrapped round the mic) doesn't fire on the switch.
+  rearm(): void {
+    this.hyst.on = true;
   }
   reset(): void {
     this.hyst.reset();

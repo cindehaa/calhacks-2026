@@ -42,12 +42,14 @@ test('past the cap the partial text deploys; only no words at all misses', () =>
   assert.deepEqual(chooseDescription('', new Transcript().text), { ok: false, reason: 'empty' });
 });
 
-test('a fire with no words yet waits only if the mic just heard speech', () => {
-  const base = { said: '', typed: '', listening: true };
+test('a fire with no words yet waits only if the mic just heard speech that began since the last fire', () => {
+  const base = { said: '', typed: '', listening: true, spokeSinceFire: true };
   assert.ok(fireWaits({ ...base, msSinceSpeech: 0 })); // still talking, no transcript yet
   assert.ok(fireWaits({ ...base, msSinceSpeech: RECENT_SPEECH_MS }));
   assert.ok(!fireWaits({ ...base, msSinceSpeech: RECENT_SPEECH_MS + 1 })); // silence: didn't catch that
   assert.ok(!fireWaits({ ...base, listening: false, msSinceSpeech: 0 }));
+  assert.ok(!fireWaits({ ...base, spokeSinceFire: false, msSinceSpeech: 0 })); // room noise, or a second pinch
+  assert.ok(fireWaits({ ...base, spokeSinceFire: false, said: 'a giant', msSinceSpeech: 0 }));
   assert.ok(fireWaits({ ...base, said: 'a giant', msSinceSpeech: Infinity }));
   assert.ok(fireWaits({ ...base, typed: 'ice golem', listening: false, msSinceSpeech: Infinity }));
 });

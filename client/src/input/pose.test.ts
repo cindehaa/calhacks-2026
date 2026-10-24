@@ -46,7 +46,7 @@ test('cursor history returns the latest sample at or before t', () => {
 test('pinch: fires once per pinch, with hysteresis, on either finger', async () => {
   const { PinchDetector, pinchMetric } = await import('./pose');
   const d = new PinchDetector();
-  const fires = [0.9, 0.6, 0.44, 0.3, 0.5, 0.6, 0.44, 0.3, 0.7, 0.4].map(r => d.push(r));
+  const fires = [0.9, 0.6, 0.44, 0.3, 0.5, 0.6, 0.44, 0.3, 0.7, 0.4].map((r, i) => d.push(r, i * 100));
   assert.deepEqual(fires.map((f, i) => (f ? i : -1)).filter(i => i >= 0), [2, 9]);
   // An upright hand; the thumb tip on the middle finger's pad, then on the index's, then away.
   const hand = (thumb: [number, number]) => {
@@ -58,6 +58,23 @@ test('pinch: fires once per pinch, with hysteresis, on either finger', async () 
   assert.ok(pinchMetric(hand([322, 222]), 640, 480) < 0.45);
   assert.ok(pinchMetric(hand([281, 232]), 640, 480) < 0.45, 'thumb to index counts too');
   assert.ok(pinchMetric(hand([200, 330]), 640, 480) > 0.65);
+});
+
+test('pinch: a re-close inside the cooldown is held, and a new control hand must open first', async () => {
+  const { PinchDetector, PINCH_COOLDOWN_MS } = await import('./pose');
+  const d = new PinchDetector();
+  assert.ok(d.push(0.3, 1000));
+  assert.ok(!d.push(0.7, 1200));
+  assert.ok(!d.push(0.3, 1300), 'flicker 300 ms later');
+  assert.ok(!d.push(0.7, 1400));
+  assert.ok(d.push(0.3, 1000 + PINCH_COOLDOWN_MS + 100));
+  assert.deepEqual(d.last, { ratio: 0.3, openMs: 200, sinceLastMs: PINCH_COOLDOWN_MS + 100, held: 1 });
+
+  const e = new PinchDetector();
+  e.rearm();
+  assert.ok(!e.push(0.2, 0), 'arrives closed: no fire');
+  assert.ok(!e.push(0.7, 100));
+  assert.ok(e.push(0.3, 200));
 });
 
 // Image landmarks for an upright hand (knuckles at y 300, wrist at 400), thumb base at (290, 330).

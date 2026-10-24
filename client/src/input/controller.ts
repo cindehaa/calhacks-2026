@@ -15,7 +15,7 @@ import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand
 import { drawHandView, drawScreenInset } from './handview';
 import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
-import { PinchDetector, extension, thumbDownScore } from './pose';
+import { PinchDetector, extension, thumbDownScore, type PinchShot } from './pose';
 import { NearMiss } from './nearmiss';
 import { hidePinchHint, showPinchHint } from './pinchhint';
 import { AutoSpeech } from './cartesia_stt';
@@ -104,6 +104,10 @@ export class InputController {
   private thumbDown = 0; // the last thumbs-down score, 0..1
   private pinch = new PinchDetector();
   private ratio: number | null = null; // the control hand's pinch measure, null with no hand
+  private shot: PinchShot | null = null; // the pinch at pinchT, for the logs
+  private switchedAt = -Infinity; // when the control hand was last chosen
+  private speechAt = -Infinity; // when the mic last heard speech start (VAD)
+  private firedAt = -Infinity; // when the last deploy began
   private nearMiss = new NearMiss(); // pinches that almost close, for the pinch guide
   private trail = new CursorHistory(); // the hand cursor, to aim from before a pinch
 
@@ -210,7 +214,7 @@ export class InputController {
           this.thumbDown = o.thumbDown ?? 0;
           if (o.ratio === undefined) return void this.publish(this.handSignal(now, this.handCursor, null, o.pinched ?? false));
           this.ratio = o.ratio;
-          const pinched = this.pinch.push(o.ratio);
+          const pinched = this.pinch.push(o.ratio, now);
           this.publish(this.handSignal(now, this.handCursor, null, this.pinch.closed));
           if (pinched) {
             this.pinchT = now;
@@ -335,6 +339,7 @@ export class InputController {
       const db = this.mic.levelDb();
       const ev = this.vad.push(now, db);
       this.publish({ kind: 'level', t: now, db, loud: db > this.vad.o.thresholdDb });
+      if (ev?.kind === 'start') this.speechAt = ev.t;
       if (ev) this.publish({ kind: 'voice', t: ev.t, phase: ev.kind });
       // Close each utterance when the talking stops, so its words are final before the next fire.
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
@@ -359,6 +364,10 @@ export class InputController {
     const p = this.picker.update(fs, now);
     this.lastPick = p.reasons;
     this.others = fs.filter((_, i) => i !== p.control);
+    if (p.fresh && p.control >= 0) {
+      this.pinch.rearm();
+      this.switchedAt = now;
+    }
     this.onHandFrame(p.control >= 0 ? fs[p.control] : null, now);
   }
 
@@ -378,11 +387,12 @@ export class InputController {
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
     this.trail.push(now, this.handCursor);
     this.thumbDown = thumbDownScore(f.lm, f.world, f.vw, f.vh);
-    const pinched = this.pinch.update(f.lm, f.vw, f.vh);
+    const pinched = this.pinch.update(f.lm, f.vw, f.vh, now);
     this.ratio = this.pinch.ratio;
     this.publish(this.handSignal(now, this.handCursor, f, this.pinch.closed));
     if (pinched) {
       this.pinchT = now;
+      this.shot = this.pinch.last;
       this.publish({ kind: 'pinch', t: now, aim: this.trail.at(now - PINCH_AIM_MS) ?? this.handCursor });
     }
     this.checkNearMiss(now);
@@ -550,7 +560,9 @@ export class InputController {
     // The recogniser runs behind the voice: words just said may not have arrived yet. If the mic
     // heard speech a moment ago, deploy anyway and let the words catch up during the delay.
     const listening = this.mic.on && this.speech.available;
-    if (!fireWaits({ said, typed, listening, msSinceSpeech: performance.now() - this.vad.lastLoud })) {
+    const spokeSinceFire = this.speechAt > this.firedAt;
+    if (!fireWaits({ said, typed, listening, msSinceSpeech: performance.now() - this.vad.lastLoud, spokeSinceFire })) {
+      if (by === 'pinch') this.logPinch(t, 'pinch:missed', 0);
       this.missed(p);
       return true;
     }
@@ -561,6 +573,8 @@ export class InputController {
     }
     const nonce = this.host.begin(spot, by);
     if (nonce === null) return false;
+    if (by === 'pinch') this.logPinch(t, 'pinch', nonce);
+    this.firedAt = t;
     // Cut the audio at the fire (plus a short grace): what was said up to then is this troop, what
     // comes after is the next. Every scheme's commit lands here.
     this.firing = { nonce, spot, at: p, by, words: this.prompt, cut: Infinity, done: Promise.resolve(), t };
@@ -580,6 +594,18 @@ export class InputController {
     this.host.released?.(nonce, said);
     void this.land(this.firing);
     return true;
+  }
+
+  // How the pinch at t looked, next to the deploy it began (or the miss): the measure as it closed,
+  // how long the hand was open before, closes the cooldown held back, and the hands and voice.
+  private logPinch(t: number, kind: string, nonce: number): void {
+    const s = this.pinchT === t ? this.shot : null, now = performance.now(), ms = (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '-');
+    const parts = s
+      ? [`ratio ${s.ratio.toFixed(2)}`, `open ${ms(s.openMs)}`, `since last ${ms(s.sinceLastMs)}`, `held ${s.held}`]
+      : ['no measure'];
+    parts.push(`hand ${this.hand?.side ?? '-'}`, `hands ${this.others.length + (this.hand ? 1 : 0)}`, `control ${ms(t - this.switchedAt)}`,
+      `loud ${ms(now - this.vad.lastLoud)} ago`, `speech ${this.speechAt > this.firedAt ? 'new' : 'old'}`);
+    this.host.event?.(kind, parts.join(' · '), nonce);
   }
 
   private async land(f: Firing): Promise<void> {
