@@ -1,4 +1,4 @@
-# Untitled Arena Game — Spec v2
+# Abracadabra — Spec v2
 
 Spec as of 22 Oct 2026. This file is the repo copy of the spec; progress against it lives in [PROGRESS.md](PROGRESS.md). When a decision changes, update both.
 

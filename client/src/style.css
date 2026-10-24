@@ -107,7 +107,7 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 /* title */
 #title { display: grid; place-items: center; cursor: pointer; z-index: 9; }
 .titleInner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 16px; text-align: center; }
-.titleInner .wordmark { font-size: clamp(64px, 11vw, 150px); }
+.titleInner .wordmark { font-size: clamp(40px, 9vw, 136px); letter-spacing: .04em; }
 .tagline { margin: 6px 0 0; font: 600 15px var(--chakra); letter-spacing: .3em; text-transform: uppercase; color: #aab3cf; }
 .pressStart { margin-top: 34px; background: none; border: none; color: var(--text); font: 700 14px var(--chakra); letter-spacing: .3em; text-transform: uppercase; animation: blink 1.6s ease-in-out infinite; }
 .pressStart:hover { background: none; }
@@ -177,7 +177,8 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 /* home is a window onto the 3D arena (pov.ts draws it under the menu): no painted island or ranges */
 #lobby { background: transparent; }
 #lobby > .gBg, #lobby .backlight, .island, .islandShadow, .islandLight { display: none; }
-.home .wordmark { position: absolute; top: 3.2vh; left: 50%; transform: translateX(-50%); width: max-content; z-index: 1; }
+.home .wordmark { position: absolute; top: 3.2vh; left: 50%; transform: translateX(-50%); width: max-content; z-index: 1; font-size: var(--homeMark); letter-spacing: .05em; }
+.home, .result { --homeMark: clamp(48px, 6.6vw, 100px); }
 .islandWrap { position: absolute; left: 50%; top: 15vh; width: min(51vw, 84vh); aspect-ratio: 740 / 758; transform: translateX(-50%); pointer-events: none; }
 .island { position: absolute; inset: 0; width: 100%; animation: bob 7s ease-in-out infinite; }
 .islandShadow { position: absolute; left: 14%; right: 14%; bottom: 3%; height: 12%; border-radius: 50%; background: radial-gradient(closest-side, #000000b0, transparent); animation: shadowBob 7s ease-in-out infinite; }
@@ -349,7 +350,7 @@ body.devMode:not(.inHub) #camBtn { display: none; }
   .mist.back { top: 40vh; }
 }
 @media (max-width: 640px) {
-  .home .wordmark { top: 64px; font-size: 54px; }
+  .home .wordmark { top: 64px; --homeMark: 36px; }
   .islandWrap { top: 150px; width: min(92vw, 44vh); }
   .orders { flex-wrap: wrap; gap: 14px 12px; padding: 0 16px; bottom: 44px; }
   .orders > .battle { order: -1; flex: 1 0 100%; --h: 88px; }
@@ -588,4 +589,4 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 
 /* home: everything round the arena dims (homedim.ts); the banners hang below the title */
 .homeDim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .6; }
-.home .tapestry, .result .tapestry { top: calc(3.2vh + clamp(56px, 7.8vw, 112px) * 1.1 + 14px - min(18vw, 31vh, 260px) * 0.485); }
+.home .tapestry, .result .tapestry { top: calc(3.2vh + var(--homeMark) * 1.15 + 22px - min(18vw, 31vh, 260px) * 0.485); }
