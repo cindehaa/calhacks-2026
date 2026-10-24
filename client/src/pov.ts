@@ -3,7 +3,9 @@
 // The 3D scene renders into its own canvas; names, bars, effects and the hand cursor go on the
 // flat board's 2D canvas, which sits on top and stays the one that gets the mouse.
 import * as THREE from 'three';
-import { ARENA_H, ARENA_W, DEPLOY_DELAY, MID_Y, TOWER_RADIUS, UNIT_RADIUS, type Side } from '../../shared/arena';
+import {
+  ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, deployZones, towerRadius, type Side,
+} from '../../shared/arena';
 import { Fx, roundRect, towerKey } from './fx';
 import { drawInput } from './input/draw';
 import type { DrawTower, DrawTroop, DrawUnit, View } from './render';
@@ -11,7 +13,7 @@ import { glyphImage, sizeScale, troopGlyph } from './tokens';
 
 // Where you stand, in your own view coords (your back line is y = 0): height and resting pitch.
 export const EYES = {
-  tower: { y: -5, h: 7.5, pitch: -0.5 },
+  tower: { y: -1, h: 8.5, pitch: -0.66 }, // over your king's shoulder, princess towers out front
   high: { y: -6, h: 13, pitch: -0.78 },
   low: { y: -3, h: 2.6, pitch: -0.12 },
 } as const;
@@ -33,7 +35,7 @@ const C = {
 const FONT = 'system-ui, sans-serif';
 const DROP_HEIGHT = 3; // tiles; troops hang here until the last 0.3 s of the deploy delay
 
-interface TowerMesh { grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number }
+interface TowerMesh { grp: THREE.Group; base: THREE.Mesh; crown: THREE.Mesh; gem: THREE.Mesh; mat: THREE.MeshStandardMaterial; seen: number; hp: number }
 interface UnitMesh { sprite: THREE.Sprite; shadow: THREE.Mesh; tex: string; seen: number }
 
 export class PovBoard {
@@ -53,6 +55,9 @@ export class PovBoard {
   private frame = 0;
   private layout = new THREE.Group();
   private layoutKey = '';
+  private pockets = new THREE.Group();
+  private pocketKey = '';
+  private hurt = 0; // 0..1, red edges after your king tower takes a hit
   private towers = new Map<unknown, TowerMesh>();
   private units = new Map<bigint, UnitMesh>();
   private pendings: THREE.Mesh[] = [];
@@ -64,8 +69,9 @@ export class PovBoard {
   private ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private v3 = new THREE.Vector3();
   private stone = new THREE.MeshStandardMaterial({ color: '#2b3150', roughness: 0.75 });
-  private body = new THREE.CylinderGeometry(TOWER_RADIUS, TOWER_RADIUS * 1.15, 2.2, 8);
-  private crownGeo = new THREE.CylinderGeometry(TOWER_RADIUS * 1.15, TOWER_RADIUS, 0.5, 8);
+  // Unit-radius tower parts, scaled per tower (the king is wider and taller).
+  private body = new THREE.CylinderGeometry(1, 1.15, 2.2, 8);
+  private crownGeo = new THREE.CylinderGeometry(1.15, 1, 0.5, 8);
   private gemGeo = new THREE.OctahedronGeometry(0.35);
   private shadowGeo = new THREE.CircleGeometry(1, 20);
   private shadowMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.35, depthWrite: false });
@@ -92,7 +98,7 @@ export class PovBoard {
     const rim = new THREE.PointLight(C.theirs, 40, 30);
     rim.position.set(0, 6, -MID_Y - 1);
     s.add(rim);
-    s.add(this.layout);
+    s.add(this.layout, this.pockets);
     this.addSurroundings();
 
     const ring = (inner: number, outer: number, opacity: number) => {
@@ -150,9 +156,10 @@ export class PovBoard {
     this.frame++;
     this.side = v.mySide;
     this.fx.observe(v, now / 1000);
-    this.syncLayout(v.towers);
+    this.syncLayout();
+    this.syncPockets(v.towers);
     this.moveCamera(v, dt, now / 1000);
-    this.syncTowers(v);
+    this.syncTowers(v, dt);
     this.syncUnits(v, now / 1000);
     this.syncPendings(v);
     this.syncCursor(v, now / 1000);
@@ -189,10 +196,18 @@ export class PovBoard {
     outer.position.y = -1.2;
     outer.receiveShadow = true;
     this.scene.add(outer);
-    const plinth = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 1.2, 1.2, ARENA_H + 1.2), new THREE.MeshStandardMaterial({ color: '#191d36', roughness: 0.9 }));
-    plinth.position.y = -0.61;
-    plinth.receiveShadow = true;
-    this.scene.add(plinth);
+    // Two banks with a channel between them for the river.
+    const stone = new THREE.MeshStandardMaterial({ color: '#191d36', roughness: 0.9 });
+    const bankLen = MID_Y - RIVER_HALF + 0.6;
+    for (const dir of [1, -1]) {
+      const bank = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 1.2, 1.2, bankLen), stone);
+      bank.position.set(0, -0.61, dir * (RIVER_HALF + bankLen / 2));
+      bank.receiveShadow = true;
+      this.scene.add(bank);
+    }
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W + 1.2, 0.6, 2 * RIVER_HALF), stone);
+    bed.position.y = -0.91;
+    this.scene.add(bed);
     // Distant spires so the horizon has something on it.
     const spire = new THREE.MeshStandardMaterial({ color: '#171a33', roughness: 1, flatShading: true });
     for (let i = 0; i < 26; i++) {
@@ -204,11 +219,9 @@ export class PovBoard {
     }
   }
 
-  // Halves, grid, lanes and bridges. Lanes and bridges follow the towers, so the board matches
-  // whatever layout the match uses.
-  private syncLayout(towers: DrawTower[]): void {
-    const xs = [...new Set(towers.map(t => this.toView(t.x, t.y)[0]))].sort((a, b) => a - b);
-    const key = this.side + ':' + xs.join(',');
+  // Halves, grid, the river and its two bridges, laid out as in shared/arena.ts. Built once per side.
+  private syncLayout(): void {
+    const key = String(this.side);
     if (key === this.layoutKey) return;
     this.layoutKey = key;
     const L = this.layout;
@@ -220,28 +233,60 @@ export class PovBoard {
       m.receiveShadow = true;
       L.add(m);
     };
-    flat(ARENA_W, MID_Y, ARENA_W / 2, MID_Y / 2, 0.001, new THREE.MeshStandardMaterial({ color: C.myHalf, roughness: 0.95 }));
-    flat(ARENA_W, MID_Y, ARENA_W / 2, MID_Y * 1.5, 0.001, new THREE.MeshStandardMaterial({ color: C.theirHalf, roughness: 0.95 }));
-    const lane = new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.05, roughness: 1 });
-    for (const x of xs) flat(2, ARENA_H, x, MID_Y, 0.02, lane);
+    const bank = MID_Y - RIVER_HALF;
+    flat(ARENA_W, bank, ARENA_W / 2, bank / 2, 0.001, new THREE.MeshStandardMaterial({ color: C.myHalf, roughness: 0.95 }));
+    flat(ARENA_W, bank, ARENA_W / 2, ARENA_H - bank / 2, 0.001, new THREE.MeshStandardMaterial({ color: C.theirHalf, roughness: 0.95 }));
+    // A faint lane from each bridge to the towers behind it, on both sides.
+    const lane = new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.045, roughness: 1 });
+    for (const bx of BRIDGE_X) flat(2 * BRIDGE_HALF, ARENA_H, this.toView(bx, 0)[0], MID_Y, 0.02, lane);
 
     const pts: THREE.Vector3[] = [];
-    for (let x = 1; x < ARENA_W; x++) pts.push(new THREE.Vector3(x - ARENA_W / 2, 0.01, MID_Y), new THREE.Vector3(x - ARENA_W / 2, 0.01, -MID_Y));
-    for (let y = 1; y < ARENA_H; y++) pts.push(new THREE.Vector3(-ARENA_W / 2, 0.01, MID_Y - y), new THREE.Vector3(ARENA_W / 2, 0.01, MID_Y - y));
+    for (let x = 1; x < ARENA_W; x++) {
+      for (const [z0, z1] of [[MID_Y, RIVER_HALF], [-RIVER_HALF, -MID_Y]]) pts.push(new THREE.Vector3(x - ARENA_W / 2, 0.01, z0), new THREE.Vector3(x - ARENA_W / 2, 0.01, z1));
+    }
+    for (let y = 1; y < ARENA_H; y++) {
+      if (Math.abs(y - MID_Y) < RIVER_HALF) continue;
+      pts.push(new THREE.Vector3(-ARENA_W / 2, 0.01, MID_Y - y), new THREE.Vector3(ARENA_W / 2, 0.01, MID_Y - y));
+    }
     L.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.04 })));
 
-    const river = new THREE.Mesh(
-      new THREE.BoxGeometry(ARENA_W, 0.3, 1.6),
-      new THREE.MeshStandardMaterial({ color: '#2a3a7a', emissive: '#1b2a6b', emissiveIntensity: 0.6, roughness: 0.25 })
+    // Water sits a little below the banks; the bridges span it with a lip on each bank.
+    const water = new THREE.Mesh(
+      new THREE.BoxGeometry(ARENA_W, 0.5, 2 * RIVER_HALF),
+      new THREE.MeshStandardMaterial({ color: '#244a8a', emissive: '#16306e', emissiveIntensity: 0.7, roughness: 0.15, metalness: 0.2 })
     );
-    river.position.y = -0.12;
-    L.add(river);
-    const bridge = new THREE.MeshStandardMaterial({ color: '#3a3f5e', roughness: 0.8 });
-    for (const x of xs) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.2, 2.2), bridge);
-      b.position.set(x - ARENA_W / 2, 0.08, 0);
-      b.castShadow = b.receiveShadow = true;
-      L.add(b);
+    water.position.y = -0.45;
+    L.add(water);
+    const wood = new THREE.MeshStandardMaterial({ color: '#4a4560', roughness: 0.85 });
+    const rail = new THREE.MeshStandardMaterial({ color: '#6b6585', roughness: 0.7 });
+    for (const bx of BRIDGE_X) {
+      const x = this.toView(bx, 0)[0] - ARENA_W / 2, len = 2 * RIVER_HALF + 0.8;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(2 * BRIDGE_HALF, 0.18, len), wood);
+      deck.position.set(x, 0.06, 0);
+      deck.castShadow = deck.receiveShadow = true;
+      L.add(deck);
+      for (const side of [-1, 1]) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, len), rail);
+        r.position.set(x + side * (BRIDGE_HALF - 0.06), 0.3, 0);
+        r.castShadow = true;
+        L.add(r);
+      }
+    }
+  }
+
+  // Taking an enemy princess tower opens that side of their half for your drops: tint it.
+  private syncPockets(towers: DrawTower[]): void {
+    const zones = deployZones(this.side, towers.map(t => ({ side: t.side, lane: t.lane ?? -1, hp: t.hp }))).slice(1);
+    const key = zones.map(z => [z.x0, z.x1, z.y0, z.y1].join(',')).join(';');
+    if (key === this.pocketKey) return;
+    this.pocketKey = key;
+    this.pockets.clear();
+    const mat = new THREE.MeshBasicMaterial({ color: C.mine, transparent: true, opacity: 0.12, depthWrite: false });
+    for (const z of zones) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(z.x1 - z.x0, z.y1 - z.y0), mat);
+      m.rotation.x = -Math.PI / 2;
+      this.at((z.x0 + z.x1) / 2, (z.y0 + z.y1) / 2, 0.03, m.position);
+      this.pockets.add(m);
     }
   }
 
@@ -259,13 +304,14 @@ export class PovBoard {
     this.cam.updateMatrixWorld();
   }
 
-  private syncTowers(v: View): void {
+  private syncTowers(v: View, dt: number): void {
+    this.hurt = Math.max(0, this.hurt - dt * 1.6);
     v.towers.forEach((tw, i) => {
       const key = towerKey(tw, i);
       let t = this.towers.get(key);
       if (!t) {
         const grp = new THREE.Group();
-        const base = new THREE.Mesh(this.body, this.stone);
+        const base = new THREE.Mesh(this.body, this.stone.clone());
         base.position.y = 1.1;
         base.castShadow = base.receiveShadow = true;
         const mat = new THREE.MeshStandardMaterial({ roughness: 0.4 });
@@ -276,14 +322,28 @@ export class PovBoard {
         gem.position.y = 3.25;
         grp.add(base, crown, gem);
         this.scene.add(grp);
-        t = { grp, base, crown, gem, mat, seen: 0 };
+        t = { grp, base, crown, gem, mat, seen: 0, hp: tw.hp };
         this.towers.set(key, t);
       }
       t.seen = this.frame;
-      const col = tw.side === v.mySide ? C.mine : C.theirs;
+      const king = tw.lane === KING_LANE, mine = tw.side === v.mySide;
+      // Your king tower losing health reddens the edges of the screen.
+      if (king && mine && tw.hp < t.hp && v.status === 'playing') this.hurt = Math.min(1, this.hurt + 0.6);
+      t.hp = tw.hp;
+      const col = mine ? C.mine : C.theirs;
       t.mat.color.set(col);
       t.mat.emissive.set(col);
-      t.mat.emissiveIntensity = 0.35 + this.fx.towerFlash(key) * 1.5;
+      t.mat.emissiveIntensity = (sleeping(tw, v.towers) ? 0.08 : 0.35) + this.fx.towerFlash(key) * 1.5;
+      const r = towerRadius(tw.lane ?? 0);
+      t.grp.scale.set(r, king ? 1.3 : 1, r);
+      // Your own king sits right under the camera: ghost it so it doesn't hide the board.
+      const ghost = king && mine;
+      for (const m of [t.base.material as THREE.MeshStandardMaterial, t.mat]) {
+        m.transparent = ghost;
+        m.opacity = ghost ? 0.28 : 1;
+        m.depthWrite = !ghost;
+      }
+      t.base.castShadow = !ghost;
       this.at(tw.x, tw.y, 0, t.grp.position);
       const alive = tw.hp > 0;
       t.crown.visible = t.gem.visible = alive;
@@ -412,7 +472,7 @@ export class PovBoard {
 
     v.towers.forEach(tw => {
       if (tw.hp <= 0) return;
-      const p = this.project(tw.x, tw.y, 3.9);
+      const p = this.project(tw.x, tw.y, tw.lane === KING_LANE ? 4.9 : 3.9);
       if (!p) return;
       const s = this.scaleAt(tw.x, tw.y);
       const col = tw.side === v.mySide ? C.mine : C.theirs;
@@ -431,8 +491,19 @@ export class PovBoard {
 
     this.drawLabels(v);
     this.fx.drawAir(g, toScreen, T);
+    if (this.hurt > 0) this.drawHurt();
     this.fx.drawBanners(g, this.w / 2, this.h * 0.38, Math.min(this.w, 720));
     if (v.input) drawInput(g, v.input);
+  }
+
+  // Red at the edges of the screen, like taking damage in a shooter.
+  private drawHurt(): void {
+    const g = this.g, w = this.w, h = this.h;
+    const grad = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.32, w / 2, h / 2, Math.hypot(w, h) / 2);
+    grad.addColorStop(0, 'rgba(255,40,60,0)');
+    grad.addColorStop(1, `rgba(255,40,60,${(0.7 * this.hurt).toFixed(3)})`);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, w, h);
   }
 
   // One name per troop above its lead unit, with the cost (or the drop countdown) beside it.
@@ -510,4 +581,10 @@ export class PovBoard {
     g.fillText(text, x, y + size * 0.05);
     g.textBaseline = 'alphabetic';
   }
+}
+
+// Same rule as the sim: the king sleeps until it is hit or loses a princess tower.
+function sleeping(tw: DrawTower, all: DrawTower[]): boolean {
+  if (tw.lane !== KING_LANE || tw.hp <= 0 || tw.hp < tw.maxHp) return false;
+  return !all.some(o => o.side === tw.side && o.lane !== undefined && o.lane !== KING_LANE && o.hp <= 0);
 }

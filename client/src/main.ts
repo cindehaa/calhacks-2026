@@ -16,6 +16,7 @@ import { showTutorialOnce } from './tutorial';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const flat = new Board($<HTMLCanvasElement>('board'));
 const pov = new PovBoard($<HTMLCanvasElement>('board3d'), flat.canvas);
+if (import.meta.env.DEV) Object.assign(window, { pov }); // poke at the 3D view from the console
 
 // V (or the 3D button) cycles the top-down board and the POV eyes; remembered per browser.
 const VIEWS = ['flat', 'tower', 'high', 'low'] as const;
