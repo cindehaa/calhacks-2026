@@ -56,7 +56,8 @@ export const ROUTES: Record<string, (body: Body) => Promise<unknown>> = {
 };
 
 // The PNG a GET for /api/sprite/<name> or /api/pose/<name> asks for, or null. On Vercel the
-// rewrites in vercel.json pass the name as ?name=, so the function that drew it serves it.
+// rewrites in vercel.json pass the name as ?name=, and the PNG comes from the Blob store, so any
+// instance can serve it (without a store, only the instance that drew it can).
 export async function png(url: URL): Promise<Buffer | null> {
   const [, , kind, rest] = url.pathname.split('/'); // '', 'api', 'sprite' | 'pose', name
   const name = url.searchParams.get('name') ?? rest ?? '';

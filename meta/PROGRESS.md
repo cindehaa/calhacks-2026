@@ -46,6 +46,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [x] POV troops and voice fix (2026-10-24): the 3D view (`client/src/pov.ts`) now draws sprites with attack poses, the shared attack motion from `fx.ts`, quirk status effects, labels, HP bars and pending drops; the view button is labelled and the how-to card mentions V. Voice: Space no longer types into an empty description box during a match, setup continues with mic only, and a hint under the box says how to talk a troop in. Checked headless with Space, mouse hold, no camera and camera push-to-talk. 114 tests pass.
 - [x] Overnight cleanup (2026-10-24, branch `cleanup/overnight`): removed the 2D board's leftover drawing code and other dead code; one shared `normalise()`, sprite keyer and api art cache; the 3D board no longer renders behind the opaque title, home and result screens; `OnlineMatch` stops rescanning the player table (the SpacetimeDB client's `find()` is a full scan) dozens of times a frame; Claude no longer writes battle cries (about 0.1 s off every design); the balance sim rates buildings-only troops by tower runs only. Checked with tests, typecheck, a bot match and a two-tab online room on a local server.
 - [x] Warmth-and-frost sound pass (2026-10-24): menu, battle and overtime music regenerated with a crackling fireplace under wintry instruments, and the 11 match sounds and arena ambience redone with snow, ice, wind, embers and braziers (`tools/audio/prompts.mjs`). Troop sound sets unchanged. The vision lives in [aesthetics.md](aesthetics.md). Not yet listened to in game.
+- [x] Sprite and pose art on Vercel (2026-10-24, branch `isaac/sprites-blob`): art was cached in the function's temp dir, so a GET that reached another instance 404'd. With `BLOB_READ_WRITE_TOKEN` set, PNGs now go to Vercel Blob (public, `sprites/<id>.png` and `poses/<id>.png`, so repeat descriptions still hit the cache) and the api serves them from there at the same `/api/sprite/<id>.png` URL; local dev keeps `.cache/`. Unit tests use a stand-in for `put`/`head`/`get`; the local path was checked with one real sprite. Not yet checked against a real Blob store or on Vercel.
 
 ## Next up
 
@@ -54,6 +55,7 @@ Running log of where we stand against [SPEC.md](SPEC.md). Newest status at the t
 - [ ] Fix the two prompt rules Claude still misses (checked 2026-10-24 night with `npm run bench` and three calls each): "a god that kills everything instantly" comes back golem-strength (cost 8–15, the rule says mini-tank or caster), and "an army of 50 giants" is always three giants at cost 13–15, which the game refuses. "1000 ants" (an 8-ant swarm, cost 3), Pikachu and injection pass.
 
 **Can do now**
+- [ ] Cindy: create a Blob store in the Vercel project (Storage → Create → Blob, connect it to `calhacks-2026`), which adds `BLOB_READ_WRITE_TOKEN`, then redeploy. Until then deployed sprites and poses 404 whenever the GET reaches a different function instance.
 - [ ] Deploy: publish the module to Maincloud (`spacetime publish --module-path server --server maincloud calhacks-arena -y`; no `--delete-data` needed now), make sure `CARTESIA_API_KEY` and `FAL_KEY` are set in Vercel, and check the production site plays with voice and art from two machines.
 - [ ] Real-webcam and real-mic test on two laptops on one network or Maincloud: hand tracking (no calibration step now), Cartesia STT in hall noise (prep test 6), push to talk.
 - [ ] Playtest with people from 12 PM: gather feedback, iterate, and record the montage video.
@@ -210,6 +212,7 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Isaac's sprite pipeline (FLUX.1 schnell, BiRefNet v2 with a 3 s timeout, border-colour key as the fallback, cached and served by `api/`) chosen over the `flux-2/klein` + browser chroma-key one, because the troop quirks and pose frames build on it. |
 | 2026-10-24 | Aesthetic theme is warmth and frost, kept in `meta/aesthetics.md`. Music and match sounds follow it; troop sound sets stay literal to what the player describes. |
 | 2026-10-24 | Claude no longer writes `battle_cry` or `voice_style` (unused since the cries were cut): `sanitizeDesign` fills them in, so tables and reducers are unchanged. Measured with `npm run bench` (Haiku, 40 rounds): p50 1.50 → 1.41 s, p90 2.12 → 1.69 s, judgement checks unchanged. |
+| 2026-10-24 | Deployed art lives in Vercel Blob, read back through `/api/sprite/<id>.png` rather than handing out Blob URLs, so `spriteUrl` stays short and the client's same-origin check and CORS stay as they are. |
 
 ## Open questions
 
