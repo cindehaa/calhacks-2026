@@ -1,5 +1,5 @@
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, DOUBLE_ELIXIR_AT, ELIXIR_MAX, ELIXIR_PER_SEC, KING_LANE, MATCH_SECONDS, MID_Y, canDeploy, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR_MAX, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
@@ -99,7 +99,9 @@ function netMsg(s: string) {
   $('hubNet').title = s;
 }
 hubFx(document.querySelector('#title .hubSky')!);
-tapestry(document.querySelector('#lobby .cloth')!, document.querySelector('#lobby .tapestry .bannerBody')!);
+for (const [sel, house, rim, phase] of [['left', 'raven', 'right', 0], ['right', 'sun', 'left', 2.3]] as const) {
+  tapestry(document.querySelector(`#lobby .tapestry.${sel} .cloth`)!, document.querySelector(`#lobby .tapestry.${sel} .bannerBody`)!, { house, rim, phase });
+}
 resultFx($<HTMLCanvasElement>('resultSky'), () => ($('result').classList.contains('win') ? 'win' : $('result').classList.contains('lose') ? 'lose' : 'draw'));
 // The home scene leans a little toward the cursor: ranges least, the island most.
 $('lobby').addEventListener('pointermove', e => {
@@ -438,7 +440,7 @@ function renderResult() {
     towersTaken: theirs.filter(t => t.hp <= 0).length, towersLost: mine.filter(t => t.hp <= 0).length,
     theirKingDown: (king(theirs)?.hp ?? 1) <= 0, myKingDown: (king(mine)?.hp ?? 1) <= 0,
     myKingStruck: !!king(mine) && king(mine)!.hp < king(mine)!.maxHp,
-    theirKingFellAt: round.theirKingFellAt, myKingFellAt: round.myKingFellAt, cappedSecs: round.cappedSecs, myBest, theirBest,
+    theirKingFellAt: round.theirKingFellAt, myKingFellAt: round.myKingFellAt, cappedSecs: round.cappedSecs, endedAt: m.time, myBest, theirBest,
   };
 
   remember(LAST_KEY, JSON.stringify({ foe: foeName(m), outcome, score: `${summary.towersTaken}–${summary.towersLost}` } satisfies LastMatch));
@@ -513,10 +515,11 @@ function renderVersus(m: MatchSource | null) {
   $('versus').classList.toggle('leaving', show && t > -COUNTDOWN - 0.35);
 }
 
-// Time left on the match clock, or (elapsed) time into the match.
+// Time left on the match clock (overtime counts down its own 30 s), or (elapsed) time into the match.
 function clockText(m: MatchSource, elapsed = false) {
-  const t = elapsed ? Math.min(MATCH_SECONDS, Math.max(0, m.time)) : Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
-  return clock(t);
+  const t = Math.max(0, m.time);
+  if (elapsed) return clock(Math.min(TIEBREAK_AT, t));
+  return clock(Math.max(0, t < MATCH_SECONDS ? MATCH_SECONDS - t : TIEBREAK_AT - t));
 }
 
 // Bot matches only: the clock, the bot and the music all wait.
@@ -645,10 +648,11 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
   }
 }
 
-// Seconds until `need` elixir is in hand at the current rate (double in the last 30 s), rounded up.
+// Seconds until `need` elixir is in hand at the current rate (double in the last 30 s, triple in
+// overtime), rounded up.
 function elixirWait(need: number, have: number): number {
   const m = match();
-  const rate = ELIXIR_PER_SEC * ((m?.time ?? 0) >= DOUBLE_ELIXIR_AT ? 2 : 1);
+  const rate = elixirRate(m?.time ?? 0);
   return Math.max(1, Math.ceil((need - have) / rate));
 }
 
@@ -865,10 +869,12 @@ function frame() {
   }
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = clockText(m);
-  const double = left <= 30 && m.status === 'playing';
-  $('roomInfo').textContent = double ? 'Double embers' : m.label;
-  $('roomInfo').classList.toggle('double', double);
-  $('dock').classList.toggle('double', double);
+  const playing = m.status === 'playing';
+  const phase = !playing ? null : m.time >= TIEBREAK_AT ? 'Tiebreaker' : m.time >= MATCH_SECONDS ? 'Overtime · triple embers' : left <= 30 ? 'Double embers' : null;
+  $('roomInfo').textContent = phase ?? m.label;
+  $('roomInfo').classList.toggle('double', !!phase);
+  $('dock').classList.toggle('double', !!phase);
+  $('clock').classList.toggle('overtime', playing && m.time >= MATCH_SECONDS);
   // The raw connection state only matters online, and only when something is wrong.
   $('netStatus').hidden = !!local || !$('netStatus').textContent || droppedAt > 0; // the reconnect banner says it plainly
   const elixir = m.elixir;

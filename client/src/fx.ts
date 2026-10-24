@@ -1,7 +1,7 @@
 // Game feel: watches each frame's View, diffs it against the last one by id (hp, attackSeq,
 // delay, which units exist) and turns the differences into short-lived effects and sounds.
 // Pure client-side decoration; nothing here feeds back into the game.
-import { COUNTDOWN, DOUBLE_ELIXIR_AT, MATCH_SECONDS, TOWER_RADIUS, UNIT_RADIUS } from '../../shared/arena';
+import { COUNTDOWN, DOUBLE_ELIXIR_AT, MATCH_SECONDS, TIEBREAK_AT, TOWER_RADIUS, UNIT_RADIUS } from '../../shared/arena';
 import type { DrawQuirks, DrawTower, DrawUnit, View } from './render';
 import { sfx, soundKind, type SoundKind } from './sfx';
 import { anticipation, elementColors, hitInterval, inPose } from './tokens';
@@ -118,7 +118,7 @@ export class Fx {
   private prevTime = -1;
   private countdownAt = -10;
   private countStep = -1;
-  private doubleAt = -10;
+  private banner = { at: -10, title: '', sub: '' }; // DOUBLE EMBERS, OVERTIME, TIEBREAKER
   private pendingCount = [0, 0];
   private reduced = reducedMotion();
   private out: UnitAnim = { dx: 0, dy: 0, sx: 1, sy: 1, flash: 0, rot: 0, up: 0, glow: 0, glowColor: '#fff', smear: 0, smx: 0, smy: 0 };
@@ -180,12 +180,20 @@ export class Fx {
       this.countStep = step;
       sfx.play(step === 3 ? 'fight' : 'count');
     }
-    if (v.status === 'playing' && this.prevTime >= 0 && this.prevTime < DOUBLE_ELIXIR_AT && time >= DOUBLE_ELIXIR_AT) {
-      this.doubleAt = now;
+    const crossed = (at: number) => v.status === 'playing' && this.prevTime >= 0 && this.prevTime < at && time >= at;
+    if (crossed(DOUBLE_ELIXIR_AT)) {
+      this.banner = { at: now, title: 'DOUBLE EMBERS', sub: 'the fire roars' };
       sfx.play('double');
     }
-    const ten = MATCH_SECONDS - 10;
-    if (v.status === 'playing' && this.prevTime >= 0 && this.prevTime < ten && time >= ten) sfx.play('lastTen');
+    if (crossed(MATCH_SECONDS)) {
+      this.banner = { at: now, title: 'OVERTIME', sub: 'next tower down wins · triple embers' };
+      sfx.play('double');
+    }
+    if (crossed(TIEBREAK_AT)) {
+      this.banner = { at: now, title: 'TIEBREAKER', sub: 'all towers lose health · first to fall loses' };
+      sfx.play('fight');
+    }
+    if (crossed(MATCH_SECONDS - 10) || crossed(TIEBREAK_AT - 10)) sfx.play('lastTen');
     sfx.setMusic(v.status === 'playing' ? (time >= DOUBLE_ELIXIR_AT ? 'overtime' : 'battle') : 'menu');
     this.prevTime = v.status === 'playing' ? time : -1;
   }
@@ -805,7 +813,7 @@ export class Fx {
 
   // ---------- drawing ----------
 
-  // Centre-screen announcements: 3-2-1-FIGHT and DOUBLE EMBERS.
+  // Centre-screen announcements: 3-2-1-FIGHT, DOUBLE EMBERS, OVERTIME and TIEBREAKER.
   drawBanners(g: CanvasRenderingContext2D, cx: number, cy: number, width: number): void {
     const now = this.now;
     const ct = now - this.countdownAt;
@@ -818,7 +826,7 @@ export class Fx {
       const size = Math.min(width * (step < 3 ? 0.3 : 0.2), step < 3 ? 110 : 84) * pop;
       this.bigText(g, text, cx, cy, size, step < 3 ? '#ffffff' : '#ffd27a', alpha);
     }
-    const dt = now - this.doubleAt;
+    const dt = now - this.banner.at;
     if (dt >= 0 && dt < 2.4) {
       const inn = Math.min(1, dt / 0.18), out = dt > 1.9 ? (2.4 - dt) / 0.5 : 1;
       const size = Math.min(width * 0.1, 40) * (0.8 + 0.2 * inn);
@@ -831,11 +839,11 @@ export class Fx {
       g.lineWidth = 2;
       g.stroke();
       g.globalAlpha = 1;
-      this.bigText(g, 'DOUBLE EMBERS', cx, cy - size * 0.12, size, '#ffc58a', Math.min(inn, out));
+      this.bigText(g, this.banner.title, cx, cy - size * 0.12, size, '#ffc58a', Math.min(inn, out));
       g.font = `700 ${Math.round(size * 0.36)}px 'Alegreya Sans', system-ui, sans-serif`;
       g.fillStyle = '#e8b892';
       g.globalAlpha = Math.min(inn, out);
-      g.fillText('the fire roars', cx, cy + size * 0.62);
+      g.fillText(this.banner.sub, cx, cy + size * 0.62);
       g.globalAlpha = 1;
     }
   }

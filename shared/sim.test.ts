@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors.js';
-import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, formation, type Side } from './arena.js';
+import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, TIEBREAK_AT, formation, type Side } from './arena.js';
 import { newMatch, newUnit, step, type SimState } from './sim.js';
 import { MAX_COST, TROOP_SCHEMA, clampStats, price, sanitizeDesign, sanitizeWish, type TroopStats } from './troop.js';
 import { SYSTEM_PROMPT } from './prompt.js';
@@ -77,12 +77,64 @@ test('an unopposed golem takes a princess tower and wins', () => {
   assert.ok(s.towers.some(t => t.side === 1 && t.hp === 0));
 });
 
-test('an empty match is a draw at 90 s', () => {
+test('an empty match goes to overtime, then the tiebreaker, and draws', () => {
   const s = newMatch();
-  const r = run(s, MATCH_SECONDS + 1);
+  let r = run(s, MATCH_SECONDS + 1);
+  assert.ok(!r.over);
+  assert.equal(s.elixir[0], 10);
+  r = run(s, TIEBREAK_AT - s.time + 10);
   assert.ok(r.over);
   assert.equal(r.winner, -1);
-  assert.equal(s.elixir[0], 10);
+  assert.ok(s.towers.every(t => t.lane === KING_LANE || t.hp === 0)); // the princess towers fall together
+  assert.ok(s.time > TIEBREAK_AT);
+});
+
+test('a tower lead at 90 s wins on the clock', () => {
+  const s = newMatch();
+  s.towers.find(t => t.side === 1 && t.lane === 0)!.hp = 0;
+  const r = run(s, MATCH_SECONDS + 1);
+  assert.ok(r.over);
+  assert.equal(r.winner, 0);
+  assert.ok(Math.abs(s.time - MATCH_SECONDS) < 0.1);
+});
+
+test('the first tower down in overtime wins', () => {
+  const s = newMatch();
+  run(s, MATCH_SECONDS + 5);
+  assert.ok(s.time > MATCH_SECONDS);
+  s.towers.find(t => t.side === 0 && t.lane === 2)!.hp = 0;
+  const r = step(s, 1 / TICK_HZ);
+  assert.ok(r.over);
+  assert.equal(r.winner, 1);
+});
+
+test('overtime elixir runs at triple rate', () => {
+  const s = newMatch();
+  run(s, MATCH_SECONDS + 1);
+  s.elixir = [0, 0];
+  run(s, 2);
+  assert.ok(Math.abs(s.elixir[0] - 3) < 0.01);
+});
+
+test('in the tiebreaker the weakest tower falls first and loses', () => {
+  const s = newMatch();
+  run(s, TIEBREAK_AT - 0.01);
+  s.towers.find(t => t.side === 1 && t.lane === 2)!.hp = 900;
+  s.towers.find(t => t.side === 0 && t.lane === 0)!.hp = 901;
+  const r = run(s, 10);
+  assert.ok(r.over);
+  assert.equal(r.winner, 0);
+  assert.equal(s.towers.find(t => t.side === 1 && t.lane === 2)!.hp, 0);
+  assert.ok(s.towers.find(t => t.side === 0 && t.lane === 0)!.hp > 0);
+});
+
+test('weakest towers level in the tiebreaker draw, even when one is a king', () => {
+  const s = newMatch();
+  run(s, TIEBREAK_AT - 0.01);
+  for (const t of s.towers) t.hp = t.lane === KING_LANE && t.side === 0 ? 500 : t.lane !== KING_LANE && t.side === 1 ? 500 : 3000;
+  const r = run(s, 10);
+  assert.ok(r.over);
+  assert.equal(r.winner, -1);
 });
 
 test('opposing troops fight each other before the towers', () => {

@@ -7,18 +7,19 @@ import {
   ARENA_W,
   BRIDGE_HALF,
   BRIDGE_X,
-  DOUBLE_ELIXIR_AT,
+  DRAIN_PER_SEC,
   ELIXIR_MAX,
-  ELIXIR_PER_SEC,
   ELIXIR_START,
   KING_HEALTH,
   KING_LANE,
   MATCH_SECONDS,
   MID_Y,
   RIVER_HALF,
+  TIEBREAK_AT,
   TOWER,
   TOWER_X,
   UNIT_RADIUS,
+  elixirRate,
   towerRadius,
   towerY,
   type Side,
@@ -222,8 +223,9 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
     if (s.time > -1e-6) s.time = 0; // snap float drift, so 60 ticks of 0.05 s end exactly at 0
     return { deadUnitIds: [], hits: [], spawned: [], over: false, winner: null };
   }
+  if (s.time >= TIEBREAK_AT) return drain(s, dt);
   s.time += dt;
-  const rate = ELIXIR_PER_SEC * (s.time >= DOUBLE_ELIXIR_AT ? 2 : 1);
+  const rate = elixirRate(s.time);
   s.elixir = [Math.min(ELIXIR_MAX, s.elixir[0] + rate * dt), Math.min(ELIXIR_MAX, s.elixir[1] + rate * dt)];
 
   for (const u of s.units) if (u.delay > 0) u.delay = Math.max(0, u.delay - dt);
@@ -380,8 +382,23 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER): StepRe
 
   // Losing the king takes the whole side down: three towers.
   for (const side of [0, 1] as Side[]) if (kingDown(s, side)) for (const t of s.towers) if (t.side === side) t.hp = 0;
-  const over = s.time >= MATCH_SECONDS || kingDown(s, 0) || kingDown(s, 1);
+  const over = kingDown(s, 0) || kingDown(s, 1) || (s.time >= MATCH_SECONDS && lost(s, 0) !== lost(s, 1));
   return { deadUnitIds, hits, spawned, over, winner: over ? judge(s) : null };
+}
+
+// The tiebreaker: troops freeze and every standing tower loses the same health each step, never
+// more than the weakest has left, so the weakest lands on exactly 0. Its side loses; if both
+// sides' weakest were level they fall on the same step and it's a draw.
+function drain(s: SimState, dt: number): StepResult {
+  s.time += dt;
+  const standing = s.towers.filter(t => t.hp > 0);
+  const d = Math.min(DRAIN_PER_SEC * dt, ...standing.map(t => t.hp));
+  for (const t of standing) t.hp -= d;
+  const fell = (side: Side) => standing.some(t => t.side === side && t.hp <= 0);
+  const f0 = fell(0), f1 = fell(1);
+  for (const side of [0, 1] as Side[]) if (kingDown(s, side)) for (const t of s.towers) if (t.side === side) t.hp = 0;
+  const over = f0 || f1;
+  return { deadUnitIds: [], hits: [], spawned: [], over, winner: !over ? null : f0 && f1 ? -1 : f0 ? 1 : 0 };
 }
 
 // flying: melee units can't reach it; ranged units and towers can.
@@ -469,11 +486,10 @@ function hit(u: SimUnit, target: Target, units: SimUnit[], towers: SimTower[], h
   }
 }
 
-// Most enemy towers destroyed wins; tie-break on total tower health left.
+const lost = (s: SimState, side: Side) => s.towers.filter(t => t.side === side && t.hp <= 0).length;
+
+// Fewer towers lost wins.
 export function judge(s: SimState): Side | -1 {
-  const lost = (side: Side) => s.towers.filter(t => t.side === side && t.hp <= 0).length;
-  const health = (side: Side) => s.towers.filter(t => t.side === side).reduce((a, t) => a + t.hp, 0);
-  if (lost(0) !== lost(1)) return lost(0) < lost(1) ? 0 : 1;
-  if (health(0) !== health(1)) return health(0) > health(1) ? 0 : 1;
-  return -1;
+  const a = lost(s, 0), b = lost(s, 1);
+  return a === b ? -1 : a < b ? 0 : 1;
 }

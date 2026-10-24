@@ -58,7 +58,7 @@ Two players on different browsers join a room and fight a 90-second match; destr
 - **Movement:** troops are ground units and can't cross the river except on a bridge. A troop headed across walks to whichever bridge makes the shorter trip, then straight at its target. Ranged troops still shoot across the water.
 - **Elixir:** refills steadily to a max of 10. Starting point: 1 per 2 s, doubled in the last 30 s (tune in playtests).
 - **Deploy delay:** about 2.5 s from release to arrival. This window hides troop generation.
-- **Win condition:** destroying the king tower wins at once and counts as all three towers. Otherwise most towers destroyed at 90 s; tie-break on tower health.
+- **Win condition:** destroying the king tower wins at once and counts as all three towers. Otherwise most towers destroyed at 90 s. Level at 90 s: 30 s of overtime at triple elixir, where the first tower down wins. Still level: the tiebreaker. Troops freeze, deploys close, and every standing tower loses 1,200 health a second; the side whose tower falls first loses, and towers that fall together are a draw.
 - **Cost reveal:** cost is hidden before deploying, then shown as a small badge on the troop so players learn the economy.
 
 ## Controls

@@ -2,7 +2,7 @@
 // Combat itself lives in shared/sim.ts; this file only moves rows in and out of it.
 import { ScheduleAt, type Identity } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newTowers, newUnit, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import { newTally, tallyStep, troopsHit, type TroopTally } from '../../shared/tally';
@@ -829,6 +829,7 @@ function myMatch(ctx: Ctx) {
   const r = myRoom(ctx);
   if (r.status !== 'playing') throw new SenderError('match not running');
   if (r.time < 0) throw new SenderError('match starting');
+  if (r.time >= TIEBREAK_AT) throw new SenderError('tiebreaker');
   const side: Side = r.host.equals(ctx.sender) ? 0 : 1;
   return { r, side };
 }

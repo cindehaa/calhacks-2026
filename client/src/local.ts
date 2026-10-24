@@ -2,7 +2,7 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { ELIXIR_MAX, MATCH_START, TICK_HZ, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { ELIXIR_MAX, MATCH_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
 import { newMatch, newUnit, step, type SimState } from '../../shared/sim';
@@ -147,7 +147,7 @@ export class LocalMatch implements MatchSource {
 
   // The bot goes through the same lock → deploy path as you, so its drop is telegraphed.
   private runBot() {
-    if (this.s.time < 0) return;
+    if (this.s.time < 0 || this.s.time >= TIEBREAK_AT) return;
     const cfg = BOT_LEVELS[this.level];
     if (this.botMove) {
       if (this.s.time < this.botMove.at) return;
@@ -174,6 +174,7 @@ export class LocalMatch implements MatchSource {
     if (this.status !== 'playing') throw new Error('match not running');
     if (this.paused) throw new Error('paused');
     if (this.s.time < 0) throw new Error('match starting');
+    if (this.s.time >= TIEBREAK_AT) throw new Error('tiebreaker');
   }
 
   private lock(side: Side, nonce: number, x: number, y: number) {

@@ -16,9 +16,17 @@ export const COUNTDOWN = 3; // "3-2-1, Fight!" runs from time −3, with no depl
 export const INTRO = 2.5; // the "you vs them" card before the countdown
 export const MATCH_START = -(INTRO + COUNTDOWN); // the clock a new match starts at
 export const DOUBLE_ELIXIR_AT = 60; // last 30 s
+// Level on towers at MATCH_SECONDS: overtime, sudden death at triple elixir, and the first tower
+// down wins. Still level when it runs out: the tiebreaker. Everything stops, every standing tower
+// loses health at DRAIN_PER_SEC, and the side whose tower falls first loses. Towers that fall
+// together draw.
+export const OVERTIME_SECONDS = 30;
+export const TIEBREAK_AT = MATCH_SECONDS + OVERTIME_SECONDS;
+export const DRAIN_PER_SEC = 1200; // a full king tower drains in 3 s
 export const ELIXIR_MAX = 10;
 export const ELIXIR_START = 5;
 export const ELIXIR_PER_SEC = 0.5;
+export const elixirRate = (time: number) => ELIXIR_PER_SEC * (time >= MATCH_SECONDS ? 3 : time >= DOUBLE_ELIXIR_AT ? 2 : 1);
 
 export const DEPLOY_DELAY = 2.5; // release → arrival; hides troop generation
 export const MIN_DEPLOY_DELAY = 0.3; // if generation ran long, still telegraph the drop
