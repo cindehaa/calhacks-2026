@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors.js';
 import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, formation, type Side } from './arena.js';
 import { newMatch, newUnit, step, type SimState } from './sim.js';
-import { MAX_COST, clampStats, price, sanitizeDesign, type TroopStats } from './troop.js';
+import { MAX_COST, TROOP_SCHEMA, clampStats, price, sanitizeDesign, sanitizeWish, type TroopStats } from './troop.js';
+import { SYSTEM_PROMPT } from './prompt.js';
 
 let nextId = 1000;
 function spawn(s: SimState, side: Side, stats: TroopStats, x: number, y: number) {
@@ -41,6 +42,20 @@ test('sanitizeDesign trims the cry and fixes a bad voice', () => {
   assert.equal(d.name, 'A Very Long');
   assert.equal(d.battle_cry.split(' ').length, 8);
   assert.equal(d.voice_style, 'cheerful_hero');
+});
+
+test('wish is asked for, cut to 3 lowercase words, and never changes the troop', () => {
+  assert.ok(TROOP_SCHEMA.required.includes('wish'));
+  assert.match(SYSTEM_PROMPT, /\nwish: /);
+  assert.equal(sanitizeWish('Poison Cloud!'), 'poison cloud');
+  assert.equal(sanitizeWish('a very long spinning attack'), 'a very long');
+  assert.equal(sanitizeWish(42), '');
+  const golem = ANCHORS.find(a => a.name === 'Stone Golem')!;
+  const plain = sanitizeDesign(golem), wished = sanitizeDesign({ ...golem, wish: 'Spin Attack' });
+  assert.equal(plain.wish, '');
+  assert.equal(wished.wish, 'spin attack');
+  assert.deepEqual({ ...wished, wish: '' }, plain);
+  assert.equal(price(wished), price(plain));
 });
 
 test('units wait out the deploy delay, then walk at the enemy tower', () => {

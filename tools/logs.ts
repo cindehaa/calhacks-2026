@@ -5,6 +5,8 @@
 //   npm run logs -- --last 20
 //   npm run logs -- --jsonl > out    one line per deploy attempt, with the words said after it,
 //                                    any mismatch flag and how the troop fought: input for tuning
+//   npm run logs -- --wishes         what the designer wished the lists had, by players, and
+//                                    mismatch flags per on_hit, trait and element: input for `npm run learn`
 //   npm run logs -- --server maincloud --db <name>
 import { execFileSync } from 'node:child_process';
 
@@ -73,11 +75,54 @@ function joined(g: Row) {
     : [];
   const flagged = (eventsBy.get(mid) ?? []).some(e => e.kind === 'mismatch' && e.player === player && n(e.nonce) === nonce);
   const fight = (troopsBy.get(mid) ?? []).find(t => t.player === player && n(t.nonce) === nonce && !t.bot);
-  return { ...g, design: g.design ? JSON.parse(String(g.design)) : null, reactions, flagged, fight: fight ?? null };
+  const design = g.design ? JSON.parse(String(g.design)) : null;
+  // The column, or the design JSON on a database published before the column existed.
+  const wish = String(g.wish || design?.wish || '');
+  return { ...g, design, wish, reactions, flagged, fight: fight ?? null };
 }
 
 if (args.includes('--jsonl')) {
   for (const g of gens) console.log(JSON.stringify(joined(g), (_k, v) => (typeof v === 'bigint' ? String(v) : v)));
+  process.exit(0);
+}
+
+// ---------- wishes and mismatch flags per quirk value ----------
+
+if (args.includes('--wishes')) {
+  const all = gens.filter(g => g.input !== 'anchor').map(joined);
+  const wished = new Map<string, { n: number; players: Set<string>; samples: Set<string> }>();
+  for (const j of all) {
+    if (!j.wish) continue;
+    const w = wished.get(j.wish) ?? { n: 0, players: new Set(), samples: new Set() };
+    w.n++;
+    w.players.add(String(j.player));
+    w.samples.add(String(j.description));
+    wished.set(j.wish, w);
+  }
+  const ranked = [...wished].sort((a, b) => b[1].players.size - a[1].players.size || b[1].n - a[1].n);
+  console.log(`━━ wishes: ${all.filter(j => j.wish).length} of ${all.length} designed attempts wished for something, ${wished.size} distinct`);
+  console.log('  times  players  wish                  sample descriptions');
+  for (const [w, { n: c, players, samples }] of ranked) {
+    const ex = [...samples].slice(0, 3).map(d => `“${d}”`).join(', ');
+    console.log(`  ${String(c).padStart(5)}  ${String(players.size).padStart(7)}  ${w.padEnd(20)}  ${ex}`);
+  }
+  // A flag means "that's not what I asked for"; a value flagged far more than the rest is a
+  // mechanic that doesn't read as what players meant.
+  const designedOnes = all.filter(j => j.design);
+  console.log(`\n━━ mismatch flags per quirk value (${designedOnes.filter(j => j.flagged).length} flags over ${designedOnes.length} designs)`);
+  for (const key of ['on_hit', 'trait', 'element'] as const) {
+    const per = new Map<string, { n: number; flagged: number }>();
+    for (const j of designedOnes) {
+      const v = String((j.design as Record<string, unknown>)[key] ?? '-');
+      const e = per.get(v) ?? { n: 0, flagged: 0 };
+      e.n++;
+      if (j.flagged) e.flagged++;
+      per.set(v, e);
+    }
+    const line = [...per].sort((a, b) => b[1].flagged - a[1].flagged || b[1].n - a[1].n)
+      .map(([v, e]) => `${v} ${e.flagged}/${e.n}`).join(' · ');
+    console.log(`  ${key.padEnd(8)} ${line || '-'}`);
+  }
   process.exit(0);
 }
 
@@ -96,7 +141,7 @@ for (const m of matches.slice(-LAST)) {
     const art = !j.spriteUrl ? 'no art' : n(j.artLateMs) > 0 ? `art ${Math.round(n(j.artLateMs))} ms late` : 'art on time';
     const fight = j.fight ? ` · dealt ${Math.round(n(j.fight.unitDamage))}+${Math.round(n(j.fight.towerDamage))} tower` : '';
     lines.push([n(j.releasedAt || j.lockedAt),
-      `${short(j.player)} ${j.flagged ? '⚑' : '▸'} “${j.description}” → ${d?.name ?? '-'} (${j.cost}) · ${j.source}${j.early ? ' early' : ''} ${j.waitMs} ms · ${art} · ${j.outcome}${fight}`]);
+      `${short(j.player)} ${j.flagged ? '⚑' : '▸'} “${j.description}” → ${d?.name ?? '-'} (${j.cost}) · ${j.source}${j.early ? ' early' : ''} ${j.waitMs} ms · ${art} · ${j.outcome}${fight}${j.wish ? ` · wished “${j.wish}”` : ''}`]);
   }
   for (const u of saysBy.get(mid) ?? []) if (!n(u.nonce)) lines.push([n(u.at), `${short(u.player)}   said “${u.text}”`]);
   for (const e of eventsBy.get(mid) ?? []) if (e.kind === 'mismatch') lines.push([n(e.at), `${short(e.player)}   ⚑ flagged ${e.detail}`]);
@@ -124,6 +169,8 @@ console.log(`  outcomes        ${count(gens, g => String(g.outcome).replace(/: \
 console.log(`  cancels         ${count(gens.filter(g => String(g.outcome).startsWith('cancel')), g => String(g.outcome))}`);
 console.log(`  design wait     p50 ${quant(waits, 0.5)} ms · p90 ${quant(waits, 0.9)} ms · early hits ${pct(designed.filter(g => g.early).length, designed.length)} · offline ${pct(designed.filter(g => g.source === 'offline').length, designed.length)}`);
 console.log(`  art             on time ${pct(withArt.filter(g => n(g.artLateMs) <= 0).length, deployed.length)} · late ${pct(withArt.filter(g => n(g.artLateMs) > 0).length, deployed.length)} · missing ${pct(deployed.length - withArt.length, deployed.length)}`);
+const wishCount = gens.filter(g => g.input !== 'anchor' && joined(g).wish).length;
+console.log(`  wishes          ${wishCount} of ${designed.length} designs (\`npm run logs -- --wishes\` for the list)`);
 console.log(`  mismatch flags  ${events.filter(e => e.kind === 'mismatch').length} (${pct(events.filter(e => e.kind === 'mismatch').length, deployed.length)} of deploys)`);
 console.log(`  damage/elixir   p50 ${quant(value, 0.5).toFixed(0)} · p10 ${quant(value, 0.1).toFixed(0)} · p90 ${quant(value, 0.9).toFixed(0)} over ${value.length} troops`);
 console.log(`  funnel          ${count(events.filter(e => e.kind !== 'mismatch'), e => String(e.kind))}`);
