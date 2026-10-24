@@ -9,6 +9,7 @@ import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
+import { burnSticks, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
@@ -25,6 +26,7 @@ import { clearNotice, notice } from './notice';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
+initKindling($('elixir'));
 if (import.meta.env.DEV) Object.assign(window, { board }); // poke at the 3D view from the console
 
 let net: Net | null = null;
@@ -453,7 +455,7 @@ function renderResult() {
   $('whyList').innerHTML = reasons(summary).map(r => `<li>${escapeHtml(r)}</li>`).join('');
   const damage = theirs.reduce((n, t) => n + Math.max(0, t.maxHp - Math.max(0, t.hp)), 0);
   $('stats').innerHTML = [[`${summary.towersTaken}–${summary.towersLost}`, 'Towers'], [Math.round(damage).toLocaleString('en-US'), 'Tower damage'],
-    [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Elixir']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
+    [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Embers']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
   const banner = (id: string, house: 'raven' | 'sun', frosted: boolean) => {
     $(id).classList.toggle('frosted', frosted);
     $(id).querySelector('img')!.src = `/ui/banner-${house}${frosted ? '-frosted' : ''}.svg`;
@@ -606,11 +608,14 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     settle(nonce, 'no match');
     return false;
   }
+  const had = m.elixir; // for the burnt sticks, before the payment shows
   try {
     await m.deployTroop(nonce, x, y, description, d, spriteUrl);
     settle(nonce, 'deployed');
     round.deploys++;
     round.elixirSpent += price(d);
+    const to = board.toScreen(x, y);
+    if (to) burnSticks(had - price(d), price(d), to[0], to[1]);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
@@ -623,8 +628,8 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
       sfx.play('tooExpensive');
       const need = Number(m[2]), have = match()?.elixir ?? 0;
       const secs = elixirWait(need, have);
-      status(`${d.name} needs ${need} elixir, you have ${Math.floor(have)}`, true);
-      notice(`Need ${need}, have ${Math.floor(have)} · ready in about ${secs} s`, { tone: 'bad', ms: 2600, key: 'elixir' });
+      status(`${d.name} needs ${need} embers, you have ${Math.floor(have)}`, true);
+      notice(`Need ${need} embers, have ${Math.floor(have)} · ready in about ${secs} s`, { tone: 'bad', ms: 2600, key: 'elixir' });
       starve(need);
       drops.refused(nonce, `need ${need} · have ${Math.floor(have)}`, performance.now()); // no coin: that's for over 10
     } else {
@@ -856,7 +861,7 @@ function frame() {
   const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
   $('clock').textContent = clockText(m);
   const double = left <= 30 && m.status === 'playing';
-  $('roomInfo').textContent = double ? 'Double elixir' : m.label;
+  $('roomInfo').textContent = double ? 'Double embers' : m.label;
   $('roomInfo').classList.toggle('double', double);
   $('dock').classList.toggle('double', double);
   // The raw connection state only matters online, and only when something is wrong.
@@ -864,6 +869,7 @@ function frame() {
   const elixir = m.elixir;
   $('elixirFill').style.width = `${(elixir / ELIXIR_MAX) * 100}%`;
   $('elixirText').textContent = String(Math.floor(elixir));
+  updateKindling($('elixirRow'), elixir, ELIXIR_MAX);
 
   showTimings();
   const units = m.units();

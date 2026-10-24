@@ -62,7 +62,7 @@ Generated sprites and pose frames need a Vercel Blob store. Each function instan
 - **Mic** (opt-in): without the camera, start talking to lock at the cursor, describe the troop, go quiet to deploy, say "cancel" to cancel (voice click). With the camera on, voice click is off unless you tick it under `⋯`. Speech goes to Cartesia `ink-2` (the panel says "listening (Cartesia)"); without a Cartesia key, or if it can't connect, the browser's speech recognition takes over.
 - After you let go, your words, "designing…" and a silhouette show at the spot until the troop appears. `T` (or `?timings` in the URL) shows how long each step took; release → stats is the one that must beat the 2.5 s delay.
 - The view is 3D only: you start on top of your king tower, looking down the arena.
-- The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your elixir, is refused with what it would have cost.
+- The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your embers (the resource; `elixir` in code), is refused with what it would have cost.
 - Art is drawn while you talk and lands on the troop a second or two after it does; until then it fights as its placeholder token.
 - **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes all sound, music included.
 

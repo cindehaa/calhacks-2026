@@ -23,7 +23,7 @@ What the client uses today (`client/src/style.css`, `client/src/pov.ts`). Deep n
 | Text, muted text | `#e8ebf5`, `#8e96b3` | Frost white, cold grey |
 | Your side | `#4aa3ff` | Ice blue |
 | Their side | `#ff5d6c` | Warm red |
-| Elixir | `#c56cf0` | Violet, the magic in between |
+| Embers (the resource; `elixir` in code) | `#ff8a3d` | Warm amber, between the enemy red and the gold. **Proposal for Cindy** |
 | Gold accents | `#ffd27a`, `#ffb02e` | Firelight; the wordmark and the one main action |
 
 ## Sound
@@ -53,7 +53,7 @@ Stylised and punchy, close and dry, so they read clearly over the music (`SFX_ST
 | Deploy landing | Packed snow, powder puff, icy crunch | |
 | Tower hit / destroyed | Frosted stone, ice chips, ice shattering | |
 | Match start | War horn across a frozen valley | |
-| Double elixir | Shimmer of ice crystals | Whoosh of flame |
+| Double embers | Shimmer of ice crystals | Whoosh of flame |
 | Match end | | Gong, a fire flaring then settling |
 | Victory | Sleigh bells, celesta | Warm, festive brass |
 | Defeat | Cold wind gust | A fire dying to embers |
@@ -117,3 +117,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** Victory and Defeat screens got motion (staged entrance, confetti and rays, gusting snow and creeping frost). Added the virtual hand panel.
 - **2026-10-24:** Home banners: picked direction 2 from the Paper "Banner workshop" page (hung from above). The tapestry flutters; the red banner is gone from home, its last match moved to a hung plaque.
 - **2026-10-24:** Core loop juice (`client/src/juice.ts`): cost revealed on landing as a rolling reel tinted gold (bargain) or red (pricey), size-scaled landing impact with snow bursts, an amber-to-gold summoning circle under each drop, Cinzel names that stamp in, the opponent's words in a frost-white chamfered bubble with a red edge, a gold coin that shatters for a refused troop, and an MVP card on the result screen in the chronicle's stone.
+- **2026-10-24:** The resource is called embers wherever players see it (code keeps `elixir`). The bar is a kindling pile whose sticks glow brighter as it refills, the count sits in a flame, costs carry a small flame, spent sticks fly as embers to the summoning circle, and the banner reads DOUBLE EMBERS, "the fire roars". The amber `#ff8a3d` is a proposal for Cindy. Rank points stay "Points".

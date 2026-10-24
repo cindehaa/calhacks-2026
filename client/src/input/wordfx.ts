@@ -112,8 +112,8 @@ export function wordsFlash(g: CanvasRenderingContext2D, kind: 'deploy' | 'cancel
     const oy = y0 - 4 + (y - y0 + 4) * k * k, r = 5 + 5 * Math.sin(Math.min(1, a / 0.35) * Math.PI / 2) * (1 - k * 0.5);
     const glow = g.createRadialGradient(x, oy, 0, x, oy, r * 3);
     glow.addColorStop(0, 'rgba(255,255,255,0.95)');
-    glow.addColorStop(0.3, 'rgba(197,108,240,0.8)');
-    glow.addColorStop(1, 'rgba(197,108,240,0)');
+    glow.addColorStop(0.3, 'rgba(255,138,61,0.85)'); // the orb carries the embers: same amber as the motes
+    glow.addColorStop(1, 'rgba(255,138,61,0)');
     g.fillStyle = glow;
     g.beginPath(); g.arc(x, oy, r * 3, 0, Math.PI * 2); g.fill();
   } else {

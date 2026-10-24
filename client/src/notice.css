@@ -21,7 +21,7 @@ body.inHub #notice { display: none; }
 #elixirRow.starved #elixir { animation: starveShake .42s ease-out; }
 #elixirRow.starved #elixirFill { animation: starveFlash .9s ease-out; }
 #elixirRow.starved #elixirGem { animation: starveFlash .9s ease-out; }
-#elixirNeed { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #ffd27a; box-shadow: 0 0 8px #ffb02e; pointer-events: none; opacity: 0; z-index: 2; }
+#elixirNeed { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1.5px; background: #fff1d6; box-shadow: 0 0 8px #ff8a3d; pointer-events: none; opacity: 0; z-index: 2; }
 #elixirRow.starved #elixirNeed { animation: needMark 2.4s ease-out; }
 @keyframes starveShake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 45% { transform: translateX(4px); } 70% { transform: translateX(-2px); } }
 @keyframes starveFlash { 0%, 40% { filter: brightness(1.8) saturate(1.4) hue-rotate(-40deg); } 100% { filter: none; } }
@@ -31,3 +31,6 @@ body.inHub #notice { display: none; }
   #notice.in { animation: none; }
   #elixirRow.starved #elixir { animation: none; }
 }
+/* on the kindling pile the cold sticks up to the marker flash too, so the gap reads as unlit wood */
+#elixirRow.starved #elixir.kindling .stick { animation: starveFlash .9s ease-out; }
+@media (prefers-reduced-motion: reduce) { #elixirRow.starved #elixir.kindling .stick { animation: none; } }
