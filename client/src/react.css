@@ -1,0 +1,29 @@
+/* react.ts: buttons squish on press and brighten or tilt on hover; sparks and the wordmark flare.
+   Uses the separate scale / rotate properties so it stacks on the existing transforms. */
+button { transition: scale .12s cubic-bezier(.3, 1.6, .5, 1), rotate .15s ease-out, filter .12s ease-out, background .12s, color .12s; }
+.slab { transition: transform .08s ease-out, scale .12s cubic-bezier(.3, 1.6, .5, 1), rotate .15s ease-out; }
+button:not(.slab):not(:disabled):hover { filter: brightness(1.12); }
+.slab:not(:disabled):hover .face { filter: brightness(1.08); }
+button.round:not(:disabled):hover, .slab.small:not(:disabled):hover, .slab.icon:not(:disabled):hover, #hand button:not(:disabled):hover { rotate: -2deg; }
+.slab.small:nth-of-type(2n):not(:disabled):hover { rotate: 2deg; }
+button:not(:disabled):active { scale: 1.05 .9; transition-duration: .05s; }
+.slab.battle:not(:disabled):active { scale: 1.03 .94; }
+.pressStart:hover { filter: brightness(1.3); }
+
+.reactSparks { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+.reactSparks i { position: absolute; border-radius: 1px; rotate: 45deg; box-shadow: 0 0 6px #ffb02e; }
+
+.wordmark { cursor: default; }
+.wordmark.reactFlare { animation: reactFlare .9s ease-out; }
+@keyframes reactFlare {
+  0% { filter: brightness(1); scale: 1; }
+  18% { filter: brightness(1.7) drop-shadow(0 0 22px #ffb02e); scale: 1.05; }
+  100% { filter: brightness(1); scale: 1; }
+}
+.tapestry, .plaque, .result .banner { cursor: pointer; }
+.tapestry { transform-origin: 50% 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  button, button:not(:disabled):hover, button:not(:disabled):active, .slab.battle:not(:disabled):active { scale: none; rotate: none; transition: filter .12s; }
+  @keyframes reactFlare { 0%, 100% { filter: brightness(1); } 25% { filter: brightness(1.5); } }
+}
