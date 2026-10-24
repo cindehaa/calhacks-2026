@@ -242,6 +242,13 @@ class Sfx {
     } catch { /* ignore */ }
   }
 
+  // The live context and output for one-off synth sounds made elsewhere (react.ts), or null while
+  // muted or before the first gesture, so those respect M too.
+  out(): { ac: AudioContext; out: GainNode } | null {
+    const ac = this.ctx, out = this.master;
+    return ac && out && !this.muted && ac.state === 'running' ? { ac, out } : null;
+  }
+
   // One shot of a loaded file. Busy sounds get a little pitch wobble so repeats don't drone.
   private sample(key: string, gain: number, wobble: boolean): void {
     const ac = this.ctx, out = this.master, buf = this.buffers.get(key);

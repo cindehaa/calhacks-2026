@@ -9,6 +9,7 @@ import {
 import { Fx, quirks, roundRect, towerKey, type Shot, type Trail } from './fx';
 import { drawInput } from './input/draw';
 import { Juice } from './juice';
+import { BoardReactions, type BoardHit } from './react';
 import { SummonCircles } from './summon';
 import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View } from './render';
 import { Scenery } from './scenery';
@@ -99,6 +100,8 @@ void main() {
 export class PovBoard {
   readonly fx = new Fx();
   readonly juice = new Juice(); // cost reveal, landing impact, stamps, bubbles, freeze and slow motion
+  readonly react = new BoardReactions(this.fx); // pokes and hover (react.ts)
+  private lastView: View | null = null;
   private summons!: SummonCircles;
   eye: Eye = 'top';
   private renderer: THREE.WebGLRenderer;
@@ -243,7 +246,9 @@ export class PovBoard {
     this.side = v.mySide;
     this.fx.observe(v, now);
     this.juice.observe(v, now, real, this.fx);
+    this.lastView = v;
     if (!visible) return;
+    this.react.step(now, v.status === 'playing' ? this.hoverHit(v) : null);
     if (this.juice.frozen(real)) return; // hit freeze: the last frame stays on screen
     const dt = Math.min(0.05, real - this.last / 1000) * this.juice.timeRate;
     this.last = real * 1000;
@@ -436,6 +441,7 @@ export class PovBoard {
       }
       t.base.castShadow = !ghost;
       this.at(tw.x, tw.y, 0, t.grp.position);
+      t.grp.position.x += this.react.tower(key);
       const alive = tw.hp > 0;
       t.crown.visible = t.gem.visible = alive && !lookout;
       t.base.scale.y = alive ? 1 : 0.25;
@@ -509,15 +515,16 @@ export class PovBoard {
       mat.rotation = -a.rot;
       // Slowed: tinted blue. Hit: a white flash.
       const slowed = !air && (q.slowT ?? 0) > 0;
-      const f = 1 + a.flash * 1.5 + this.juice.shimmer(u.troopId, now) * 1.4;
+      const pk = this.react.unit(u.id, now);
+      const f = 1 + a.flash * 1.5 + this.juice.shimmer(u.troopId, now) * 1.4 + pk.glow;
       if (slowed) mat.color.setRGB(0.55 * f, 0.78 * f, 1.6 * f);
       else mat.color.setScalar(f);
       const [jsx, jsy] = this.juice.squash(u.troopId, u.delay, now);
-      m.sprite.scale.set(w * a.sx * jsx, h * a.sy * jsy, 1);
+      m.sprite.scale.set(w * a.sx * jsx * pk.sx, h * a.sy * jsy * pk.sy, 1);
       // The anim's dx/dy are screen-plane offsets in tiles (dy down the screen, toward you); up is the lift.
-      const lift = drop + fly + Math.max(-0.1, a.up);
+      const lift = drop + fly + Math.max(-0.1, a.up) + pk.up;
       this.at(u.x, u.y, lift, m.sprite.position);
-      m.sprite.position.x += a.dx;
+      m.sprite.position.x += a.dx + pk.dx;
       m.sprite.position.z += a.dy + a.up;
       m.top = lift + h * a.sy;
 
@@ -917,6 +924,52 @@ export class PovBoard {
     }
   }
 
+  // ---------- picking (react.ts) ----------
+
+  // What's under a screen point: a landed unit (its drawn body), else a standing tower. Your own
+  // king tower is skipped: it sits under the camera.
+  pick(px: number, py: number): BoardHit | null {
+    const v = this.lastView;
+    if (!v) return null;
+    let best: BoardHit | null = null, bestD = Infinity;
+    for (const u of v.units) {
+      const m = this.units.get(u.id);
+      if (!m || u.delay > 0) continue;
+      const s = this.screenOf(m.sprite.position);
+      if (!s) continue;
+      const w = Math.max(26, m.sprite.scale.x * s[2] * 0.8), h = Math.max(26, m.sprite.scale.y * s[2]);
+      if (px < s[0] - w / 2 || px > s[0] + w / 2 || py > s[1] + 8 || py < s[1] - h) continue;
+      const d = Math.abs(px - s[0]) + Math.abs(py - (s[1] - h / 2));
+      if (d < bestD) {
+        bestD = d;
+        best = { kind: 'unit', unit: u, troop: v.troops.get(u.troopId), mine: u.side === v.mySide };
+      }
+    }
+    if (best) return best;
+    v.towers.forEach((tw, i) => {
+      if (best || tw.hp <= 0 || (tw.side === v.mySide && tw.lane === KING_LANE)) return;
+      const key = towerKey(tw, i), t = this.towers.get(key);
+      const s = t && this.screenOf(t.grp.position);
+      if (!t || !s) return;
+      const w = 2.2 * t.grp.scale.x * s[2], h = 3.6 * t.grp.scale.y * s[2];
+      if (px >= s[0] - w / 2 && px <= s[0] + w / 2 && py <= s[1] + 6 && py >= s[1] - h) best = { kind: 'tower', key, tower: tw };
+    });
+    return best;
+  }
+
+  // The hand's fingertip if it's tracked, else the mouse over the board.
+  private hoverHit(v: View): BoardHit | null {
+    const c = v.input?.cursor;
+    const p = c ? [c.x, c.y] : this.mouse && document.elementFromPoint(this.mouse[0], this.mouse[1]) === this.canvas ? this.mouse : null;
+    const hit = p ? this.pick(p[0], p[1]) : null;
+    return hit?.kind === 'unit' ? hit : null;
+  }
+
+  private headOf(v: View, id: bigint): [number, number] | null {
+    const m = this.units.get(id), u = m && v.units.find(x => x.id === id);
+    return m && u ? this.project(u.x, u.y, m.top + 0.2) : null;
+  }
+
   // ---------- 2D overlay ----------
 
   private drawOverlay(v: View, now: number, real: number): void {
@@ -957,6 +1010,7 @@ export class PovBoard {
     this.drawLabels(v, now);
     this.drawFloaters();
     this.juice.drawOverlay(g, v, (x, y, h) => this.project(x, y, h), now, real);
+    this.react.drawOverlay(g, id => this.headOf(v, id), (x, y, h) => this.project(x, y, h), FONT);
     if (this.hurt > 0) this.drawHurt();
     this.fx.drawBanners(g, this.w / 2, this.h * 0.38, Math.min(this.w, 720));
     if (v.input) drawInput(g, v.input);
