@@ -66,6 +66,19 @@ Troop sprites are generated per description by fal (FLUX.1 schnell, background c
 
 Troop quirks show on the unit: a blue tint when slowed, a white flash on a hit, a charge glow during windups, dash smears, and element-coloured particles.
 
+## Menus and screens (G · faceted heraldry)
+
+Designed in Paper ("Arena — UI design systems", row G) and built into the client. The low-poly arena sets the shape language; Game of Thrones sets the words.
+
+- **Lore:** rival lords fight for the last warmth before the long winter. Wins earn **embers**; losing gives embers to the frost. Your total sets your rank: Cinder, Kindling, Hearth, Bonfire, Beacon (`client/src/embers.ts`, kept in the browser).
+- **Houses:** you are always **House Raven** (blue), the opponent **House Sun** (red). Faceted shields stand in for avatars.
+- **Shapes:** chamfered slabs split into a lit and a shadow facet, each sitting on a solid darker side face so it pops. No gradients beyond the facet split; no gilding, parchment or ornament.
+- **Type:** Cinzel Decorative for the *Arena* wordmark, Cinzel for titles and names, Chakra Petch for everything else.
+- **Colour:** amber `#ffb02e` is the everyday accent (To Battle, labels). Gold `#f3d58a` appears only on victory, ice `#dbe9f4` / `#9cc3e0` only on defeat. Ember orange `#ff8a2e` marks warmth.
+- **Home:** huge amber *Arena* wordmark, the arena island centre-stage over low-poly snowy ranges, the two house banners on the flanks, ice crystals creeping in from the corners. One big **To Battle** with **Training Yard** (bot) and **Send a Raven** (friend's room) beside it.
+- **Victory:** gold-lit ranges, rays and faceted gold confetti; your banner stands, theirs frosts over (*Banished to the frost*). **Defeat:** icy ranges, snow and heavy frost; your banner is the frozen one.
+- Art lives in `client/public/ui` as SVG, exported from the Paper generators.
+
 ## Open questions
 
 - Should frost and warmth map to the two teams (blue vs red), or stay a mood both sides share?
@@ -76,3 +89,4 @@ Troop quirks show on the unit: a blue tint when slowed, a white flash on a hit, 
 - **2026-10-24:** Merged Isaac's troop quirks: generated sprites with attack-pose frames, status visuals, and the 3D view now starts on top of your king tower (still the only view).
 - **2026-10-24:** Theme is warmth and frost. Music gets a fireplace crackle under every track; menu, battle and overtime redone to match.
 - **2026-10-24:** Match sounds and arena ambience redone for warmth and frost (snow, ice, wind, embers, braziers). Troop sound sets left as they are, since they follow what the player describes.
+- **2026-10-24:** Menus rebuilt in design G (faceted heraldry): home with house banners, Send a Raven room pop-up, gold Victory and frost Defeat screens, embers and ranks. To Battle opens the room pop-up until matchmaking exists.

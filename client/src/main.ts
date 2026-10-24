@@ -14,6 +14,9 @@ import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite } from './sprites';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
+import { crownSvg, shieldSvg } from './art';
+import { clock, reasons, type RoundSummary } from './chronicle';
+import { applyDelta, emberDelta, loadEmbers, rankOf, saveEmbers, type Outcome } from './embers';
 import { showTutorialOnce } from './tutorial';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -96,6 +99,9 @@ function remember(key: string, v: string) {
 }
 const myName = () => me()?.name || savedName() || 'You';
 const initial = (name: string) => [...name.trim()][0]?.toUpperCase() ?? '?';
+const icon = (body: string) => `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const FLAME_ICON = icon('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>');
+const SNOW_ICON = icon('<path d="M12 2v20"/><path d="m4.93 7 14.14 10"/><path d="m4.93 17 14.14-10"/><path d="m9 4 3 3 3-3"/><path d="m9 20 3-3 3 3"/>');
 
 $<HTMLInputElement>('nameInput').value = savedName();
 $<HTMLInputElement>('nameInput').onchange = e => {
@@ -106,56 +112,53 @@ $<HTMLInputElement>('nameInput').onchange = e => {
 };
 $('nameInput').onkeydown = e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() };
 
+const LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
 let botLevel = ((): BotLevel => {
   try { return (localStorage.getItem(LEVEL_KEY) as BotLevel) || 'normal' } catch { return 'normal' }
 })();
 function renderLevel() {
-  for (const b of $('botLevel').querySelectorAll<HTMLButtonElement>('button')) b.setAttribute('aria-checked', String(b.dataset.level === botLevel));
+  $('botLevel').innerHTML = `Squire · <b>${botLevel[0].toUpperCase()}${botLevel.slice(1)}</b>`;
 }
 renderLevel();
-$('botLevel').onclick = e => {
-  const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
-  if (!b?.dataset.level) return;
-  botLevel = b.dataset.level as BotLevel;
+$('botLevel').onclick = () => {
+  botLevel = LEVELS[(LEVELS.indexOf(botLevel) + 1) % LEVELS.length];
   remember(LEVEL_KEY, botLevel);
   renderLevel();
 };
 
 // Every menu button ticks.
-for (const id of ['lobby', 'pause', 'forfeitAsk', 'result']) {
+for (const id of ['lobby', 'raven', 'pause', 'forfeitAsk', 'result']) {
   $(id).addEventListener('click', e => { if ((e.target as HTMLElement).closest('button')) sfx.play('click') });
 }
 
-$('createBtn').onclick = () => call(net?.conn.reducers.createRoom({}));
-$('demoBtn').onclick = () => call(net?.conn.reducers.joinRoom({ code: 'DEMO' }));
-$<HTMLFormElement>('joinForm').onsubmit = e => {
-  e.preventDefault();
-  const code = $<HTMLInputElement>('codeInput').value.trim();
-  if (code) call(net?.conn.reducers.joinRoom({ code }));
+// Embers: your warmth, kept in this browser.
+let embers = loadEmbers();
+function renderEmbers() {
+  $('emberCount').textContent = embers.toLocaleString('en-US');
+  $('emberRank').textContent = rankOf(embers).name;
+}
+renderEmbers();
+
+$('botBtn').onclick = () => startBot(botLevel);
+// No matchmaking yet: To Battle opens the same room pop-up as Send a Raven.
+$('battleBtn').onclick = $('ravenBtn').onclick = () => openRaven();
+$('camBtn').onclick = e => {
+  setup.open();
+  (e.currentTarget as HTMLElement).blur();
 };
-$('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}));
 $('rematchBtn').onclick = () => {
   call(match()?.rematch());
   if (local) botStarted(local.level);
 };
-$('leaveBtn').onclick = $('lobbyBtn').onclick = () => {
+$('lobbyBtn').onclick = () => {
+  ravenOpen = false;
   if (local?.status === 'playing') botEnded('left');
   call(match()?.leave());
 };
-$('botBtn').onclick = () => startBot(botLevel);
-$('roomCode').onclick = () => {
-  const code = myRoom()?.code;
-  if (!code) return;
-  navigator.clipboard?.writeText(code).then(() => {
-    $('roomCode').title = 'Copied';
-    $('lobbyError').textContent = '';
-  }, () => {});
-};
-$('hubHelp').onclick = () => $('helpBtn').click();
-$('hubSetup').onclick = () => setup.open();
 
 function startBot(level: BotLevel) {
   lock = null;
+  ravenOpen = false;
   local = new LocalMatch(level, () => (local = null));
   botStarted(level);
 }
@@ -173,42 +176,125 @@ function botEnded(reason: 'over' | 'left') {
 }
 
 let restarting = false; // between the old bot match and its restart
-let hadGuest = false;
 
 function renderLobby() {
   const p = me(), r = myRoom();
   const inMatch = !!local || restarting || r?.status === 'playing' || r?.status === 'done';
   $('lobby').hidden = !entered || inMatch;
   document.body.classList.toggle('inHub', !inMatch);
-  $('lobbyOut').hidden = !!r;
-  $('lobbyIn').hidden = !r;
-  for (const id of ['createBtn', 'demoBtn']) $<HTMLButtonElement>(id).disabled = !net;
-  $('joinForm').querySelector('button')!.disabled = !net;
   if (p && document.activeElement !== $('nameInput')) $<HTMLInputElement>('nameInput').value = p.name;
-  $('avatar').textContent = initial($<HTMLInputElement>('nameInput').value || '?');
+  if (r?.status === 'playing') ravenOpen = false;
+  renderRaven();
+}
+
+// ---------- send a raven: a room for you and a friend ----------
+
+let ravenOpen = false;
+let hadGuest = false;
+const ravenErr = (msg: string) => ($('ravenError').textContent = msg);
+const codeIns = [...document.querySelectorAll<HTMLInputElement>('.codeIn')];
+
+function openRaven() {
+  ravenOpen = true;
+  ravenErr('');
+  if (net && !myRoom()) call(net.conn.reducers.createRoom({}), ravenErr);
+}
+$('ravenClose').onclick = () => {
+  ravenOpen = false;
+  if (myRoom()?.status === 'lobby') call(online?.leave(), () => {});
+};
+$('copyBtn').onclick = () => {
+  const code = myRoom()?.code;
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(() => {
+    const b = $('copyBtn').querySelector('b')!;
+    b.textContent = 'Copied';
+    setTimeout(() => (b.textContent = 'Copy'), 1200);
+  }, () => {});
+};
+codeIns.forEach((el, i) => {
+  el.oninput = () => {
+    el.value = el.value.replace(/[^a-z0-9]/gi, '').slice(-1).toUpperCase();
+    if (el.value && i < codeIns.length - 1) codeIns[i + 1].focus();
+  };
+  el.onkeydown = e => { if (e.key === 'Backspace' && !el.value && i > 0) codeIns[i - 1].focus() };
+  el.onpaste = e => {
+    const t = (e.clipboardData?.getData('text') ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 4);
+    if (!t) return;
+    e.preventDefault();
+    codeIns.forEach((c, k) => (c.value = t[k] ?? ''));
+    codeIns[Math.min(t.length, codeIns.length - 1)].focus();
+  };
+});
+$<HTMLFormElement>('joinForm').onsubmit = e => {
+  e.preventDefault();
+  const code = codeIns.map(c => c.value).join('');
+  if (code.length < 4) return ravenErr('Enter all four letters of their code');
+  ravenErr('');
+  call(net?.conn.reducers.joinRoom({ code }), ravenErr);
+  codeIns.forEach(c => (c.value = ''));
+};
+$('startBtn').onclick = () => call(net?.conn.reducers.startMatch({}), ravenErr);
+
+function renderRaven() {
+  const r = myRoom();
+  const show = entered && !local && (ravenOpen || r?.status === 'lobby');
+  $('raven').hidden = !show;
   if (!!r?.guest !== hadGuest) {
     hadGuest = !!r?.guest;
     if (hadGuest && r?.status === 'lobby') sfx.play('joined');
   }
-  if (!r || !net) return;
-  $('roomCode').textContent = r.code;
-  const slot = (id: typeof r.host | undefined, label: string, red: boolean) => {
-    if (!id) return `<span class="avatar empty"></span><b class="sub">Waiting for a player…</b><span class="sub">${label}</span>`;
-    const pl = net!.conn.db.player.identity.find(id);
-    const name = pl?.name ?? '?';
-    const you = id.isEqual(net!.identity) ? ' · you' : '';
-    return `<span class="avatar${red ? ' red' : ''}">${escapeHtml(initial(name))}</span><b>${escapeHtml(name)}</b><span class="sub">${label}${you}${pl && !pl.online ? ' · offline' : ''}</span>`;
-  };
-  setHtml('slot0', slot(r.host, 'Blue', false));
-  setHtml('slot1', slot(r.guest, 'Red', true));
-  $<HTMLButtonElement>('startBtn').disabled = !r.guest;
-  $('startBtn').textContent = r.guest ? 'Start match' : 'Waiting for opponent…';
+  if (!show) return;
+  const hosting = !!r && !!net && r.host.isEqual(net.identity);
+  $('ravenSub').textContent = !net
+    ? 'The ravens can’t reach the war council right now. The Training Yard still works.'
+    : r && !hosting ? 'You answered their raven. Either of you can take the field.'
+    : 'Share your room code. Your ally enters it on their home screen.';
+  setHtml('codeSlabs', (r?.code ?? '····').split('').map(c => `<span class="code">${escapeHtml(c)}</span>`).join(''));
+  const meName = myName();
+  setHtml('slotMe', `${shieldSvg('raven', initial(meName), 50)}<div><span class="hName">${escapeHtml(meName)}</span><span class="hHouse">House Raven</span></div>`);
+  const foeId = r ? (hosting ? r.guest : r.host) : undefined;
+  const foe = foeId && net ? net.conn.db.player.identity.find(foeId) : undefined;
+  setHtml('slotFoe', foe
+    ? `<div><span class="hName">${escapeHtml(foe.name)}</span><span class="hHouse">House Sun${foe.online ? '' : ' · away'}</span></div>${shieldSvg('sun', initial(foe.name), 50)}`
+    : `<div><span class="hName waiting">Awaiting an ally…</span><span class="hHouse">House Sun</span></div>${shieldSvg('sun', '', 50, true)}`);
+  $<HTMLButtonElement>('startBtn').disabled = !r?.guest;
+  $('startSub').textContent = r?.guest ? 'Both houses stand ready' : 'Opens when your ally arrives';
+  $<HTMLButtonElement>('copyBtn').disabled = !r;
+  $<HTMLButtonElement>('answerBtn').disabled = !net;
 }
 
 // innerHTML only when it changes, so hover and focus survive the per-frame render.
 function setHtml(id: string, html: string) {
   const el = $(id);
   if (el.dataset.html !== html) el.innerHTML = el.dataset.html = html;
+}
+
+// ---------- the round: what happened, for the result screen ----------
+
+interface Round {
+  cappedSecs: number;
+  myKingFellAt: number | null;
+  theirKingFellAt: number | null;
+  deploys: number;
+  elixirSpent: number;
+  shown: boolean; // result screen filled and embers awarded
+}
+const newRound = (): Round => ({ cappedSecs: 0, myKingFellAt: null, theirKingFellAt: null, deploys: 0, elixirSpent: 0, shown: false });
+let round = newRound();
+let lastTick = 0;
+
+function trackRound(m: MatchSource) {
+  const now = performance.now();
+  const dt = lastTick ? Math.min(0.25, (now - lastTick) / 1000) : 0;
+  lastTick = now;
+  if (m.status !== 'playing' || m.time < 0) return;
+  if (m.elixir >= ELIXIR_MAX - 1e-6 && !local?.paused) round.cappedSecs += dt;
+  for (const t of m.towers()) {
+    if (t.lane !== KING_LANE || t.hp > 0) continue;
+    if (t.side === m.side) round.myKingFellAt ??= m.time;
+    else round.theirKingFellAt ??= m.time;
+  }
 }
 
 // Won by the clock or a king tower, or handed over by a forfeit?
@@ -218,19 +304,81 @@ function byForfeit(m: MatchSource) {
   return m.winner !== -1 && m.winner !== null && kingsUp && m.time < MATCH_SECONDS - 0.01;
 }
 
+function foeName(m: MatchSource) {
+  if (local) return `Bot (${local.level})`;
+  const r = myRoom(), id = m.side === 0 ? r?.guest : r?.host;
+  return (id && net?.conn.db.player.identity.find(id)?.name) || 'Opponent';
+}
+
 function renderResult() {
   const m = match();
   const done = m?.status === 'done';
   $('result').hidden = !done;
   if (!done || !m) return;
-  const side = m.side;
-  const won = m.winner === side, forfeit = byForfeit(m);
-  $('resultText').textContent = m.winner === -1 ? 'Draw' : won ? 'You win' : forfeit && iForfeited ? 'You forfeited' : 'You lose';
-  $('resultText').className = m.winner === -1 ? '' : won ? 'win' : 'lose';
-  const towers = m.towers();
-  const lost = (s: number) => towers.filter(t => t.side === s && t.hp <= 0).length;
-  $('resultDetail').textContent = forfeit && won ? 'Your opponent forfeited.' : `Towers destroyed: you ${lost(1 - side)}, them ${lost(side)}`;
   $<HTMLButtonElement>('rematchBtn').disabled = !local && !myRoom()?.guest;
+  if (round.shown) return;
+  round.shown = true;
+  const side = m.side;
+  const outcome: Outcome = m.winner === -1 ? 'draw' : m.winner === side ? 'win' : 'lose';
+  const before = embers;
+  embers = applyDelta(embers, emberDelta(outcome, local ? local.level : 'online'));
+  saveEmbers(embers);
+  renderEmbers();
+  const delta = embers - before;
+
+  const towers = m.towers();
+  const theirs = towers.filter(t => t.side !== side), mine = towers.filter(t => t.side === side);
+  const king = (ts: typeof towers) => ts.find(t => t.lane === KING_LANE);
+  let myBest: RoundSummary['myBest'] = null, theirBest: RoundSummary['theirBest'] = null;
+  if (local) {
+    const troops = local.report().troops;
+    const top = <T,>(xs: T[], f: (x: T) => number) => xs.reduce<T | null>((a, x) => (!a || f(x) > f(a) ? x : a), null);
+    const a = top(troops.filter(t => t.side === side), t => t.unitDamage + t.towerDamage);
+    const b = top(troops.filter(t => t.side !== side), t => t.towerDamage);
+    if (a) myBest = { name: a.name, damage: a.unitDamage + a.towerDamage };
+    if (b) theirBest = { name: b.name, towerDamage: b.towerDamage };
+  }
+  const summary: RoundSummary = {
+    outcome, forfeit: byForfeit(m),
+    towersTaken: theirs.filter(t => t.hp <= 0).length, towersLost: mine.filter(t => t.hp <= 0).length,
+    theirKingDown: (king(theirs)?.hp ?? 1) <= 0, myKingDown: (king(mine)?.hp ?? 1) <= 0,
+    myKingStruck: !!king(mine) && king(mine)!.hp < king(mine)!.maxHp,
+    theirKingFellAt: round.theirKingFellAt, myKingFellAt: round.myKingFellAt, cappedSecs: round.cappedSecs, myBest, theirBest,
+  };
+
+  const res = $('result');
+  res.className = `screen gScreen result ${outcome}`;
+  $<HTMLImageElement>('resultBg').src = `/ui/${outcome === 'win' ? 'gold' : outcome === 'lose' ? 'ice' : 'home'}.svg`;
+  const heading = { win: 'The day is won', lose: 'The day is lost', draw: 'The day is undecided' }[outcome];
+  $('resultLabel').textContent = `${heading} · ${m.label} · ${clockText(m, true)}`;
+  $('resultText').textContent = { win: 'Victory', lose: 'Defeat', draw: 'Draw' }[outcome].toUpperCase();
+  $('resultLine').textContent = summary.forfeit && outcome === 'lose' && iForfeited ? 'You yielded the field to the frost.'
+    : { win: 'Your hearth burns brighter.', lose: 'The frost claims your warmth.', draw: 'Both hearths still burn.' }[outcome];
+  const tone = outcome === 'lose' ? 'ice' : 'gold';
+  $('crowns').innerHTML = [0, 1, 2].map(i => crownSvg(i < summary.towersTaken ? tone : `empty-${tone}`, 64)).join('');
+  $('erIcon').innerHTML = outcome === 'lose' ? SNOW_ICON : FLAME_ICON;
+  $('emberDelta').textContent = delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : '0';
+  const rk = rankOf(embers);
+  $('erRank').textContent = rk.name;
+  $('erNext').textContent = rk.next ? `${embers.toLocaleString('en-US')} / ${rk.nextAt!.toLocaleString('en-US')} to ${rk.next}` : `${embers.toLocaleString('en-US')} embers`;
+  $('whyLabel').textContent = { win: 'How the day was won', lose: 'How the day was lost', draw: 'How the day stood' }[outcome];
+  $('whyList').innerHTML = reasons(summary).map(r => `<li>${escapeHtml(r)}</li>`).join('');
+  const damage = theirs.reduce((n, t) => n + Math.max(0, t.maxHp - Math.max(0, t.hp)), 0);
+  $('stats').innerHTML = [[`${summary.towersTaken}–${summary.towersLost}`, 'Towers'], [Math.round(damage).toLocaleString('en-US'), 'Tower damage'],
+    [String(round.deploys), 'Troops'], [String(round.elixirSpent), 'Elixir']].map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('');
+  const banner = (id: string, house: 'raven' | 'sun', frosted: boolean) => {
+    $(id).classList.toggle('frosted', frosted);
+    $(id).querySelector('img')!.src = `/ui/banner-${house}${frosted ? '-frosted' : ''}.svg`;
+  };
+  banner('resBanMe', 'raven', outcome === 'lose');
+  banner('resBanFoe', 'sun', outcome === 'win');
+  $('resMeName').textContent = myName();
+  $('resFoeName').textContent = foeName(m);
+  const tag = (won: boolean) => outcome === 'draw' ? 'Holding the line' : won ? 'Victorious' : 'Banished to the frost';
+  $('resMeTag').textContent = tag(outcome === 'win');
+  $('resFoeTag').textContent = tag(outcome === 'lose');
+  $('rematchText').textContent = { win: 'Ride Again', lose: 'Avenge', draw: 'Fight Again' }[outcome];
+  $('rematchSub').textContent = { win: 'Find another foe', lose: 'Reclaim your warmth', draw: 'Settle it' }[outcome];
 }
 
 // ---------- versus card, pause and forfeit ----------
@@ -241,21 +389,13 @@ function renderVersus(m: MatchSource | null) {
   const show = !!m && m.status === 'playing' && t < -COUNTDOWN;
   if (show && !vsShown) {
     iForfeited = false;
-    const me = myName();
-    let them = 'Opponent', tag = 'Opponent';
-    if (local) {
-      them = 'Bot';
-      tag = `${local.level} bot`;
-    } else {
-      const r = myRoom(), id = m!.side === 0 ? r?.guest : r?.host;
-      them = (id && net?.conn.db.player.identity.find(id)?.name) || them;
-    }
+    round = newRound();
+    const me = myName(), them = foeName(m!);
     $('vsMe').textContent = me;
-    $('vsMeAvatar').textContent = initial(me);
+    $('vsMeShield').innerHTML = shieldSvg('raven', initial(me), 92);
     $('vsThem').textContent = them;
-    $('vsThemAvatar').textContent = initial(them);
-    $('vsThemAvatar').classList.add('red');
-    $('vsThemTag').textContent = tag;
+    $('vsThemShield').innerHTML = shieldSvg('sun', initial(them), 92);
+    $('vsThemTag').textContent = 'House Sun';
     sfx.play('versus');
   }
   vsShown = show;
@@ -263,9 +403,10 @@ function renderVersus(m: MatchSource | null) {
   $('versus').classList.toggle('leaving', show && t > -COUNTDOWN - 0.35);
 }
 
-function clockText(m: MatchSource) {
-  const left = Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
-  return `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+// Time left on the match clock, or (elapsed) time into the match.
+function clockText(m: MatchSource, elapsed = false) {
+  const t = elapsed ? Math.min(MATCH_SECONDS, Math.max(0, m.time)) : Math.min(MATCH_SECONDS, Math.max(0, MATCH_SECONDS - m.time));
+  return clock(t);
 }
 
 // Bot matches only: the clock, the bot and the music all wait.
@@ -365,6 +506,8 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
   try {
     await m.deployTroop(nonce, x, y, description, d, spriteUrl);
     settle(nonce, 'deployed');
+    round.deploys++;
+    round.elixirSpent += price(d);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
@@ -561,6 +704,7 @@ function frame() {
   const m = match();
   renderVersus(m);
   renderTools(m);
+  if (m) trackRound(m);
   if (!m) {
     $('roomInfo').textContent = '';
     board.draw({ mySide: 0, units: [], towers: [], troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' });
