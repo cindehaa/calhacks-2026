@@ -5,8 +5,8 @@
 // The mic listens the whole time it's on, and everything said since the last fire is the troop.
 // Aim with the index fingertip (or the mouse). Fire by touching the thumb to the middle or index
 // finger, pressing Space, or clicking the board with words waiting: the troop goes where you were
-// pointing just before. Thumbs down or "cancel" takes back a troop still being summoned; Esc or
-// "cancel" throws the words away. Typed text and click-to-type work as before.
+// pointing just before. Thumbs down or "cancel" takes back a troop still being summoned; before a
+// pinch, thumbs down, Esc or "cancel" throws the words away. Typed text and click-to-type work as before.
 import { drawCursor, drawDwell, MISS_MS, type CursorState, type InputView } from './draw';
 import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
@@ -49,6 +49,9 @@ export interface InputHost {
   // For the logs.
   heard?(text: string, nonce: number): void; // a finished speech segment; nonce 0 outside a fire
   mismatch?(): void; // the player said their last troop isn't what they asked for
+  // A box that takes spoken words (the room code) has focus: it gets them instead of the prompt.
+  // True if it took them.
+  dictate?(raw: string, final: boolean, epoch: number): boolean;
   event?(kind: string, detail?: string, nonce?: number): void;
 }
 
@@ -179,8 +182,9 @@ export class InputController {
     this.startScheme();
     this.mountUi();
     // Dev builds: drive the hand cursor without a camera (window.__hand.move(x, y), .pinch(),
-    // .clear()), for headless checks of the menus.
+    // .clear()) and speak without a mic (.say(text)), for headless checks of the menus.
     if (import.meta.env.DEV) {
+      let saidN = 0;
       (window as unknown as { __hand: unknown }).__hand = {
         move: (x: number, y: number) => (this.handCursor = { x, y }),
         pinch: () => {
@@ -200,6 +204,8 @@ export class InputController {
           this.publish({ kind: 'hand', t: performance.now(), visible: false });
         },
         clear: () => (this.handCursor = null),
+        // Words as if the recogniser heard them, each call its own utterance.
+        say: (text: string, final = true) => this.words(` ${text}`, final, 1e6 + saidN++),
       };
     }
     const loop = () => {
@@ -216,6 +222,11 @@ export class InputController {
   // alongside the hand, and the fallback if vision fails; Space and Esc work either way.
   get mouseKeys(): boolean {
     return this.prefs.mouseKeys;
+  }
+
+  // The mic is on and something turns it into words.
+  get listening(): boolean {
+    return this.mic.on && this.speech.available;
   }
 
   setMouseKeys(on: boolean): void {
@@ -550,6 +561,7 @@ export class InputController {
     if (text) this.heardWords = true;
     const f = this.firing, to = epoch === -Infinity ? 'prompt' : routeWords(epoch, f?.cut ?? null, this.dropped);
     if (final && text) this.host.heard?.(text, to === 'firing' ? f!.nonce : 0);
+    if (!f && epoch !== -Infinity && this.host.dictate?.(raw, final, epoch)) return;
     if (to === 'drop') return;
     if (to === 'firing') {
       if (final) f!.words.final(raw, epoch);

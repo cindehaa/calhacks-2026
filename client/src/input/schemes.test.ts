@@ -55,11 +55,17 @@ test('thumbs down: a weak score, or one that drops out, never cancels', () => {
   assert.deepEqual(r.kinds(), []);
 });
 
-test('thumbs down: nothing pending does nothing', () => {
+test('thumbs down: before a pinch it clears the words waiting, once', () => {
   const r = rig();
   r.world.waiting = 'goblin';
   for (let t = 0; t < 2000; t += 33) r.send(frame(t, 1));
-  assert.deepEqual(r.kinds(), [], 'no cancel, and no clear either');
+  assert.deepEqual(r.out, [{ kind: 'clear', why: 'thumbsDown' }]);
+});
+
+test('thumbs down: nothing pending and no words does nothing', () => {
+  const r = rig();
+  for (let t = 0; t < 2000; t += 33) r.send(frame(t, 1));
+  assert.deepEqual(r.kinds(), []);
 });
 
 test('thumbs down: a pinch sequence never cancels', () => {

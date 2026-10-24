@@ -7,7 +7,6 @@
 // tiny synth sound that goes through sfx's output, so M mutes it, and every motion is dropped
 // under prefers-reduced-motion (the sound and a plain highlight stay).
 import { sfx } from './sfx';
-import { flameGlyph } from './pov';
 import type { Fx } from './fx';
 import type { DrawTower, DrawTroop, DrawUnit } from './render';
 import { pokeReaction, type PokeHit, type Reaction } from './pokes';
@@ -179,7 +178,6 @@ export class BoardReactions {
   private shudders = new Map<unknown, number>();
   private pops: Pop[] = [];
   private hoverId: bigint | null = null;
-  private hover: { unit: DrawUnit; troop?: DrawTroop; mine: boolean } | null = null;
   private now = 0;
   private queued: { hit: BoardHit | null; reaction: Reaction; x: number; y: number; side: number }[] = [];
   private flip = 0;
@@ -198,7 +196,6 @@ export class BoardReactions {
     const id = hover?.kind === 'unit' ? hover.unit.id : null;
     if (id !== null && id !== this.hoverId) blip('hover');
     this.hoverId = id;
-    this.hover = hover?.kind === 'unit' ? hover : null;
     this.pops = this.pops.filter(p => now - p.t0 < 1.1);
   }
 
@@ -289,7 +286,8 @@ export class BoardReactions {
     return reduced() ? 0 : Math.sin(k * Math.PI * 9) * 0.09 * (1 - k);
   }
 
-  // Name pops and the hover label. `head` gives the screen point just above a unit, by id.
+  // Name pops. No hover label: the hand cursor sits over the board all match, so it would keep a
+  // name up on whatever troop is under it; the hovered troop only glows. `head` gives the screen point just above a unit, by id.
   drawOverlay(g: CanvasRenderingContext2D, head: (id: bigint) => [number, number] | null, ground: (x: number, y: number, h: number) => [number, number] | null, font: string, quiet = false): void {
     // quiet: a failure message is up (notice slab or "didn't catch that"), so labels wait: one message at a time.
     if (quiet) return;
@@ -325,31 +323,6 @@ export class BoardReactions {
       g.fillText(p.text, x, y + (p.emote ? 1 : 0));
     }
     g.globalAlpha = 1;
-    const h = this.hover;
-    const at = h && head(h.unit.id);
-    if (h && at && h.troop) {
-      const name = h.troop.name, cost = String(h.troop.cost);
-      g.font = `700 12px ${font}`;
-      const nw = g.measureText(name).width;
-      const cw = 22, w = nw + cw + 20, ht = 20, x = at[0] - w / 2, y = at[1] - 62 - ht / 2;
-      g.fillStyle = 'rgba(13,16,32,0.88)';
-      g.strokeStyle = h.mine ? '#4aa3ff' : '#ff5d6c';
-      g.lineWidth = 1.5;
-      g.beginPath();
-      g.roundRect(x, y, w, ht, ht / 2);
-      g.fill();
-      g.stroke();
-      g.fillStyle = '#e8ebf5';
-      g.textAlign = 'left';
-      g.fillText(name, x + 9, y + ht / 2 + 1);
-      // The cost after a small flame, like the cost pills: paid in embers.
-      const gx = x + w - cw / 2 - 6, gy = y + ht / 2;
-      flameGlyph(g, gx - 5, gy, 13, '#ff8a3d');
-      g.fillStyle = '#ffe2c4';
-      g.textAlign = 'center';
-      g.font = `800 11px ${font}`;
-      g.fillText(cost, gx + 5, gy + 1);
-    }
     g.restore();
   }
 }
