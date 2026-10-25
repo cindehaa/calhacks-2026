@@ -9,8 +9,12 @@
 .pavilion .hubSky { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .pavDim { position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse 55% 45% at 50% 55%, #05060c66, transparent 100%), linear-gradient(180deg, transparent 30%, #05060c55); }
-.pavScroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #2a3050 transparent;
-  padding: calc(var(--roofH) + 14px) calc(var(--colW) + clamp(22px, 3vw, 52px)) 140px; }
+/* The wall scrolls in a window that starts under the frieze, so nothing ever passes over the roof
+   (its sky corners are see-through), and fades out into the shadow under the eaves. The mask also
+   makes it its own stacking context, so a lifted pile can't rise above the portico either. */
+.pavScroll { position: absolute; top: calc(var(--roofH) - 8px); left: 0; right: 0; bottom: 0; z-index: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #2a3050 transparent;
+  padding: 26px calc(var(--colW) + clamp(22px, 3vw, 52px)) 140px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 44px); mask-image: linear-gradient(180deg, transparent 0, #000 44px); }
 
 /* the hall behind: a CSS 3D box, open at the front, receding to the vanishing point */
 .pavStage { position: absolute; top: calc(var(--roofH) - 8px); bottom: 0; left: var(--colW); right: var(--colW); pointer-events: none; overflow: hidden;
@@ -41,8 +45,9 @@
 .pavRearGlow { position: absolute; left: 20%; right: 20%; bottom: 0; height: 60%; background: radial-gradient(ellipse 50% 60% at 50% 100%, #ffb02e44, transparent 100%); }
 
 /* the portico, nearest of all: it slides a little against the hall as the view leans */
-.pavNear { position: absolute; inset: 0; z-index: 2; pointer-events: none; transform: translate(calc(var(--px) * -10px), calc(var(--py) * -6px)); }
+.pavNear { position: absolute; inset: 0; z-index: 3; pointer-events: none; transform: translate(calc(var(--px) * -10px), calc(var(--py) * -6px)); }
 .pavGable { position: absolute; left: -12px; right: -12px; top: 0; height: var(--roofH); filter: drop-shadow(0 12px 14px #000c); animation: pavDrop .8s cubic-bezier(.2, .8, .2, 1) both; }
+.pavGable::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 34px; background: linear-gradient(180deg, #05060ccc, transparent); }
 .pavGableSvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .pavEmblem { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); filter: drop-shadow(0 0 16px #ffb02e99); animation: pavGlow 3s ease-in-out infinite; }
 .pavTitle { position: absolute; left: 0; right: 0; top: 62%; height: 34%; margin: 0; display: grid; place-items: center;
@@ -124,9 +129,10 @@
    game's slab drop shadow) and a contact shadow; it lifts upright when pointed at. */
 .pavWall { perspective: 1200px; }
 .pavPile { position: relative; transform-origin: 50% 100%; transform: rotateX(7deg) rotate(calc(var(--tilt) * .3));
-  filter: drop-shadow(0 7px 0 #0b0e22) drop-shadow(0 3px 0 #000); transition: transform .25s cubic-bezier(.2, .8, .2, 1), filter .25s; }
+  filter: drop-shadow(0 7px 0 #0b0e22) drop-shadow(0 3px 0 #000);
+  transition: transform .55s cubic-bezier(.33, 1, .68, 1), filter .55s cubic-bezier(.33, 1, .68, 1); } /* settling back: unhurried */
 .pavPile::before { content: ''; position: absolute; left: 4%; right: 4%; bottom: -22px; height: 22px; border-radius: 50%; background: radial-gradient(ellipse, #000b, transparent 70%); }
-.pavPile:hover { transform: translateY(-10px) rotateX(0deg) rotate(calc(var(--tilt) * .3)); filter: drop-shadow(0 10px 0 #0b0e22) drop-shadow(0 18px 18px #000c); z-index: 1; }
+.pavPile:hover { transition-duration: .45s; transform: translateY(-10px) rotateX(0deg) rotate(calc(var(--tilt) * .3)); filter: drop-shadow(0 10px 0 #0b0e22) drop-shadow(0 18px 18px #000c); z-index: 1; }
 .pavPile.rise { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
 .pavSheet { position: absolute; inset: 0; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   background: linear-gradient(160deg, #1c2140 0 56%, #151a36 56% 100%); box-shadow: inset 0 0 0 1px #2a3050; }

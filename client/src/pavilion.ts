@@ -9,6 +9,7 @@
 import { SQL_URL } from './dbhost';
 import { icon, mountIcons } from './icons';
 import { hubFx } from './hubfx';
+import { sfx } from './sfx';
 import { myIdentities, newestFirst, parseExhibits, pileKey, piles, tally, type Exhibit, type Pile } from './pavilion_data';
 import { elementColors, troopGlyph } from './tokens';
 import './pavilion.css';
@@ -122,6 +123,12 @@ function build(): HTMLElement {
   mountIcons(el);
   el.querySelector('#pavilionClose')!.addEventListener('click', () => closePavilion());
   hubFx(el.querySelector<HTMLCanvasElement>('.hubSky')!); // the same snow as home; it only draws while shown
+  // A soft sparkle when the pointer (or the hand, which moves the pointer's :hover the same way)
+  // comes onto a pile. sfx throttles it, so a sweep along a row patters rather than rattles.
+  el.querySelector('#pavWall')!.addEventListener('pointerover', (e: Event) => {
+    const pile = (e.target as Element).closest('.pavPile');
+    if (pile && !pile.contains((e as PointerEvent).relatedTarget as Node | null)) sfx.play('cardHover');
+  });
   parallax(el);
   return el;
 }
