@@ -111,7 +111,6 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 #title { display: grid; place-items: center; cursor: pointer; z-index: 9; }
 .titleInner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 16px; text-align: center; }
 .titleInner .wordmark { font-size: clamp(40px, 9vw, 136px); letter-spacing: .04em; }
-.tagline { margin: 6px 0 0; font: 600 15px var(--chakra); letter-spacing: .3em; text-transform: uppercase; color: #aab3cf; }
 .pressStart { margin-top: 34px; background: none; border: none; color: var(--text); font: 700 14px var(--chakra); letter-spacing: .3em; text-transform: uppercase; animation: blink 1.6s ease-in-out infinite; }
 .pressStart:hover { background: none; }
 @keyframes blink { 50% { opacity: .35; } }
