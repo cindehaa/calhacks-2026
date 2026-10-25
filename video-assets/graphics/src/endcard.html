@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>End card</title>
+<!-- Beat 6: Cal Hacks 13.0 and the sponsors whose tech the game uses, dressed like a studio end card,
+     then the punchline. Sponsor names are set in the game's type; drop official logos over them in
+     the editor if you have them. ?dur=10 -->
+<link rel="stylesheet" href="kit.css">
+<style>
+  body { background: radial-gradient(ellipse 80% 70% at 50% 45%, #141a33 0%, #0d1020 55%, #05060f 100%); }
+  .frost { position: absolute; width: 420px; opacity: .55; }
+  #warm { position: absolute; inset: auto 0 0; height: 360px; background: radial-gradient(ellipse 55% 100% at 50% 100%, #ff8a3d30, transparent 70%); }
+  #col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding-top: 150px; }
+  #mark { font: 700 112px/1.1 var(--deco); letter-spacing: .05em; }
+  #event { margin-top: 26px; font: 700 40px var(--cinzel); letter-spacing: .08em; color: var(--text); }
+  #sep { display: flex; align-items: center; gap: 18px; margin: 56px 0 34px; }
+  #sep b { width: 180px; height: 2px; background: linear-gradient(90deg, transparent, #ffb02e99); }
+  #sep b:last-child { transform: scaleX(-1); }
+  #sponsors { display: flex; gap: 40px; }
+  .sp { position: relative; width: 380px; height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .sp .slab { position: absolute; inset: 0; --c: 20px; }
+  .sp .n { position: relative; font: 800 46px var(--cinzel); color: var(--text); letter-spacing: .02em; }
+  .sp .w { position: relative; font: 700 21px var(--ui); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  #url { margin-top: 60px; font: 800 38px var(--ui); color: var(--amber); letter-spacing: .02em; }
+  #joke { position: absolute; left: 0; right: 0; bottom: 70px; text-align: center; font: italic 500 30px var(--ui); color: var(--muted); }
+</style>
+<div id="stage">
+  <img class="frost" src="frost-tl.svg" style="left:0;top:0"><img class="frost" src="frost-tr.svg" style="right:0;top:0">
+  <img class="frost" src="frost-bl.svg" style="left:0;bottom:0"><img class="frost" src="frost-br.svg" style="right:0;bottom:0">
+  <div id="warm"></div>
+  <div id="col">
+    <div id="mark" class="gold">Artifice</div>
+    <div id="event">Made at Cal Hacks 13.0</div>
+    <div id="sep"><b></b><span class="label">Built with</span><b></b></div>
+    <div id="sponsors">
+      <div class="sp slabWrap"><div class="slab"></div><div class="n">Claude</div><div class="w">Designs every troop</div></div>
+      <div class="sp slabWrap"><div class="slab"></div><div class="n">Cartesia</div><div class="w">Hears every word</div></div>
+      <div class="sp slabWrap"><div class="slab"></div><div class="n">SpacetimeDB</div><div class="w">Runs every match</div></div>
+    </div>
+    <div id="url"></div>
+  </div>
+  <div id="joke"></div>
+</div>
+<script type="module">
+  import { P, num, prog, ease, mix, canvas, snow, register } from './kit.js';
+  const D = num('dur', 10);
+  document.getElementById('url').textContent = P.get('url') ?? 'artifice-game.vercel.app';
+  document.getElementById('joke').textContent = P.get('joke') ?? 'Just a hackathon project.';
+  const g = canvas();
+  document.getElementById('stage').prepend(g.canvas);
+  const rise = (id, t, t0) => {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    el.style.opacity = prog(t, t0, 0.6, ease.linear);
+    el.style.transform = `translateY(${mix(22, 0, prog(t, t0, 0.8))}px)`;
+  };
+  register(D, (t) => {
+    const fade = 1 - prog(t, D - 0.5, 0.5, ease.in);
+    document.getElementById('stage').style.opacity = Math.min(prog(t, 0, 0.5, ease.linear), fade);
+    g.clearRect(0, 0, 1920, 1080);
+    snow(g, t + 4, { n: 150, seed: 41, alpha: 0.55 });
+    rise('mark', t, 0.2);
+    rise('event', t, 0.7);
+    rise('sep', t, 1.3);
+    [...document.querySelectorAll('.sp')].forEach((el, i) => {
+      rise(el, t, 1.6 + i * 0.3);
+      el.style.transform += ` scale(${mix(0.92, 1, prog(t, 1.6 + i * 0.3, 0.5, ease.outBack))})`;
+    });
+    rise('url', t, 2.8);
+    rise('joke', t, 5.2);
+  });
+</script>

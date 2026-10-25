@@ -1,0 +1,30 @@
+{
+  "slug": "dragon",
+  "speaker": "Isaac",
+  "line": "A dragon. Bigger.",
+  "cost": 11,
+  "model": "claude-haiku-5-5",
+  "source": "claude",
+  "keyed": false,
+  "sprite": "/api/sprite/c6e56c160c62018e20c2.png",
+  "design": {
+    "health": 750,
+    "damage": 135,
+    "attack_speed": 0.8,
+    "move_speed": 1,
+    "range": 2,
+    "count": 1,
+    "attack": "breath",
+    "targets": "any",
+    "on_hit": "burn",
+    "windup": false,
+    "trait": "flying",
+    "motion": "breathe",
+    "element": "fire",
+    "flavor": "breathes a wide, roaring jet of flame",
+    "name": "Greater Dragon",
+    "battle_cry": "",
+    "voice_style": "cheerful_hero",
+    "wish": ""
+  }
+}

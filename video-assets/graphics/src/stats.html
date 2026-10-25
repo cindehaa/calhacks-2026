@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Troop stats</title>
+<!-- The stats-and-attributes highlight while a troop is generated (beat 2.5): its sprite, name, stats
+     and quirks pop in one by one, then "designed by Claude". Built from troops/<slug>.json, the
+     design the game's API returned. ?troop=knight&x=1180 -->
+<link rel="stylesheet" href="kit.css">
+<style>
+  #card { position: absolute; top: 90px; width: 620px; }
+  #card > .slab { position: absolute; inset: 0; --c: 26px; }
+  #edge { position: absolute; left: 0; top: 26px; bottom: 26px; width: 6px; }
+  #inner { position: relative; padding: 34px 46px 30px 52px; }
+  #art { position: relative; height: 270px; display: grid; place-items: center; }
+  #ring { position: absolute; bottom: 8px; width: 300px; height: 74px; border-radius: 50%; border: 5px solid; box-shadow: 0 0 30px currentColor, inset 0 0 22px currentColor; opacity: .85; }
+  #sprite { position: relative; max-height: 270px; max-width: 360px; filter: drop-shadow(0 10px 14px #000a); }
+  #name { margin: 10px 0 2px; text-align: center; font: 900 54px/1.05 var(--cinzel); letter-spacing: .02em; text-transform: uppercase; }
+  #said { text-align: center; font: italic 500 25px var(--ui); color: var(--muted); margin-bottom: 18px; }
+  .row { margin: 11px 0; }
+  .row .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .row .k { font: 700 19px var(--ui); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .row .v { font: 700 32px var(--cinzel); color: var(--text); }
+  .bar { height: 9px; margin-top: 5px; background: #0f1226; clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+  .bar i { display: block; height: 100%; background: linear-gradient(180deg, var(--gold) 0 50%, var(--amber) 50%); transform-origin: 0 50%; }
+  #chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+  .chip { padding: 7px 16px 8px; font: 800 22px var(--ui); letter-spacing: .06em; color: #10131f; clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%); }
+  #credit { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 22px; }
+  #credit .by { font: 600 22px var(--ui); color: var(--muted); letter-spacing: .05em; }
+  #credit .who { font: 700 28px var(--cinzel); color: var(--text); }
+</style>
+<div id="stage">
+  <div id="card" class="slabWrap"><div class="slab"></div><i id="edge"></i>
+    <div id="inner">
+      <div id="art"><i id="ring"></i><img id="sprite"></div>
+      <div id="name" class="gold"></div>
+      <div id="said"></div>
+      <div id="rows"></div>
+      <div id="chips"></div>
+      <div id="credit"><span class="by">designed by</span><i class="diamond"></i><span class="who">Claude</span></div>
+    </div>
+  </div>
+</div>
+<script type="module">
+  import { P, num, prog, ease, mix, life, canvas, burst, register, SIDES, sideOf } from './kit.js';
+  const slug = P.get('troop') ?? 'knight', X = num('x', 1220), D = num('dur', 8);
+  const t = await fetch(`../../troops/${slug}.json`).then((r) => r.json());
+  const d = t.design, side = SIDES[sideOf(t.speaker)];
+  const card = document.getElementById('card');
+  card.style.left = `${X}px`;
+  document.getElementById('edge').style.background = side.accent;
+  const ring = document.getElementById('ring');
+  ring.style.color = side.accent; ring.style.borderColor = side.accent;
+  const sprite = document.getElementById('sprite');
+  sprite.src = `../../troops/${slug}.png`;
+  await sprite.decode();
+  const name = document.getElementById('name');
+  name.textContent = d.name;
+  if (d.name.length > 14) name.style.fontSize = '44px';
+  document.getElementById('said').textContent = `“${t.line.length > 60 ? t.line.slice(0, 57).trimEnd() + '…' : t.line}”`;
+
+  // Stats, scaled against the game's clamps (shared/troop.ts CLAMPS).
+  const CLAMPS = { health: 3000, damage: 600, attack_speed: 3, move_speed: 2, range: 6, count: 12 };
+  // Units in the UI font: Cinzel has no lower case, so "/s" would read "/S".
+  const unit = (s) => `<small style="font: 700 22px var(--ui); color: var(--muted)">${s}</small>`;
+  const fmt = { attack_speed: (v) => `${v}${unit(' /s')}`, range: (v) => (v <= 1 ? 'Melee' : `${v}${unit(' tiles')}`) };
+  const stats = [['Health', 'health'], ['Damage', 'damage'], ['Attack speed', 'attack_speed'], ['Move speed', 'move_speed'], ['Range', 'range']];
+  if (d.count > 1) stats.push(['Count', 'count']);
+  const rows = stats.map(([label, key]) => {
+    const el = Object.assign(document.createElement('div'), { className: 'row' });
+    el.innerHTML = `<div class="top"><span class="k">${label}</span><span class="v"></span></div><div class="bar"><i></i></div>`;
+    document.getElementById('rows').append(el);
+    return { el, v: el.querySelector('.v'), bar: el.querySelector('.bar i'), key, value: d[key] };
+  });
+
+  // Quirks as plain words.
+  const ELEMENT = { fire: ['Fire', '#ff8a3d'], ice: ['Ice', '#9de6e3'], lightning: ['Lightning', '#ffd27a'], poison: ['Poison', '#9fd86a'], holy: ['Holy', '#f3d58a'], shadow: ['Shadow', '#b49be8'] };
+  const ON_HIT = { burn: 'Burns on hit', slow: 'Slows on hit', stun: 'Stuns on hit' };
+  const TRAIT = { flying: 'Flying', shield: 'Shield', spawner: 'Spawner', death_burst: 'Bursts on death', heal_aura: 'Heals nearby', charge: 'Charges' };
+  const ATTACK = { splash: 'Splash damage', breath: 'Breath attack', chain: 'Chain attack' };
+  const tint = ELEMENT[d.element]?.[1] ?? '#dbe9f4';
+  const chips = [
+    ELEMENT[d.element] && ELEMENT[d.element],
+    ON_HIT[d.on_hit] && [ON_HIT[d.on_hit], tint],
+    TRAIT[d.trait] && [TRAIT[d.trait], '#dbe9f4'],
+    ATTACK[d.attack] && [ATTACK[d.attack], '#dbe9f4'],
+    d.targets === 'buildings' && ['Targets towers', '#dbe9f4'],
+    d.count > 1 && [`Swarm of ${d.count}`, '#dbe9f4'],
+  ].filter(Boolean).map(([text, color]) => {
+    const el = Object.assign(document.createElement('span'), { className: 'chip', textContent: text });
+    el.style.background = color;
+    document.getElementById('chips').append(el);
+    return el;
+  });
+  const credit = document.getElementById('credit');
+
+  // Timeline: card in, sprite pops, name stamps, then each stat, each chip, and the credit.
+  const T_SPRITE = 0.35, T_NAME = 0.9, T_ROWS = 1.45, ROW = 0.42;
+  const T_CHIPS = T_ROWS + rows.length * ROW + 0.15, CHIP = 0.3, T_CREDIT = T_CHIPS + chips.length * CHIP + 0.3;
+  const g = canvas();
+  const pop = (el, t0, from = 0.6) => {
+    const k = prog(clockT, t0, 0.32, ease.outBack);
+    el.style.opacity = prog(clockT, t0, 0.12, ease.linear);
+    el.style.transform = `scale(${mix(from, 1, k)})`;
+  };
+  let clockT = 0;
+  register(D, (time) => {
+    clockT = time;
+    card.style.opacity = life(time, D, 0.3, 0.4);
+    card.style.transform = `translateX(${mix(80, 0, prog(time, 0, 0.5, ease.outExpo))}px)`;
+    pop(sprite, T_SPRITE, 0.2);
+    ring.style.opacity = 0.85 * prog(time, T_SPRITE - 0.1, 0.3);
+    ring.style.transform = `scale(${mix(0.4, 1, prog(time, T_SPRITE - 0.1, 0.4, ease.outBack))})`;
+    const kn = prog(time, T_NAME, 0.2, ease.in);
+    name.style.opacity = prog(time, T_NAME, 0.08, ease.linear);
+    name.style.transform = `scale(${mix(1.7, 1, kn)})`;
+    document.getElementById('said').style.opacity = prog(time, T_NAME + 0.25, 0.3);
+    rows.forEach((r, i) => {
+      const t0 = T_ROWS + i * ROW, k = prog(time, t0, 0.55, ease.out);
+      r.el.style.opacity = prog(time, t0, 0.15, ease.linear);
+      r.el.style.transform = `translateX(${mix(24, 0, prog(time, t0, 0.3))}px)`;
+      const v = r.value * k;
+      r.v.innerHTML = (fmt[r.key] ?? ((x) => x))(Number.isInteger(r.value) ? Math.round(v) : Math.round(v * 10) / 10);
+      r.bar.style.transform = `scaleX(${Math.max(0.03, r.value / CLAMPS[r.key]) * k})`;
+    });
+    chips.forEach((c, i) => pop(c, T_CHIPS + i * CHIP, 0.4));
+    credit.style.opacity = prog(time, T_CREDIT, 0.4);
+    g.clearRect(0, 0, 1920, 1080);
+    const box = name.getBoundingClientRect();
+    burst(g, time, T_NAME + 0.2, { x: box.left + box.width / 2, y: box.bottom - 6, spread: box.width / 2, n: 40, seed: 5, power: 0.7, life: 1.1 });
+  });
+</script>

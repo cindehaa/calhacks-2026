@@ -1,0 +1,6 @@
+node_modules/
+# Large renders; `npm run graphics` makes them again
+graphics/out/*.mov
+# Built from the game's source by scripts/render.mjs
+graphics/src/game.js
+broll/plates/*.jpg

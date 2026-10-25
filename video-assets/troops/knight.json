@@ -1,0 +1,30 @@
+{
+  "slug": "knight",
+  "speaker": "Cindy",
+  "line": "A knight with a flaming sword",
+  "cost": 4,
+  "model": "claude-haiku-5-5",
+  "source": "claude",
+  "keyed": false,
+  "sprite": "/api/sprite/f3a1ca8e3bf4577482fd.png",
+  "design": {
+    "health": 1000,
+    "damage": 130,
+    "attack_speed": 0.8,
+    "move_speed": 0.8,
+    "range": 1,
+    "count": 1,
+    "attack": "single",
+    "targets": "any",
+    "on_hit": "burn",
+    "windup": false,
+    "trait": "none",
+    "motion": "slash",
+    "element": "fire",
+    "flavor": "swings a flaming sword",
+    "name": "Flame Knight",
+    "battle_cry": "",
+    "voice_style": "cheerful_hero",
+    "wish": ""
+  }
+}

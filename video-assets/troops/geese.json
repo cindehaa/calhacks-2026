@@ -1,0 +1,30 @@
+{
+  "slug": "geese",
+  "speaker": "Isaac",
+  "line": "An angry flock of geese charging at you with knives",
+  "cost": 2,
+  "model": "claude-haiku-5-5",
+  "source": "claude",
+  "keyed": false,
+  "sprite": "/api/sprite/49dc5c69fa6f32039e70.png",
+  "design": {
+    "health": 60,
+    "damage": 20,
+    "attack_speed": 1.2,
+    "move_speed": 1.6,
+    "range": 1,
+    "count": 6,
+    "attack": "single",
+    "targets": "any",
+    "on_hit": "none",
+    "windup": false,
+    "trait": "none",
+    "motion": "stab",
+    "element": "none",
+    "flavor": "charges in slashing with tiny knives",
+    "name": "Knife Goose Flock",
+    "battle_cry": "",
+    "voice_style": "cheerful_hero",
+    "wish": ""
+  }
+}

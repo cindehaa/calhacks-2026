@@ -1,0 +1,14 @@
+{
+  "name": "artifice-video-assets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "audio": "node --env-file=../.env scripts/audio.mjs",
+    "troops": "node scripts/troops.mjs",
+    "graphics": "node scripts/render.mjs",
+    "broll": "node --env-file=../.env scripts/broll.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.56.1"
+  }
+}

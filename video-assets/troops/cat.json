@@ -1,0 +1,30 @@
+{
+  "slug": "cat",
+  "speaker": "Cindy",
+  "line": "Innocent cat",
+  "cost": 1,
+  "model": "claude-haiku-5-5",
+  "source": "claude",
+  "keyed": false,
+  "sprite": "/api/sprite/d3b6e623411c9a583e33.png",
+  "design": {
+    "health": 260,
+    "damage": 60,
+    "attack_speed": 1.2,
+    "move_speed": 1.4,
+    "range": 1,
+    "count": 1,
+    "attack": "single",
+    "targets": "any",
+    "on_hit": "none",
+    "windup": false,
+    "trait": "none",
+    "motion": "slash",
+    "element": "none",
+    "flavor": "swats with tiny claws",
+    "name": "Innocent Cat",
+    "battle_cry": "",
+    "voice_style": "cheerful_hero",
+    "wish": ""
+  }
+}

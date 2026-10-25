@@ -2,7 +2,7 @@
 
 The design vision for the game: how it should look, sound and feel. Update it whenever a design choice is made or changes, so new art, sound and UI work starts from the same place. Dated decisions go at the bottom.
 
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25
 
 ## Theme: warmth and frost
 
@@ -166,3 +166,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** The menu track is now two minutes instead of one, so it plays longer before it loops.
 - **2026-10-24:** The 3-2-1-FIGHT countdown matches the menus: gold faceted figures on a frost octagon medallion, and FIGHT! on an amber-rimmed chamfered slab with embers, replacing plain white outlined text.
 - **2026-10-24:** The password gate is gone: the deployed site opens straight onto home.
+- **2026-10-25:** Demo video assets (`video-assets/`) reuse the game's look: trailer callouts in the wordmark's faceted gold Cinzel on a chamfered stone band with an amber underline, slammed in with the countdown's embers and ice; sponsor credits on small stone tags; a troop stats card (sprite on a side-coloured ring, stats as gold bars against the game's clamps, quirks as plain-word chips); captions in the opponent's frost-white bubble edged in the speaker's side colour; the home tapestries shot from below over the night sky; the wordmark slamming in under the low-poly moon for the title card. Narration is a deep Cartesia trailer voice; new music and sound effects keep the frost-and-fire palette. A LUT grades footage cool in the shadows and warm in the highlights.
