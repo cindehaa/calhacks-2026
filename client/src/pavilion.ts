@@ -79,7 +79,6 @@ function build(standalone: boolean): HTMLElement {
       <header class="pavHead">
         <div class="pavGable">${roof()}<span class="pavEmblem">${icon('star', 'gold', 54)}</span></div>
         <div class="pavBeam">
-          <span class="gLabel">Every troop summoned at Cal Hacks 13</span>
           <h2 id="pavTitle" class="pavTitle">Pavilion of Imagination</h2>
         </div>
         <div class="pavCount"><b id="pavTotal">0</b><small>summoned this weekend</small></div>
