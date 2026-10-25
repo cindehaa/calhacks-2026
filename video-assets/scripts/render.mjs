@@ -33,7 +33,8 @@ const JOBS = [
   ['callout-aim', 'callout', { text: 'Aim with|your finger' }, 1.2, true],
   ['callout-imagine', 'callout', { text: 'If you can imagine it,|you can summon it' }, 1.2, true],
   ['callout-deploy', 'callout', { text: 'Open your hand,|and watch it|come to life' }, 1.2, true],
-  ['callout-stats', 'callout', { text: 'Every troop|gets fair stats' }, 1.2, true],
+  // Left of the stats card, which holds the right side through this beat.
+  ['callout-stats', 'callout', { text: 'Every troop|gets fair stats', x: 640 }, 1.2, true],
   ['callout-cost', 'callout', { text: 'The more powerful the troop,|the more embers it costs' }, 1.2, true],
   ['callout-live', 'callout', { text: 'Play your friends|live' }, 1.2, true],
   ['callout-start', 'callout', { text: 'Start!', dur: 1.6 }, 0.8, true],
@@ -47,7 +48,7 @@ const JOBS = [
     ['5-troop-generated', 2.82, 'Every troop gets fair stats.', [0.86, 1.14, 1.38, 1.66, 1.9]],
     ['6-cost', 3.93, 'The more powerful the troop, the more embers it costs.', [0.36, 0.5, 0.7, 1.12, 1.32, 1.7, 1.84, 2.1, 2.54, 2.72]],
     ['7-play-live', 2.56, 'Play your friends live.', [0.52, 0.76, 0.96, 1.38]],
-  ].map(([n, len, text, words]) => [`subtitle-${n}`, 'subtitle', { text, words: words.join(','), dur: +(len + 0.4).toFixed(2) }, +(len - 0.2).toFixed(2), true]),
+  ].map(([n, len, text, words]) => [`subtitle-${n}`, 'subtitle', { text, words: words.join(','), dur: +(len + 0.4).toFixed(2), y: 872 }, +(len - 0.2).toFixed(2), true]),
   // Sponsor credits: a plain note in the bottom-left corner while the feature plays.
   ['credit-cartesia', 'credit', { text: 'Speech by Cartesia' }, 1.5, true],
   ['credit-claude', 'credit', { text: 'Designed by Claude' }, 1.5, true],

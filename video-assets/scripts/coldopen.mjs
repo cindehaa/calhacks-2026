@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Stitches the cold open (story beat 1): the drone shot fading up with the narrator's opening line
 // and its subtitle, the red banner, a swoosh to Isaac, the blue banner, a swoosh to Cindy, then
-// cut to the match's 3-2-1. The faces aren't filmed yet: labelled slates hold their place until
-// --isaac / --cindy point at the footage.
+// cut to the match's 3-2-1. The faces are --isaac / --cindy: a clip, or a photo that gets a slow
+// push-in (a portrait photo is cropped to 16:9 from --isaacTop / --cindyTop, a fraction of its height); without them,
+// labelled slates hold their place.
 //
-//   node scripts/coldopen.mjs [--isaac face.mp4] [--cindy face.mp4]
+//   node scripts/coldopen.mjs [--isaac face.jpg] [--cindy face.mp4] [--isaacTop 0.08] [--cindyTop 0.2]
 //
 // Uses film/out/drone.mp4, graphics/out/banner-{sun,raven}.mp4, the subtitle overlay, the
 // countdown clip (scripts/cuts.mjs) and the music and sound effects here. Writes film/out/cold-open.mp4.
@@ -17,18 +18,18 @@ import { parseArgs } from 'node:util';
 import { chromium } from 'playwright-core';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const { values: args } = parseArgs({ options: { isaac: { type: 'string' }, cindy: { type: 'string' } } });
+const { values: args } = parseArgs({ options: { isaac: { type: 'string' }, cindy: { type: 'string' }, isaacTop: { type: 'string', default: '0.08' }, cindyTop: { type: 'string', default: '0.2' } } });
 const p = (f) => join(root, f);
 
-// The cuts, in order: source, where in it to start, how long, and the transition into the next.
-// A slide is the swoosh between a banner and a face.
+// The cuts, in order: source, where in it to start, how long on screen (at `speed`, default 1), and
+// the transition into the next. A slide is the swoosh between a banner and a face.
 const slate = (who) => ({ slate: who, dur: 1.3 });
 const SHOTS = [
   { src: 'film/out/drone.mp4', from: 0, dur: 4.3, fadeIn: 0.8, next: ['fade', 0.4] },
-  { src: 'graphics/out/banner-sun.mp4', from: 0.4, dur: 1.6, next: ['slideleft', 0.25] },
-  args.isaac ? { src: args.isaac, from: 0, dur: 1.3, next: ['slideleft', 0.25] } : { ...slate('Isaac'), next: ['slideleft', 0.25] },
-  { src: 'graphics/out/banner-raven.mp4', from: 0.4, dur: 1.6, next: ['slideleft', 0.25] },
-  args.cindy ? { src: args.cindy, from: 0, dur: 1.3, next: ['fade', 0.12] } : { ...slate('Cindy'), next: ['fade', 0.12] },
+  { src: 'graphics/out/banner-sun.mp4', from: 0.4, dur: 0.8, speed: 2, next: ['slideleft', 0.25] },
+  args.isaac ? { src: args.isaac, top: args.isaacTop, from: 0, dur: 1.3, next: ['slideleft', 0.25] } : { ...slate('Isaac'), next: ['slideleft', 0.25] },
+  { src: 'graphics/out/banner-raven.mp4', from: 0.4, dur: 0.8, speed: 2, next: ['slideleft', 0.25] },
+  args.cindy ? { src: args.cindy, top: args.cindyTop, from: 0, dur: 1.3, next: ['fade', 0.12] } : { ...slate('Cindy'), next: ['fade', 0.12] },
   { src: 'film/out/clips/cindy/01-countdown.mp4', from: 0, dur: null, audio: true },
 ];
 const countdown = SHOTS.at(-1);
@@ -60,9 +61,15 @@ SHOTS.forEach((s, i) => {
   if (s.slate) {
     inputs.push('-loop', '1', '-framerate', '30', '-t', String(s.dur), '-i', s.png);
     chains.push(`[${i}:v]${V}[v${i}]`);
+  } else if (/\.(jpe?g|png)$/i.test(s.src)) {
+    // A photo: cropped to 16:9, graded like the rest, with a slow push-in.
+    inputs.push('-loop', '1', '-framerate', '30', '-t', String(s.dur), '-i', resolve(root, s.src));
+    chains.push(`[${i}:v]crop='iw:min(ih,iw*9/16)':0:'ih*${s.top}',scale=2400:-2,lut3d=${p('grade/artifice-frost-fire.cube')},`
+      + `zoompan=z='1+0.0018*on':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1920x1080:fps=30,${V}[v${i}]`);
   } else {
-    inputs.push('-ss', String(s.from), '-t', String(s.dur), '-i', p(s.src));
-    chains.push(`[${i}:v]${V}${s.fadeIn ? `,fade=t=in:d=${s.fadeIn}` : ''},setpts=PTS-STARTPTS[v${i}]`);
+    const speed = s.speed ?? 1;
+    inputs.push('-ss', String(s.from), '-t', String(s.dur * speed), '-i', resolve(root, s.src));
+    chains.push(`[${i}:v]setpts=(PTS-STARTPTS)/${speed},${V}${s.fadeIn ? `,fade=t=in:d=${s.fadeIn}` : ''},setpts=PTS-STARTPTS[v${i}]`);
   }
 });
 let last = 'v0', length = SHOTS[0].dur;

@@ -6,3 +6,5 @@ graphics/src/game.js
 broll/plates/*.jpg
 # Renders of the scripted match (scripts/film.mjs and friends): large, and made again from the script
 film/out/
+# Face photos of the team, kept out of the public repo
+film/faces/
