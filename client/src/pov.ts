@@ -434,7 +434,8 @@ export class PovBoard {
 
   private moveCamera(v: View, dt: number, now: number, real: number): void {
     // Your head turns a little toward where you point: the hand cursor if there is one, else the mouse.
-    const p = v.input?.cursor ? [v.input.cursor.x, v.input.cursor.y] : this.mouse;
+    const c = v.input?.cursor ?? v.point;
+    const p = c ? [c.x, c.y] : this.mouse;
     const nx = p ? (p[0] / this.w) * 2 - 1 : 0, ny = p ? -(p[1] / this.h) * 2 + 1 : 0;
     const k = 1 - Math.exp(-dt * 2.5);
     const homeMode = v.status === 'lobby';

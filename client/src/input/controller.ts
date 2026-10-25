@@ -447,6 +447,11 @@ export class InputController {
     return this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null);
   }
 
+  // Where the hand points, null with no hand. The home screen leans toward it as it does the mouse.
+  handPoint(): Pt | null {
+    return this.handCursor;
+  }
+
   // ---------- the scheme: signals in, intents out ----------
 
   private startScheme(): void {
