@@ -35,7 +35,7 @@ import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
 import { boardReactions, homeReactions, menuReactions } from './react';
-import { closePavilion, mountPavilion, openPavilion } from './pavilion';
+import { closePavilion, mountPavilion, openPavilion, pavilionOpen } from './pavilion';
 import { inject as injectAnalytics } from '@vercel/analytics';
 import './mobile.css';
 
@@ -180,6 +180,11 @@ $('title').addEventListener('pointerdown', enter);
 if (TOUCH) $('enterBtn').textContent = 'Tap to start';
 addEventListener('keydown', e => {
   if (entered) return;
+  if (pavilionOpen()) {
+    // Opened over the title by /#pavilion: Esc closes it (onto home); other keys stay with it.
+    if (e.key === 'Escape') closePavilion();
+    return;
+  }
   e.preventDefault();
   e.stopImmediatePropagation();
   enter();
@@ -233,7 +238,16 @@ $('practiceBack').onclick = () => openPractice(false);
 $('practice').onclick = e => { if (e.target === e.currentTarget) openPractice(false) };
 
 // The Pavilion: every troop anyone has summoned, from home or after a match (pavilion.ts).
-mountPavilion();
+// /#pavilion opens it on load, over the title, for a second tab during a demo; closing it from
+// there lands on home like pressing a key would.
+mountPavilion({
+  onClose: () => {
+    if (location.hash === '#pavilion') history.replaceState(null, '', location.pathname + location.search);
+    if (!entered) enter();
+  },
+});
+if (location.hash === '#pavilion') openPavilion();
+addEventListener('hashchange', () => { if (location.hash === '#pavilion') openPavilion() });
 $('pavilionBtn').onclick = () => openPavilion();
 $('resPavilionBtn').onclick = () => openPavilion();
 
