@@ -65,3 +65,16 @@ test('a typed drop says so instead of a zero hold', () => {
   d.designed(1, 'Buzz Cloud', '', 1600);
   assert.equal(timingLines(d.list)[0], 'Buzz Cloud: typed · →stats 1100 · →art …');
 });
+
+test('a queued drop stays on the board with its note, then lands', () => {
+  const d = new Drops();
+  d.begin(1, [3, 4], 0);
+  d.heard(1, 'stone golem', 10);
+  d.designed(1, 'Stone Golem', '', 20);
+  d.queued(1, '8 embers · 3 s');
+  assert.deepEqual(d.views(30).map(v => [v.phase, v.text, v.sub]), [['queued', 'Stone Golem', '8 embers · 3 s']]);
+  for (let n = 2; n <= 9; n++) d.begin(n, [0, 0], 40); // more drops than it keeps
+  assert.ok(d.get(1), 'still queued, so not forgotten');
+  d.deployed(1, 50);
+  assert.equal(d.get(1)!.phase, 'deployed');
+});

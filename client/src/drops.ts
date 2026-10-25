@@ -5,7 +5,7 @@
 // A drop is keyed by its deploy nonce. While the pinch or button is still held the input layer
 // draws the lock and the live transcript, so a drop only shows once it's released.
 
-export type DropPhase = 'held' | 'hearing' | 'designing' | 'deployed' | 'refused' | 'cancelled';
+export type DropPhase = 'held' | 'hearing' | 'designing' | 'queued' | 'deployed' | 'refused' | 'cancelled';
 
 export interface DropTimes {
   lock: number;
@@ -44,7 +44,8 @@ export class Drops {
 
   begin(nonce: number, spot: [number, number], t: number): void {
     this.list.push({ nonce, spot, phase: 'held', words: '', name: '', note: '', t: { lock: t } });
-    while (this.list.length > KEEP) this.list.shift();
+    // Forget the oldest, but never one still waiting in the queue: it has to stay on the board.
+    while (this.list.length > KEEP) this.list.splice(Math.max(0, this.list.findIndex(d => d.phase !== 'queued')), 1);
   }
 
   // Let go: words so far, still waiting on the recogniser's last ones.
@@ -74,9 +75,17 @@ export class Drops {
     d.t.stats = t;
   }
 
+  // Designed but not affordable yet: it waits its turn for the embers. `note` says how long.
+  queued(nonce: number, note: string): void {
+    const d = this.get(nonce);
+    if (!d || (d.phase !== 'designing' && d.phase !== 'queued')) return;
+    d.phase = 'queued';
+    d.note = note;
+  }
+
   deployed(nonce: number, t: number): void {
     const d = this.get(nonce);
-    if (d && d.phase === 'designing') {
+    if (d && (d.phase === 'designing' || d.phase === 'queued')) {
       d.phase = 'deployed';
       d.t.deployed = t;
     }
@@ -112,6 +121,8 @@ export class Drops {
         out.push({ x, y, phase: d.phase, text: d.words ? `“${clip(d.words)}”` : 'listening…', sub: '', age: t - (d.t.release ?? t) });
       } else if (d.phase === 'designing') {
         out.push({ x, y, phase: d.phase, text: `“${clip(d.words)}”`, sub: d.name ? d.name : 'designing…', age: t - (d.t.heard ?? t) });
+      } else if (d.phase === 'queued') {
+        out.push({ x, y, phase: d.phase, text: d.name || `“${clip(d.words)}”`, sub: d.note, age: t - (d.t.stats ?? t) });
       } else if (d.phase === 'refused') {
         const age = t - (d.t.deployed ?? t);
         if (age < REFUSED_MS) out.push({ x, y, phase: d.phase, text: d.name || 'refused', sub: d.note, age });

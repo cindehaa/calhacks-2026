@@ -2,7 +2,7 @@ import { ANCHORS } from '../../shared/anchors';
 import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { newTowers } from '../../shared/sim';
-import { price, type TroopDesign } from '../../shared/troop';
+import { MAX_COST, price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
@@ -754,11 +754,17 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     const msg = (e as Error)?.message ?? String(e);
     const expected = /too expensive|not enough elixir/.test(msg);
     dropStep(nonce, 'DB', `deploy_troop refused by reducer: ${msg}`, expected ? 'info' : 'error', e);
+    const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
+    // Short of embers but it fits the cap: back in the queue, to go out when they're there.
+    if (m?.[1] === 'not enough elixir' && Number(m[2]) <= (match()?.rules.max ?? ELIXIR.max)) {
+      input.deployQueued(nonce);
+      enqueue({ nonce, spot: [x, y], description, d, art: Promise.resolve(spriteUrl || null), need: Number(m[2]) });
+      return false;
+    }
     dropDeployed(nonce, false, `deploy_troop: ${msg}`);
     settle(nonce, msg);
     call(match()?.cancelDeploy(nonce), err => diag.warn('DB', `cancel_deploy #${nonce} failed: ${err}`));
     sfx.play('buzz');
-    const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
     if (m?.[1] === 'not enough elixir') {
       sfx.play('tooExpensive');
       const need = Number(m[2]), have = match()?.elixir ?? 0;
@@ -805,11 +811,82 @@ async function deployWithArt(nonce: number, spot: [number, number], description:
     else dropStep(nonce, 'ART', `no art: ${why ? explain(why) : 'art off (api has no FAL_KEY) or failed earlier'}`, why ? 'warn' : 'info', why || undefined);
     dropArtDone(nonce);
   });
+  const need = price(d);
+  if (m && need <= Math.min(MAX_COST, m.rules.max) && (queue.length > 0 || m.elixir < need)) return enqueue({ nonce, spot, description, d, art, need });
+  await sendWithArt(nonce, spot, description, d, art);
+}
+
+async function sendWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
+  const m = match();
   const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
   const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
   if (!ok || ready !== undefined) return;
   const url = await art;
   if (url && m) call(m.attachSprite(description, url), err => diag.warn('DB', `set_troop_sprite for "${description}" failed: ${err}`));
+}
+
+// ---------- the queue ----------
+
+// A troop you can't afford yet still goes through: it waits here, in the order it was summoned,
+// and goes out the moment the embers are there, one at a time. Thumbs down (or "cancel", Esc)
+// takes back the first in line, then the next. Its lock is let go while it waits, so the
+// opponent sees nothing coming, and it lands DEPLOY_DELAY after it goes out.
+interface Queued { nonce: number; spot: [number, number]; description: string; d: TroopDesign; art: Promise<string | null>; need: number }
+const queue: Queued[] = [];
+let queueKey = ''; // the match the queue belongs to
+let queueSending = false;
+
+function enqueue(q: Queued) {
+  const m = match();
+  if (!m) return void settle(q.nonce, 'no match');
+  if (cancelledNonces.has(q.nonce)) return;
+  if (!queue.length) queueKey = m.key;
+  const at = queue.findIndex(o => o.nonce > q.nonce);
+  queue.splice(at < 0 ? queue.length : at, 0, q);
+  call(m.cancelDeploy(q.nonce), err => diag.warn('DB', `cancel_deploy #${q.nonce} (queued) failed: ${err}`));
+  dropStep(q.nonce, 'DB', `queued ${q.d.name}: needs ${q.need}, have ${Math.floor(m.elixir)}, ${queue.length} in line`);
+  status(`${q.d.name} queued · ${q.need} embers`);
+  notice(queue.length > 1 ? `${q.d.name} queued, ${queue.length} in line · thumbs down clears the first` : `${q.d.name} queued · out in about ${elixirWait(q.need, m.elixir)} s`, { ms: 2200, key: 'elixir' });
+  starve(q.need);
+  relabelQueue();
+}
+
+function unqueue(nonce: number) {
+  const i = queue.findIndex(q => q.nonce === nonce);
+  if (i < 0) return;
+  queue.splice(i, 1);
+  relabelQueue();
+}
+
+// What each queued drop says on the board: the first counts down, the rest give their place.
+function relabelQueue() {
+  const m = match();
+  let have = m?.elixir ?? 0;
+  queue.forEach((q, i) => {
+    drops.queued(q.nonce, i === 0 ? `${q.need} embers · ${elixirWait(q.need, have)} s` : `queued · #${i + 1}`);
+  });
+}
+
+// Every frame: send the first in line once it's affordable; drop the lot if the match ended.
+function pumpQueue(m: MatchSource) {
+  if (!queue.length) return;
+  if (m.key !== queueKey || m.status !== 'playing') {
+    for (const q of queue.splice(0)) {
+      dropCancelled(q.nonce, 'match over');
+      drops.cancelled(q.nonce);
+      settle(q.nonce, 'queued at match end');
+    }
+    return;
+  }
+  if (queueSending || local?.paused) return;
+  const q = queue[0];
+  if (m.elixir < q.need) return relabelQueue();
+  queue.shift();
+  relabelQueue();
+  queueSending = true;
+  dropStep(q.nonce, 'DB', `queue: ${q.d.name} affordable, sending`);
+  status(queue.length ? `${q.d.name} going out · ${queue.length} still queued` : `${q.d.name} going out`);
+  void sendWithArt(q.nonce, q.spot, q.description, q.d, q.art).finally(() => (queueSending = false));
 }
 
 // Dev only: drop any anchor by name at a spot, and reach the local match (headless view checks).
@@ -847,6 +924,7 @@ function beginAt(spot: [number, number], by: string): number | null {
 const cancelledNonces = new Set<number>(); // cancelled before deploy_troop went out
 function cancelAt(nonce: number, msg: string, transcript = '') {
   cancelledNonces.add(nonce);
+  unqueue(nonce);
   const a = attempts.get(nonce);
   if (a) a.transcript ||= transcript;
   if (msg) settle(nonce, msg);
@@ -1011,6 +1089,7 @@ function frame() {
   renderVersus(m);
   renderTools(m);
   if (m) trackRound(m);
+  if (m) pumpQueue(m);
   // The title screen is opaque (no need to draw the board under it). The home screen is a window
   // onto the same arena the match is played on, and the result screen shows the frozen board.
   const visible = $('title').hidden;
