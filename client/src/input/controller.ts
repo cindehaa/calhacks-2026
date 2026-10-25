@@ -2,8 +2,9 @@
 // read as signals to the control scheme (schemes/pinch.ts), and carries out the intents it emits:
 // commit, cancel, clear, click a menu. The game only sees the InputHost calls.
 //
-// The mic listens the whole time it's on, and everything said since the last fire is the troop.
-// Aim with the index fingertip (or the mouse). Fire by touching the thumb to the middle or index
+// With the camera on in a match, the mic is pinch to talk: what you say while the pinch is held is
+// the troop, and anything said before it (narrating, laughing) is dropped. Otherwise the mic listens
+// the whole time it's on, and everything said since the last fire is the troop. Aim with the index fingertip (or the mouse). Fire by touching the thumb to the middle or index
 // finger, pressing Space, or clicking the board with words waiting: the troop goes where you were
 // pointing just before. Thumbs down or "cancel" takes back a troop still being summoned; before a
 // pinch, thumbs down, Esc or "cancel" throws the words away. Typed text and click-to-type work as before.
@@ -166,7 +167,7 @@ export class InputController {
     this.vad.o.thresholdDb = this.prefs.vadDb;
     this.picker.pref = this.prefs.hand;
     this.applyPinch();
-    this.speech.setGated(false); // always listening
+    this.speech.setGated(false); // always listening until a match with the camera on (pinchToTalk)
     this.speech.onPartial = (t, e) => this.words(t, false, e);
     this.speech.onFinal = (t, e) => this.words(t, true, e);
     this.speech.onFallback = () => (this.fellBack = true); // told once a match is under way
@@ -244,6 +245,7 @@ export class InputController {
         pinch: () => {
           if (!this.handCursor) return;
           const t = performance.now();
+          this.grab(t);
           this.publish({ kind: 'pinch', t, aim: this.handCursor });
           this.pinchT = t + 1;
           this.publish({ kind: 'release', t: t + 1, aim: this.handCursor });
@@ -260,6 +262,7 @@ export class InputController {
           const pinched = this.pinch.push(o.ratio, now);
           this.publish(this.handSignal(now, this.handCursor, null, this.pinch.closed));
           if (pinched) {
+            this.grab(now);
             this.held = true;
             this.openSince = null;
             this.publish({ kind: 'pinch', t: now, aim: this.handCursor });
@@ -408,6 +411,7 @@ export class InputController {
   private tick(now: number): void {
     const f = this.tracker?.detect(now);
     if (f !== undefined) this.onHandFrames(f, now);
+    this.speech.setGated(this.pinchToTalk());
     if (this.mic.on) {
       const db = this.mic.levelDb();
       const ev = this.vad.push(now, db);
@@ -472,6 +476,7 @@ export class InputController {
       this.held = true;
       this.openSince = null;
       this.shot = this.pinch.last;
+      this.grab(now);
       this.publish({ kind: 'pinch', t: now, aim: this.trail.at(now - PINCH_AIM_MS) ?? this.handCursor });
     }
     this.checkRelease(now);
@@ -490,7 +495,29 @@ export class InputController {
     this.held = false;
     this.openSince = null;
     this.pinchT = now;
+    void this.speech.hold(false);
     this.publish({ kind: 'release', t: now, aim });
+  }
+
+  // Pinch to talk: with the camera on in a match, only words said while a pinch is held become the
+  // troop, so the player can talk to the people around them between drops.
+  private pinchToTalk(): boolean {
+    return !!this.tracker && this.host.playing();
+  }
+
+  // A pinch closing starts the troop's words: what was said before it is thrown away, and Cartesia
+  // only gets audio while the pinch is held (plus its pre-roll, so the first syllable survives).
+  // The cut comes before the hold so the pre-roll lands in the new epoch, not the dropped one.
+  private grab(now: number): void {
+    if (!this.pinchToTalk()) return;
+    if (!this.firing && this.mic.on) {
+      if (this.prompt.text) this.host.status('');
+      this.prompt = new Transcript();
+      this.dropped = Math.max(this.dropped, this.speech.cut(FLUSH_MS).epoch);
+    }
+    // Talking before the pinch doesn't count as having spoken for this troop.
+    this.speechAt = this.vad.speaking ? now : -Infinity;
+    void this.speech.hold(true);
   }
 
   // The control hand's pinch measure (thumb to finger, in hand sizes), null with no hand. For the
@@ -530,6 +557,7 @@ export class InputController {
     this.thumbDown = 0;
     this.pinch.reset();
     this.ratio = null;
+    if (this.held) void this.speech.hold(false);
     this.held = false; // losing the hand mid-hold places nothing
     this.openSince = null;
   }
@@ -788,6 +816,9 @@ export class InputController {
       else f!.words.interim(raw, epoch);
       return;
     }
+    // Pinch to talk: words outside a hold aren't for a troop. Cartesia is gated already; this is
+    // for the browser recogniser, which can't be.
+    if (epoch !== -Infinity && this.pinchToTalk() && !this.held) return;
     // Act on interim words too: waiting for the final result adds most of a second.
     const sig = (cancel: boolean) => this.publish({ kind: 'words', t: performance.now(), text, final, waiting: this.prompt.text, cancel });
     if (isCancel(text)) {
@@ -820,7 +851,7 @@ export class InputController {
     if (this.hinted) return;
     this.hinted = true;
     const send = this.tracker ? 'pinch, aim, let go' : TOUCH ? 'hold your half, drag to aim, let go' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
-    const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
+    const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : !this.speech.available ? `Type what it is, then ${send}` : this.tracker ? 'Pinch, say what it is while you hold, then let go' : `Say what it is, then ${send}`;
     notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
   }
 
@@ -932,7 +963,7 @@ export class InputController {
     this.el.id = 'inputPanel';
     this.el.innerHTML = `
       <div class="inRow">
-        <button data-act="cam" title="Say it, pinch and hold to aim, let go to place. Thumbs down to cancel.">Camera</button>
+        <button data-act="cam" title="Pinch and hold, say it, aim, let go to place. Only what you say while pinching counts. Thumbs down to cancel.">Camera</button>
         <button data-act="mic" title="Always listening while on: say the troop, then pinch, aim and let go, click, or press Space to send it">Mic</button>
         <button data-act="menu" class="ghost" title="Camera and mic settings">⋯</button>
       </div>
