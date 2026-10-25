@@ -2,7 +2,7 @@
 // short practice (practice.ts). Done or skipped once (remembered in localStorage); after that the
 // controller turns the camera and mic back on by itself. "Run setup again" in the camera panel's
 // ⋯ menu reopens it.
-import type { InputController } from './input/controller';
+import { TOUCH, type InputController } from './input/controller';
 import { pinchArt, pointArt } from './input/handart';
 import { initPractice, practiceDone } from './practice';
 import { logEvent } from './telemetry';
@@ -40,7 +40,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     el.hidden = false;
     q('[data-art="point"]').innerHTML = pointArt();
     q('[data-art="pinch"]').innerHTML = pinchArt();
-    q('[data-act="skip"]').textContent = first ? 'Skip, use mouse and keys' : 'Close';
+    q('[data-act="skip"]').textContent = !first ? 'Close' : TOUCH ? 'Skip, I’ll type' : 'Skip, use mouse and keys';
     cancelAnimationFrame(raf);
     render();
   }
@@ -54,7 +54,9 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   }
 
   // One prompt for both instead of two back to back; each device is then started on its own.
+  // Phones only get the mic: nobody aims a phone's camera at their own hand.
   async function turnOn() {
+    if (TOUCH) return input.setMic(true);
     asking = true;
     try {
       (await navigator.mediaDevices.getUserMedia({ video: true, audio: true })).getTracks().forEach(t => t.stop());
@@ -98,11 +100,12 @@ export function initSetup(input: InputController, onClose: () => void): { open()
       asking ? 'allow the camera and mic when the browser asks'
       : starting ? s.camStatus
       : devicesOk ? 'camera and mic are on'
+      : TOUCH ? (s.mic ? 'mic is on: say a troop, then tap where it goes' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'say your troop out loud, then tap where it goes')
       : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: say a troop, then click or press Space to send it`
       : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
       : 'aim with your hand, say your troop out loud');
     const dev = q<HTMLButtonElement>('[data-act="devices"]');
-    dev.hidden = devicesOk;
+    dev.hidden = TOUCH ? s.mic : devicesOk;
     dev.disabled = asking || starting;
     dev.textContent = s.mic ? 'Try camera' : errors.length ? 'Try again' : 'Turn on';
 
@@ -129,6 +132,10 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     q<HTMLButtonElement>('[data-act="done"]').disabled = !s.mic || starting;
   }
 
+  if (TOUCH) {
+    q('[data-step="devices"] b').textContent = 'Mic';
+    q('.setup .sub').textContent = 'Typing always works too.';
+  }
   input.onSetup = () => open();
   // The ⋯ menu's "Fit pinch to my hand": just the fitting, over whatever is showing.
   input.onCalibrate = () => void practice.run({ fitOnly: true });

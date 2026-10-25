@@ -176,6 +176,7 @@ function enter() {
   else setup.open();
 }
 $('title').addEventListener('pointerdown', enter);
+if (TOUCH) $('enterBtn').textContent = 'Tap to start';
 addEventListener('keydown', e => {
   if (entered) return;
   e.preventDefault();
@@ -271,10 +272,17 @@ $('handBtn').onclick = async e => {
   await input.setCamera(true);
   if (!input.setupState().camera) setup.open();
 };
+// Phones don't aim with the camera, so the button is just the mic, on and off in one tap.
 $('camBtn').onclick = e => {
-  setup.open();
   (e.currentTarget as HTMLElement).blur();
+  if (TOUCH) void input.setMic(!input.setupState().mic);
+  else setup.open();
 };
+if (TOUCH) {
+  $('camBtn').innerHTML = icon('mic', 'light', 20);
+  $('camBtn').setAttribute('aria-label', 'Mic');
+  $('camBtn').title = 'Mic';
+}
 $('rematchBtn').onclick = () => {
   call(match()?.rematch());
   if (local) botStarted(local.level);
@@ -693,6 +701,7 @@ function renderTools(m: MatchSource | null) {
   $('pauseBtn').hidden = !(local && live);
   $<HTMLButtonElement>('pauseBtn').disabled = !local || local.time < 0;
   $('forfeitBtn').hidden = !(!local && live);
+  if (TOUCH) $('camBtn').classList.toggle('off', !input.setupState().mic);
   if (!live || local) $('forfeitAsk').hidden = true;
 }
 
@@ -1056,7 +1065,11 @@ $<HTMLFormElement>('describe').onsubmit = e => {
   if (TOUCH) input.blur(); // put the keyboard away so the board shows again
   deployDescription(text);
 };
-if (TOUCH) $<HTMLInputElement>('descInput').placeholder = 'Type a troop';
+if (TOUCH) {
+  $<HTMLInputElement>('descInput').placeholder = 'Type a troop';
+  document.body.classList.add('touch');
+  input.setMouseKeys(true); // a tap is the mouse here: it aims, and fires what was said or typed
+}
 
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
