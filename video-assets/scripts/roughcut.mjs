@@ -145,7 +145,8 @@ changes.forEach((s, i) => {
 chains.push(`${mix.join('')}amix=inputs=${mix.length}:normalize=0,alimiter=limit=0.95,atrim=0:${total.toFixed(3)}[aout]`);
 
 execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', chains.join(';'), '-map', `[${last}]`, '-map', '[aout]',
-  '-c:v', 'libx264', '-crf', '19', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', p('film/out/roughcut.mp4')],
+  '-c:v', 'libx264', '-crf', '24', '-preset', 'slow', // a review cut, kept under GitHub's 100 MB a file
+   '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', p('film/out/roughcut.mp4')],
   { maxBuffer: 1 << 26 });
 const mmss = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
 console.log(`ok  film/out/roughcut.mp4 (${mmss(total)})`);
