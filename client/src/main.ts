@@ -7,7 +7,7 @@ import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, TOUCH, type DeployHow } from './input/controller';
-import { preloadHandModel } from './input/hand';
+import { warmHandTracker } from './input/hand';
 import { isCancel, Transcript } from './input/speech';
 import { spokenLetters } from './input/spell';
 import { LocalMatch } from './local';
@@ -1035,7 +1035,7 @@ function flagMismatch() {
 const setup = initSetup(input, showTutorialOnce);
 // The hand model is ~17 MB: fetch it while the title and menu are up, once the page itself has
 // loaded, so the camera starts quickly. Touch-only devices type instead, so they skip it.
-if (!TOUCH) addEventListener('load', () => setTimeout(() => void preloadHandModel().catch(e => diag.warn('HAND', `hand model preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });
+if (!TOUCH) addEventListener('load', () => setTimeout(() => void warmHandTracker().catch(e => diag.warn('HAND', `hand tracker preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });
 
 // Input events from the controller, in the console under their stage.
 function inputEvent(kind: string, detail: string) {
