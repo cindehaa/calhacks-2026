@@ -1,4 +1,5 @@
 // The api's routes, shared by the Vercel functions (api/*.ts) and the local server (api/_dev.ts).
+import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { hasCartesiaKey, voiceToken } from './cartesia.js';
 import { designTroop, warm } from './designer.js';
 import { pose, poseFile } from './poses.js';
@@ -52,6 +53,22 @@ export const ROUTES: Record<string, (body: Body) => Promise<unknown>> = {
     needKey(hasFalKey(), 'FAL_KEY');
     const d = described(b);
     return upstream('pose', () => pose(d, String(b.flavor ?? '').slice(0, 120)));
+  },
+  // A client token for one gameplay recording (client/src/recorder.ts): the browser uploads the
+  // video straight to Blob, since a function body can't be over 4.5 MB.
+  '/api/recording': async b => {
+    needKey(!!process.env.BLOB_READ_WRITE_TOKEN, 'BLOB_READ_WRITE_TOKEN');
+    const payload = (b.payload ?? {}) as Body;
+    const pathname = String(payload.pathname ?? '');
+    if (b.type !== 'blob.generate-client-token' || !/^recordings\/[\w/-]+\.(webm|mp4)$/.test(pathname)) throw new HttpError(400, 'bad recording request');
+    const clientToken = await generateClientTokenFromReadWriteToken({
+      pathname,
+      allowedContentTypes: ['video/webm', 'video/mp4'],
+      maximumSizeInBytes: 300 * 1024 * 1024,
+      addRandomSuffix: true,
+      validUntil: Date.now() + 60 * 60 * 1000,
+    });
+    return { type: 'blob.generate-client-token', clientToken };
   },
 };
 

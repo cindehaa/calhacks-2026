@@ -13,6 +13,7 @@ import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
+import { Recorder } from './recorder';
 import { burnSticks, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
@@ -38,6 +39,7 @@ injectAnalytics(); // Vercel Web Analytics: page views on the deployed site; dev
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const board = new PovBoard($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board'));
+const recorder = new Recorder($<HTMLCanvasElement>('board3d'), $<HTMLCanvasElement>('board')); // every match, to Blob
 initKindling($('elixir'));
 if (import.meta.env.DEV) Object.assign(window, { board, bot: () => local }); // poke at the 3D view and the bot match from the console
 
@@ -955,6 +957,7 @@ function frame() {
   if (!m || !$('lobby').hidden) {
     if (!m) $('roomInfo').textContent = '';
     board.draw({ mySide: 0, units: [], towers: HOME_TOWERS, troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' }, visible);
+    recorder.update(false, false);
     return;
   }
   const side = m.side;
@@ -999,6 +1002,7 @@ function frame() {
     status: m.status,
     winner: m.winner ?? undefined,
   }, visible);
+  recorder.update(m.status === 'playing', m.status === 'done');
 }
 
 // Debug readout, off by default (T toggles): per drop, how long the pinch was held, then from

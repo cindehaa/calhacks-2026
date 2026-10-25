@@ -108,6 +108,7 @@ class Sfx {
   private loading = false;
   private music = new Map<string, HTMLAudioElement>(); // looping tracks, by path
   private musicGain: GainNode | null = null;
+  private dest: MediaStreamAudioDestinationNode | null = null; // tap()'s stream
   private wanted: MusicTrack | null = null; // set before the context exists, applied on unlock
   private playing: MusicTrack | null = null;
   private held = false; // music paused in place (the pause menu), not switched off
@@ -253,6 +254,18 @@ class Sfx {
   out(): { ac: AudioContext; out: GainNode } | null {
     const ac = this.ctx, out = this.master;
     return ac && out && !this.muted && ac.state === 'running' ? { ac, out } : null;
+  }
+
+  // Everything the game plays, as a stream for the gameplay recording (recorder.ts). Muted is silent.
+  // One stream for the session: recordings share it, and must not stop its track.
+  tap(): MediaStream | null {
+    const ac = this.ctx, out = this.master;
+    if (!ac || !out) return null;
+    if (!this.dest) {
+      this.dest = ac.createMediaStreamDestination();
+      out.connect(this.dest);
+    }
+    return this.dest.stream;
   }
 
   // One shot of a loaded file. Busy sounds get a little pitch wobble so repeats don't drone.
