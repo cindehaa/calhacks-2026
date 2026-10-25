@@ -6,7 +6,7 @@
 //
 //   node scripts/montage.mjs [--src <folder with the .mp4s>] [--list film/montage.json]
 //
-// Writes film/out/montage.mp4 (1920x1080, 30 fps, H.264 crf 17, AAC).
+// Writes film/out/montage.mp4 (1920x1080, 30 fps, H.264 crf 22, AAC).
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -17,7 +17,7 @@ import { parseArgs } from 'node:util';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { values: args } = parseArgs({
   options: {
-    src: { type: 'string', default: '/private/tmp/claude-501/-Users-cindyli-GitHub-calhacks-2026/da0d6cfa-7a13-4529-b6d4-bcb583090752/scratchpad/footage-zip/artifice' },
+    src: { type: 'string', default: '/private/tmp/claude-501/-Users-cindyli-GitHub-calhacks-2026/da0d6cfa-7a13-4529-b6d4-bcb583090752/scratchpad/footage-all' },
     list: { type: 'string', default: join(root, 'film/montage.json') },
     out: { type: 'string', default: join(root, 'film/out/montage.mp4') },
   },
@@ -88,6 +88,7 @@ video.push(`${shots.map((_, i) => `[v${i}]`).join('')}concat=n=${shots.length}:v
 
 mkdirSync(dirname(args.out), { recursive: true });
 execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', [...video, ...audio].join(';'), '-map', '[v]', '-map', '[a]',
-  '-r', String(FPS), '-c:v', 'libx264', '-crf', '17', '-preset', 'medium', '-pix_fmt', 'yuv420p',
+  '-r', String(FPS), '-c:v', 'libx264', '-crf', '22', '-preset', 'slow', // 4K sources: kept under GitHub's 100 MB a file
+  '-pix_fmt', 'yuv420p',
   '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', args.out], { stdio: 'inherit' });
 console.log(`ok  ${args.out}  ${total.toFixed(2)} s, ${shots.length} shots`);
