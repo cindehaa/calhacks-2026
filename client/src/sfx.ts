@@ -56,7 +56,7 @@ function samplesFor(name: SfxName, kind?: SoundKind): { pick: string[]; voice?: 
     case 'versus': return { pick: ['sfx/game/deploy_land'], gain: 1 };
     case 'joined': return { pick: ['sfx/game/double_elixir'], gain: 0.5 };
     case 'forfeit': return { pick: ['sfx/game/match_end'], gain: 0.9 };
-    case 'cardHover': return { pick: ['sfx/ui/card_hover'], gain: 0.22 + Math.random() * 0.08 };
+    case 'cardHover': return { pick: ['sfx/ui/card_hover'], gain: 0.36 + Math.random() * 0.1 };
     default: return { pick: [], gain: 1 };
   }
 }
