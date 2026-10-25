@@ -1,24 +1,26 @@
-// The two hand diagrams, as inline SVG: point to aim, pinch (thumb to middle finger, the index
-// still pointing) to click. Drawn like the virtual hand
-// (handview.ts): frost bones, dark joints, the aiming fingertip in amber. The pinch closes and
-// opens on a loop and the pointing hand drifts; under reduced motion both hold still (the pinch
-// shown closed).
+// The two hand diagrams, as inline SVG, after a recording of the real motions: aim with an "L"
+// (palm to the camera, index up, thumb straight out to the side, the other fingers loosely bent)
+// and pinch by folding the thumb across the palm onto the curling middle finger, the index still
+// up, then opening back to the L. Drawn like the virtual hand (handview.ts): frost bones, dark
+// joints, amber fingertips. The pinch closes and opens on a loop and the pointing hand drifts;
+// under reduced motion both hold still (the pinch shown closed).
 type P = [number, number];
-type Pose = P[]; // the 21 landmarks, in a 100 × 120 box, as you see your own right hand
+type Pose = P[]; // the 21 landmarks, in a 100 × 120 box, as you see your hand on screen
 
-// Index up, the other three curled (drawn as short knuckle stubs: DIP and tip sit on PIP), thumb
-// relaxed.
+// The L: index up, thumb out to the right, middle loosely bent, ring and pinky as short knuckle
+// stubs (DIP and tip sit on PIP).
 const stub = (k: P, pip: P): P[] => [k, pip, pip, pip];
-const CURLED: Pose = [
-  [54, 114], [40, 104], [29, 93], [22, 82], [17, 71],
-  [41, 64], [39, 45], [38, 32], [37, 19],
-  ...stub([54, 62], [57, 50]), ...stub([65, 65], [69, 54]), ...stub([75, 72], [79, 62]),
+const L: Pose = [
+  [48, 112], [60, 98], [70, 90], [81, 86], [92, 84],
+  [59, 62], [60, 44], [61, 31], [62, 18],
+  [48, 60], [46, 49], [47, 43], [50, 41],
+  ...stub([38, 63], [35, 54]), ...stub([30, 69], [26, 61]),
 ];
-const POINT = CURLED;
+const POINT = L;
 const with_ = (base: Pose, moves: Record<number, P>): Pose => base.map((p, i) => moves[i] ?? p);
-const PINCH_OPEN = with_(CURLED, { 2: [29, 93], 3: [21, 83], 4: [14, 74], 10: [56, 48], 11: [57, 38], 12: [57, 29] });
-const PINCH_SHUT = with_(CURLED, { 2: [31, 90], 3: [30, 76], 4: [37, 62], 10: [52, 50], 11: [45, 52], 12: [40, 58] });
-const TOUCH: P = [38, 60]; // where thumb and middle finger meet
+const PINCH_OPEN = L;
+const PINCH_SHUT = with_(L, { 2: [66, 92], 3: [62, 80], 4: [57, 69], 10: [47, 50], 11: [52, 57], 12: [55, 64] });
+const TOUCH: P = [56, 66]; // where thumb and middle finger meet
 
 const CHAINS = [[13, 14], [17, 18], [9, 10, 11, 12], [0, 1, 2, 3, 4], [5, 6, 7, 8]]; // index last, on top
 const PALM = [0, 1, 5, 9, 13, 17];
@@ -55,13 +57,13 @@ const svg = (body: string, label: string) =>
 
 // Point to aim: the hand drifts and the fingertip leads, with arrows round it.
 export function pointArt(animate = !reduced()): string {
-  const arrows = [[37, 6, 0], [50, 19, 90], [24, 19, 270]] // not down: the finger is there
+  const arrows = [[62, 5, 0], [75, 18, 90], [49, 18, 270]] // not down: the finger is there
     .map(([x, y, r]) => `<path d="M-4,2 L0,-2 L4,2" transform="translate(${x},${y}) rotate(${r})" fill="none" stroke="${AIM}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`)
     .join('');
   const drift = animate
     ? '<animateTransform attributeName="transform" type="translate" values="0 0;8 -3;-7 4;0 0" keyTimes="0;.35;.7;1" dur="3.2s" repeatCount="indefinite"/>'
     : '';
-  return svg(`<g>${drift}${hand(POINT, null, 0, [8])}${arrows}</g>`, 'Point with your index finger');
+  return svg(`<g>${drift}${hand(POINT, null, 0, [8])}${arrows}</g>`, 'Point with your index finger, thumb out');
 }
 
 // Pinch to click: thumb tip to middle fingertip while the index keeps pointing, a flash where
