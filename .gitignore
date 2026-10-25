@@ -14,3 +14,5 @@ dist/
 sim/out/
 bench/out/
 .vercel
+# demo video source footage and renders
+video-assets/
