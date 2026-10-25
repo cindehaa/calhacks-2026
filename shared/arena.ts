@@ -111,3 +111,7 @@ export function formation(count: number): [number, number][] {
   }
   return out;
 }
+
+// Anywhere on the board: where a spell may be cast. A spot past your zone (canDeploy false)
+// is a spell spot; a troop aimed there snaps back with clampDeploy.
+export const onBoard = (x: number, y: number) => x > 0 && x < ARENA_W && y > 0 && y < ARENA_H;

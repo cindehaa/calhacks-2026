@@ -56,7 +56,7 @@ async function upstream<T>(what: string, f: () => Promise<T>): Promise<T> {
 }
 
 export const ROUTES: Record<string, (body: Body) => Promise<unknown>> = {
-  '/api/troop': b => designTroop(text(b)),
+  '/api/troop': b => designTroop(text(b), b.spell === true),
   '/api/warm': () => warm(),
   // A 60 s Cartesia token for the browser's STT socket.
   '/api/voice-token': async () => {

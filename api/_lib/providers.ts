@@ -3,7 +3,7 @@
 // through sanitizeDesign, so they only differ in speed and judgement.
 import Anthropic from '@anthropic-ai/sdk';
 import { SYSTEM_PROMPT } from '../../shared/prompt.js';
-import { TROOP_SCHEMA, sanitizeDesign, type TroopDesign } from '../../shared/troop.js';
+import { DESIGN_SCHEMA, SPELL_SCHEMA, sanitizeDesign, type TroopDesign } from '../../shared/troop.js';
 
 export type ProviderName = 'claude' | 'gemini' | 'cerebras' | 'groq';
 export const PROVIDERS: ProviderName[] = ['claude', 'gemini', 'cerebras', 'groq'];
@@ -12,7 +12,8 @@ export interface Provider {
   name: ProviderName;
   model: string;
   hasKey(): boolean;
-  design(description: string, timeoutMs: number): Promise<RawDesign>;
+  // spellOnly: the player aimed past their own zone, so only a spell will do (SPELL_SCHEMA).
+  design(description: string, timeoutMs: number, spellOnly?: boolean): Promise<RawDesign>;
 }
 
 // raw is the model's answer as sent, before clamping, so the logs show what got clamped.
@@ -22,7 +23,11 @@ export interface RawDesign {
 }
 
 const env = (k: string) => (process.env[k] ?? '').trim();
-const userText = (d: string) => `<description>${d}</description>`;
+const userText = (d: string, spellOnly = false) =>
+  `<description>${d}</description>${spellOnly ? '\nThe player aimed at the enemy\'s side: this must be a spell.' : ''}`;
+// Troop or spell (anyOf at the root), or spell only. Claude and Gemini take the union; the
+// OpenAI-compatible backends (bench only) may refuse anyOf at the root in strict mode.
+const schemaFor = (spellOnly = false) => (spellOnly ? SPELL_SCHEMA : DESIGN_SCHEMA);
 
 // ---------- Claude (Anthropic SDK) ----------
 
@@ -33,7 +38,7 @@ const claude: Provider = {
   name: 'claude',
   model: env('CLAUDE_MODEL') || 'claude-haiku-5-5',
   hasKey: () => !!(env('ANTHROPIC_API_KEY') || env('ANTHROPIC_AUTH_TOKEN')),
-  async design(description, timeoutMs) {
+  async design(description, timeoutMs, spellOnly) {
     const msg = await anthropic().messages.create(
       {
         model: this.model,
@@ -41,8 +46,8 @@ const claude: Provider = {
         // Cached: the prompt is ~1.6k tokens, over Haiku's 512-token minimum, and identical every call.
         system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         thinking: { type: 'disabled' },
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: TROOP_SCHEMA } },
-        messages: [{ role: 'user', content: userText(description) }],
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: schemaFor(spellOnly) } },
+        messages: [{ role: 'user', content: userText(description, spellOnly) }],
       },
       { timeout: timeoutMs, maxRetries: 0 }
     );
@@ -59,13 +64,13 @@ const gemini: Provider = {
   name: 'gemini',
   model: env('GEMINI_MODEL') || 'gemini-3.5-flash-lite',
   hasKey: () => !!env('GEMINI_API_KEY'),
-  async design(description, timeoutMs) {
+  async design(description, timeoutMs, spellOnly) {
     const body = {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: userText(description) }] }],
+      contents: [{ role: 'user', parts: [{ text: userText(description, spellOnly) }] }],
       generationConfig: {
         responseMimeType: 'application/json',
-        responseJsonSchema: TROOP_SCHEMA,
+        responseJsonSchema: schemaFor(spellOnly),
         maxOutputTokens: 400,
         thinkingConfig: { thinkingLevel: env('GEMINI_THINKING') || 'minimal' },
       },
@@ -85,14 +90,14 @@ function openAiCompatible(name: ProviderName, url: string, keyVar: string, model
     name,
     model: env(modelVar) || model,
     hasKey: () => !!env(keyVar),
-    async design(description, timeoutMs) {
+    async design(description, timeoutMs, spellOnly) {
       const body = {
         model: this.model,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userText(description) },
+          { role: 'user', content: userText(description, spellOnly) },
         ],
-        response_format: { type: 'json_schema', json_schema: { name: 'troop', strict: true, schema: TROOP_SCHEMA } },
+        response_format: { type: 'json_schema', json_schema: { name: 'design', strict: true, schema: schemaFor(spellOnly) } },
         reasoning_effort: 'low', // gpt-oss reasons before answering; keep that short
         max_completion_tokens: 800,
         stream: false,

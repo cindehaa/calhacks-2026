@@ -46,4 +46,8 @@ export default __t.row({
   lastTargetY: __t.f32().name("last_target_y"),
   chainXs: __t.array(__t.f32()).name("chain_xs"),
   chainYs: __t.array(__t.f32()).name("chain_ys"),
+  weakT: __t.f32().name("weak_t"),
+  curseT: __t.f32().name("curse_t"),
+  rageT: __t.f32().name("rage_t"),
+  mightT: __t.f32().name("might_t"),
 });

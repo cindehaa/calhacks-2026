@@ -4,7 +4,7 @@
 // canvas on top, which is also the one that gets the mouse.
 import * as THREE from 'three';
 import {
-  ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, deployZones, towerRadius, type Side,
+  ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, canDeploy, deployZones, onBoard, towerRadius, type Side,
 } from '../../shared/arena';
 import { Fx, quirks, roundRect, towerKey, type Shot, type Trail } from './fx';
 import { drawInput, MISS_MS } from './input/draw';
@@ -15,7 +15,7 @@ import { SummonCircles } from './summon';
 import { spriteImage, type DrawTower, type DrawTroop, type DrawUnit, type View } from './render';
 import { Scenery } from './scenery';
 import { poseFrame, spriteFailed } from './sprites';
-import { glyphImage, sizeScale, troopGlyph } from './tokens';
+import { glyphImage, sizeScale, spellColors, troopGlyph } from './tokens';
 import { improvised } from './designer';
 import { frostLevel, iceShell, Rubble, TowerIce } from './frost';
 
@@ -40,6 +40,7 @@ const TALL = { pitch: -1.05, fov: 50, wide: 1.2, narrow: 0.8, top: 64 };
 interface Pose { x: number; y: number; z: number; pitch: number; yaw: number; fov: number }
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
+const SPELL_AIM = '#c58bff'; // the aim past your zone, where only a spell lands
 const C = {
   bg: '#0a0c1a',
   myHalf: '#141b3b',
@@ -77,6 +78,7 @@ interface UnitMesh {
   h: number; top: number; // drawn body height and the height of its top, in tiles, for labels
 }
 interface PendingMesh { closing: THREE.Mesh; target: THREE.Mesh; pad: THREE.Mesh }
+interface SpellMesh { disc: THREE.Mesh; edge: THREE.Mesh; dash: THREE.Mesh }
 interface ShotMesh { head: THREE.Mesh; tail: THREE.Mesh; halo: THREE.Sprite; shadow: THREE.Mesh }
 interface Points { points: THREE.Points; pos: Float32Array; col: Float32Array; size: Float32Array; alpha: Float32Array; shape: Float32Array }
 
@@ -152,6 +154,7 @@ export class PovBoard {
   private towers = new Map<unknown, TowerMesh>();
   private units = new Map<bigint, UnitMesh>();
   private pendings: PendingMesh[] = [];
+  private spellMeshes: SpellMesh[] = [];
   private silhouettes: THREE.Sprite[] = [];
   private textures = new Map<string, THREE.CanvasTexture>();
   private imageTextures = new WeakMap<object, THREE.Texture>();
@@ -294,6 +297,7 @@ export class PovBoard {
     this.syncTowers(v, dt);
     this.syncUnits(v, now);
     this.syncPendings(v, now);
+    this.syncSpells(v, now);
     this.summons.sync(v, this.juice.airborne(), now);
     this.syncEffects(v);
     this.syncCursor(v, now);
@@ -795,6 +799,56 @@ export class PovBoard {
     return t;
   }
 
+  // Spells. On the way: a dashed ring the size of the circle, in the caster's colour, so the
+  // other side can see what's coming and step out. Landed: a tinted disc with a bright edge,
+  // which pulses for a zone and flashes out for an instant spell.
+  private syncSpells(v: View, now: number): void {
+    const spells = v.spells ?? [];
+    spells.forEach((s, i) => {
+      let m = this.spellMeshes[i];
+      if (!m) {
+        const mk = (geo: THREE.BufferGeometry) => {
+          const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+          mesh.rotation.x = -Math.PI / 2;
+          this.scene.add(mesh);
+          return mesh;
+        };
+        m = { disc: mk(this.shadowGeo), edge: mk(this.ringGeo), dash: mk(this.dashGeo) };
+        this.spellMeshes.push(m);
+      }
+      const [main, light] = spellColors(s.effect, s.element);
+      const disc = m.disc.material as THREE.MeshBasicMaterial, edge = m.edge.material as THREE.MeshBasicMaterial, dash = m.dash.material as THREE.MeshBasicMaterial;
+      const coming = s.delay > 0;
+      m.dash.visible = coming;
+      if (coming) {
+        const frac = Math.max(0, Math.min(1, 1 - s.delay / DEPLOY_DELAY));
+        dash.color.set(team(s.side).main);
+        dash.opacity = 0.35 + 0.5 * frac;
+        m.dash.scale.setScalar(s.radius / 0.92);
+        m.dash.rotation.z = now * 0.6;
+        this.at(s.x, s.y, 0.065, m.dash.position);
+      }
+      // Instant: flash and fade over its short life. Zone: steady, breathing, fading out at the end.
+      const instant = s.duration <= 0;
+      const fade = coming ? 0 : instant ? Math.max(0, 1 - s.age / 0.6) : Math.min(1, s.age / 0.2, Math.max(0, (s.duration - s.age) / 0.4));
+      const breathe = instant ? 1 : 0.85 + 0.15 * Math.sin(now * 5);
+      disc.color.set(main);
+      disc.opacity = (instant ? 0.45 : 0.22) * fade * breathe;
+      edge.color.set(light);
+      edge.opacity = 0.85 * fade;
+      m.disc.scale.setScalar(s.radius * (instant ? 0.6 + 0.4 * Math.min(1, s.age / 0.15) : 1));
+      m.edge.scale.setScalar(s.radius);
+      if (s.effect === 'vortex') m.edge.rotation.z = -now * 3;
+      this.at(s.x, s.y, 0.04, m.disc.position);
+      this.at(s.x, s.y, 0.07, m.edge.position);
+      m.disc.visible = m.edge.visible = fade > 0;
+    });
+    for (let i = spells.length; i < this.spellMeshes.length; i++) {
+      const m = this.spellMeshes[i];
+      m.disc.visible = m.edge.visible = m.dash.visible = false;
+    }
+  }
+
   // A drop in flight: a shadow that darkens, a ring that closes in, a target ring that turns.
   // Your released drops still waiting on words or stats stand there as a pulsing silhouette.
   private syncPendings(v: View, now: number): void {
@@ -1086,9 +1140,15 @@ export class PovBoard {
     return m;
   }
 
+  // Past your own zone the board takes only spells: the aim turns spell violet there.
+  private spellAim(v: View, x: number, y: number): boolean {
+    return v.status === 'playing' && onBoard(x, y) && !canDeploy(v.mySide, x, y, v.towers.map(t => ({ side: t.side, lane: t.lane ?? 0, hp: t.hp })));
+  }
+
   private syncCursor(v: View, now: number): void {
     this.aimRing.visible = !!v.aim;
     if (v.aim) {
+      (this.aimRing.material as THREE.MeshBasicMaterial).color.set(this.spellAim(v, v.aim[0], v.aim[1]) ? SPELL_AIM : team(this.side).main);
       this.at(v.aim[0], v.aim[1], 0.05, this.aimRing.position);
       this.aimRing.scale.setScalar(1 + Math.sin(now * 6) * 0.05);
     }
@@ -1173,6 +1233,23 @@ export class PovBoard {
       const left = DEPLOY_DELAY - p.age;
       this.outlined(left > 0.05 ? left.toFixed(1) : '…', q[0], q[1] + 4, 13, mine ? C.text : team(p.side).light);
       if (!mine) this.pill('INCOMING', q[0], q[1] - 24, 10, team(p.side).dark, team(p.side).main, '#ffffff');
+    }
+    // Aiming past your zone: say it'll be a spell, under the hand cursor or the mouse's ring.
+    const cur = v.input?.cursor ?? (v.aim ? (() => { const q = this.project(v.aim![0], v.aim![1]); return q && { x: q[0], y: q[1] }; })() : null);
+    if (cur) {
+      const [wx, wy] = this.toWorld(cur.x, cur.y);
+      if (this.spellAim(v, wx, wy)) this.pill('SPELL', cur.x, cur.y + 30, 10, 'rgba(13,16,32,0.9)', SPELL_AIM, '#f1e4ff');
+    }
+    // Spells on the way, and just landed: the name, and the cost once it's paid.
+    for (const s of v.spells ?? []) {
+      if (s.delay <= 0 && s.age > 1.5) continue;
+      const q = this.project(s.x, s.y, 1.2);
+      if (!q) continue;
+      const [main] = spellColors(s.effect, s.element);
+      g.globalAlpha = s.delay > 0 ? 1 : Math.max(0, 1 - (s.age - 1) / 0.5);
+      this.pill(s.name || 'Spell', q[0], q[1], 11, 'rgba(13,16,32,0.9)', main, C.text);
+      this.pill(String(s.cost), q[0], q[1] + 18, 10, 'rgba(58,24,8,0.94)', C.elixir, '#ffe2c4', EMBER);
+      g.globalAlpha = 1;
     }
     // Your drops waiting on words or stats: what you said, and "designing…" then the name.
     for (const d of v.drops ?? []) {

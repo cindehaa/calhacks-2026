@@ -40,6 +40,10 @@ export interface DrawQuirks {
   lastTargetY?: number;
   chainXs?: number[]; // extra chain hops of the latest hit
   chainYs?: number[];
+  weakT?: number; // spell statuses (shared/sim.ts), seconds left
+  curseT?: number;
+  rageT?: number;
+  mightT?: number;
 }
 export interface DrawTower { side: number; lane?: number; x: number; y: number; hp: number; maxHp: number; id?: bigint | number; attackSeq?: number }
 export interface DrawTroop {
@@ -47,6 +51,22 @@ export interface DrawTroop {
   value?: number; // the unrounded price (value.ts), for the cost reveal's bargain / pricey tint
 }
 export interface DrawPending { side: number; x: number; y: number; age: number }
+// A cast spell (shared/sim.ts SimSpell plus its look). delay > 0: still on its way; age: since it landed.
+export interface DrawSpell {
+  id: bigint;
+  side: number;
+  x: number;
+  y: number;
+  effect: string; // shared/spell.ts SPELL_EFFECTS
+  radius: number;
+  duration: number; // 0 for an instant spell
+  delay: number;
+  age: number;
+  element: string;
+  name: string;
+  cost: number;
+  flavor: string;
+}
 
 export interface View {
   mySide: Side;
@@ -54,7 +74,8 @@ export interface View {
   towers: DrawTower[];
   troops: Map<bigint, DrawTroop>;
   pendings: DrawPending[];
-  aim: [number, number] | null; // world coords, own half only
+  spells?: DrawSpell[];
+  aim: [number, number] | null; // world coords, anywhere on the board (past your zone: a spell)
   lock: [number, number] | null;
   input?: InputView; // hand cursor, pinch / voice lock and transcript, in screen px
   point?: { x: number; y: number } | null; // the hand cursor on the home screen, for the camera's lean
