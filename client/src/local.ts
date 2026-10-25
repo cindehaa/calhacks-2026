@@ -2,14 +2,14 @@
 // network or Maincloud is down. Nothing here touches SpacetimeDB; nobody else can see it.
 // It runs the same step() and deploy rules as the server, with you as side 0 and the bot as 1.
 import { ANCHORS } from '../../shared/anchors';
-import { ELIXIR, MATCH_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, type ElixirRules, type Side } from '../../shared/arena';
+import { ELIXIR, MATCH_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, onBoard, type ElixirRules, type Side } from '../../shared/arena';
 import { BOT_LEVELS, botDecide, newBotMemory, type BotLevel, type BotMemory, type BotMove } from '../../shared/bot';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
-import { newMatch, newUnit, step, type SimState } from '../../shared/sim';
+import { newMatch, newSpell, newUnit, step, type SimState } from '../../shared/sim';
 import { newTally, tallyStep, type TroopTally } from '../../shared/tally';
 import type { TroopDesign } from '../../shared/troop';
 import { Glide, quirkView, type MatchSource, type MatchStatus, type MatchTower, type MatchUnit } from './match';
-import type { DrawPending, DrawTroop } from './render';
+import type { DrawPending, DrawSpell, DrawTroop } from './render';
 import type { BotRoundLog, BotTroopLog } from './telemetry';
 import { exactCost } from './value';
 
@@ -31,6 +31,7 @@ export class LocalMatch implements MatchSource {
   private locks: Lock[] = [];
   private troopRows = new Map<bigint, DrawTroop>();
   private unitTroop = new Map<number, bigint>();
+  private spellLook = new Map<number, Pick<DrawSpell, 'name' | 'cost' | 'element' | 'flavor'>>();
   private nextId = 100; // towers take 1–6
   private mem!: BotMemory;
   private botMove: { nonce: number; move: BotMove; at: number } | null = null; // locked, not yet deployed
@@ -62,6 +63,13 @@ export class LocalMatch implements MatchSource {
 
   towers(): MatchTower[] { return this.s.towers; }
   troops() { return this.troopRows; }
+
+  spells(): DrawSpell[] {
+    return (this.s.spells ?? []).map(s => ({
+      ...(this.spellLook.get(s.id) ?? { name: '', cost: 0, element: 'none', flavor: '' }),
+      id: BigInt(s.id), side: s.side, x: s.x, y: s.y, effect: s.effect, radius: s.radius, duration: s.duration, delay: s.delay, age: s.age,
+    }));
+  }
 
   pendings(): DrawPending[] {
     return this.locks.map(l => ({ side: l.side, x: l.x, y: l.y, age: this.s.time - l.at }));
@@ -97,6 +105,7 @@ export class LocalMatch implements MatchSource {
     }
     tallyStep(this.tallies as Map<bigint, TroopTally>, res, id => this.unitTroop.get(id), this.s.time);
     if (this.s.time > 0) for (const side of [0, 1] as Side[]) if (this.s.elixir[side] >= this.rules.max) this.capped[side] += dt;
+    for (const id of res.doneSpellIds) this.spellLook.delete(id);
     for (const id of res.deadUnitIds) {
       this.unitTroop.delete(id);
       this.glide.drop(BigInt(id));
@@ -137,6 +146,7 @@ export class LocalMatch implements MatchSource {
     this.locks = [];
     this.troopRows.clear();
     this.unitTroop.clear();
+    this.spellLook.clear();
     this.tallies.clear();
     this.capped = [0, 0];
     this.mem = newBotMemory();
@@ -180,9 +190,10 @@ export class LocalMatch implements MatchSource {
 
   private lock(side: Side, nonce: number, x: number, y: number) {
     this.mustPlay();
-    if (!canDeploy(side, x, y, this.s.towers)) throw new Error('deploy on your own half');
+    if (!onBoard(x, y)) throw new Error('off the board');
     if (this.findLock(side, nonce)) return;
-    const [cx, cy] = clampDeploy(side, x, y, this.s.towers);
+    // Past your zone it's a spell spot, kept as aimed; a troop sent there snaps back in deploy().
+    const [cx, cy] = canDeploy(side, x, y, this.s.towers) ? clampDeploy(side, x, y, this.s.towers) : [x, y];
     this.locks.push({ side, nonce, x: cx, y: cy, at: this.s.time });
   }
 
@@ -199,13 +210,21 @@ export class LocalMatch implements MatchSource {
     const { design, cost, error } = priceDeploy(raw, this.s.elixir[side]);
     if (error) throw new Error(error);
     const l = this.findLock(side, nonce);
+    const spell = design.kind === 'spell' && design.spell;
     let delay = arrivalDelay(0);
     if (l) {
-      x = l.x; y = l.y;
+      [x, y] = spell ? [l.x, l.y] : clampDeploy(side, l.x, l.y, this.s.towers);
       delay = arrivalDelay(this.s.time - l.at);
       this.unlock(side, nonce);
-    } else if (!canDeploy(side, x, y, this.s.towers)) {
-      throw new Error('deploy on your own half');
+    } else if (spell ? !onBoard(x, y) : !canDeploy(side, x, y, this.s.towers)) {
+      throw new Error(spell ? 'off the board' : 'deploy on your own half');
+    }
+    if (spell) {
+      const id = this.nextId++;
+      (this.s.spells ??= []).push(newSpell(id, side, x, y, spell, delay));
+      this.spellLook.set(id, { name: design.name, cost, element: design.element, flavor: design.flavor });
+      this.s.elixir[side] -= cost;
+      return;
     }
     const troopId = BigInt(this.nextId++);
     this.troopRows.set(troopId, {

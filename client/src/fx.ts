@@ -1,10 +1,11 @@
 // Game feel: watches each frame's View, diffs it against the last one by id (hp, attackSeq,
 // delay, which units exist) and turns the differences into short-lived effects and sounds.
 // Pure client-side decoration; nothing here feeds back into the game.
+import { SPELL_CLASS_OF, type SpellEffect } from '../../shared/spell';
 import { COUNTDOWN, DOUBLE_ELIXIR_AT, MATCH_SECONDS, TIEBREAK_AT, TOWER_RADIUS, UNIT_RADIUS } from '../../shared/arena';
 import type { DrawQuirks, DrawTower, DrawUnit, View } from './render';
 import { sfx, soundKind, type SoundKind } from './sfx';
-import { anticipation, elementColors, hitInterval, inPose } from './tokens';
+import { anticipation, elementColors, hitInterval, inPose, spellColors } from './tokens';
 
 const MAX_PARTICLES = 320;
 const MAX_RINGS = 48;
@@ -121,6 +122,7 @@ export class Fx {
   private countStep = -1;
   private banner = { at: -10, title: '' }; // DOUBLE EMBERS, OVERTIME, TIEBREAKER
   private pendingCount = [0, 0];
+  private spellSeen = new Map<bigint, { landed: boolean; pulse: number; seen: number }>();
   private reduced = reducedMotion();
   private out: UnitAnim = { dx: 0, dy: 0, sx: 1, sy: 1, flash: 0, rot: 0, up: 0, glow: 0, glowColor: '#fff', smear: 0, smx: 0, smy: 0 };
 
@@ -144,6 +146,7 @@ export class Fx {
     this.observeMatch(v, now);
     this.observeUnits(v, now, live);
     this.observeTowers(v, now, live);
+    this.observeSpells(v, live);
 
     const counts = [0, 0];
     for (const p of v.pendings) counts[p.side === 1 ? 1 : 0]++;
@@ -155,6 +158,37 @@ export class Fx {
     this.pendingCount = counts;
 
     this.step(dt);
+  }
+
+  // Spells: a burst and a sound when one lands, a ring at its edge on each damage pulse, and a
+  // soft shimmer around a status zone every second.
+  private observeSpells(v: View, live: boolean): void {
+    for (const s of v.spells ?? []) {
+      let t = this.spellSeen.get(s.id);
+      if (!t) this.spellSeen.set(s.id, (t = { landed: s.delay <= 0 && s.age > 0.3, pulse: -1, seen: this.frame }));
+      t.seen = this.frame;
+      const [main, light] = spellColors(s.effect, s.element);
+      if (!t.landed && s.delay <= 0) {
+        t.landed = true;
+        if (live) sfx.play(s.effect === 'freeze' ? 'shatter' : s.effect === 'blast' || s.effect === 'shockwave' ? 'boom' : SPELL_CLASS_OF[s.effect as SpellEffect] === 'buff' ? 'shimmer' : 'whoosh');
+        this.ring(s.x, s.y, 0.2, s.radius, 0.45, light, 5);
+        this.ring(s.x, s.y, 0.1, s.radius * 0.8, 0.35, main, 3);
+        if (!this.reduced && (s.effect === 'blast' || s.effect === 'shockwave')) this.kick(4, 0.3);
+        const n = this.reduced ? 8 : 26;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2, sp = s.radius * (0.8 + Math.random() * 1.2);
+          this.particle(s.x, s.y, 0.2, Math.cos(a) * sp, Math.sin(a) * sp, 1 + Math.random() * 2, 0.5 + Math.random() * 0.4, 0.12 + Math.random() * 0.1, i % 2 ? main : light, i % 3 === 0 ? 0 : 2);
+        }
+      }
+      if (t.landed && s.duration > 0 && s.age < s.duration) {
+        const pulse = Math.floor(s.age);
+        if (pulse > t.pulse) {
+          t.pulse = pulse;
+          this.ring(s.x, s.y, s.radius * 0.6, s.radius, 0.5, main, s.effect === 'storm' || s.effect === 'vortex' ? 4 : 2);
+        }
+      }
+    }
+    for (const [id, t] of this.spellSeen) if (t.seen !== this.frame) this.spellSeen.delete(id);
   }
 
   private observeMatch(v: View, now: number): void {

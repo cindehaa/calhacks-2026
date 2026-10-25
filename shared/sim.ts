@@ -24,6 +24,7 @@ import {
   type ElixirRules,
   type Side,
 } from './arena.js';
+import { INSTANT, SPELL_CLASS_OF, type SpellEffect, type SpellOnHit, type SpellSpec } from './spell.js';
 import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from './troop.js';
 
 export interface SimUnit {
@@ -54,6 +55,12 @@ export interface SimUnit {
   slowT: number;
   stunT: number;
   windupT: number; // seconds charged toward the current hit, 0..WINDUP_SECONDS
+  // Spell statuses (shared/spell.ts), seconds remaining. A zone keeps them topped up to
+  // SPELL_LINGER while the unit stands in it, so they wear off just after it leaves.
+  weakT: number; // deals WEAKEN_MULT damage
+  curseT: number; // takes CURSE_MULT damage
+  rageT: number; // moves and attacks RAGE_FACTOR faster
+  mightT: number; // deals MIGHT_MULT damage
   // Traits (tier 3).
   shield: number; // shield hp, lost before health; 0 without the trait
   maxShield: number;
@@ -89,6 +96,18 @@ export const CHARGE_AFTER = 2; // tiles moved without attacking
 export const CHARGE_MULT = 2; // damage of the charged hit
 export const CHARGE_SPEED = 1.5;
 
+// Spell rule numbers (shared/spell.ts says what each effect does).
+export const SPELL_TOWER_SHARE = 0.35; // of a spell's damage, to towers: a spell can land on the king
+export const SPELL_PULSE = 1; // seconds between a zone's damage pulses; the first is on landing
+export const SPELL_LINGER = 0.3; // seconds a zone's status outlasts leaving it
+export const INSTANT_SHOW = 0.6; // seconds an instant spell's row stays, so clients can draw the flash
+export const KNOCKBACK = 2.5; // tiles a shockwave throws enemies
+export const PULL_SPEED = 1.5; // tiles per second a vortex drags enemies inward
+export const WEAKEN_MULT = 0.6;
+export const CURSE_MULT = 1.4;
+export const RAGE_FACTOR = 1.35;
+export const MIGHT_MULT = 1.4;
+
 type UnitDesign = Pick<TroopDesign, 'health' | 'damage' | 'attack_speed' | 'move_speed' | 'range'> &
   Partial<Pick<TroopDesign, 'attack' | 'targets' | 'on_hit' | 'windup' | 'trait' | 'motion' | 'element'>>;
 
@@ -101,7 +120,7 @@ export function newUnit(id: number, side: Side, x: number, y: number, d: UnitDes
     moveSpeed: d.move_speed, range: d.range, cooldown: 0, delay, attackSeq: 0,
     attack: d.attack ?? 'single', targets: d.targets ?? 'any', onHit: d.on_hit ?? 'none', windup: d.windup ?? false,
     trait, motion: d.motion ?? 'other', element: d.element ?? 'none',
-    burnT: 0, burnDps: 0, slowT: 0, stunT: 0, windupT: 0, shield, maxShield: shield,
+    burnT: 0, burnDps: 0, slowT: 0, stunT: 0, windupT: 0, weakT: 0, curseT: 0, rageT: 0, mightT: 0, shield, maxShield: shield,
     spawnT: trait === 'spawner' ? SPAWN_EVERY : 0, chargeDist: 0,
     lastTargetX: x, lastTargetY: y, chainXs: [], chainYs: [],
   };
@@ -117,6 +136,23 @@ export interface SimTower {
   maxHp: number;
   cooldown: number;
   attackSeq: number;
+  stunT?: number; // frozen by a spell: seconds left, holds fire
+}
+
+// A cast spell. Lands after `delay` like a troop, then acts: an instant one once, a zone for
+// `duration` seconds. It stays in state until it's done, then step() drops it.
+export interface SimSpell extends SpellSpec {
+  id: number;
+  side: Side;
+  x: number;
+  y: number;
+  delay: number; // seconds until it lands
+  age: number; // seconds since it landed
+  pulses: number; // damage pulses (or the one instant hit) done so far
+}
+
+export function newSpell(id: number, side: Side, x: number, y: number, s: SpellSpec, delay: number): SimSpell {
+  return { ...s, id, side, x, y, delay, age: 0, pulses: 0 };
 }
 
 export interface SimState {
@@ -124,6 +160,7 @@ export interface SimState {
   elixir: [number, number];
   units: SimUnit[];
   towers: SimTower[];
+  spells?: SimSpell[]; // optional so states from before spells still step
 }
 
 // One unit's hit this step, for the per-troop logs. damage is what actually landed (capped at
@@ -135,12 +172,23 @@ export interface Hit {
   kill: boolean;
 }
 
+// One spell's hit on a unit or tower this step, for the logs (like Hit, by spell id).
+export interface SpellHit {
+  spell: number;
+  tower: boolean;
+  damage: number;
+  kill: boolean;
+}
+
 // winner: 0 or 1, -1 for a draw, null while the match is running.
 // spawned: units step() added to s.units this tick (spawner minions), with the id of their spawner.
 // Their ids are max id + 1, unique within the state; hosts with their own id scheme reassign them.
+// doneSpellIds: spells that finished this step and left s.spells.
 export interface StepResult {
   deadUnitIds: number[];
   hits: Hit[];
+  spellHits: SpellHit[];
+  doneSpellIds: number[];
   spawned: { unit: SimUnit; parentId: number }[];
   over: boolean;
   winner: Side | -1 | null;
@@ -221,7 +269,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: 
   if (s.time < 0) {
     s.time += dt;
     if (s.time > -1e-6) s.time = 0; // snap float drift, so 60 ticks of 0.05 s end exactly at 0
-    return { deadUnitIds: [], hits: [], spawned: [], over: false, winner: null };
+    return { deadUnitIds: [], hits: [], spellHits: [], doneSpellIds: [], spawned: [], over: false, winner: null };
   }
   if (s.time >= TIEBREAK_AT) return drain(s, dt);
   s.time += dt;
@@ -232,6 +280,22 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: 
   const active = s.units.filter(u => u.delay <= 0 && u.hp > 0);
   const live = s.towers.filter(t => t.hp > 0);
   const hits: Hit[] = [];
+
+  // Spells first, so a freeze lands before anyone acts this tick.
+  const spellHits: SpellHit[] = [];
+  const doneSpellIds: number[] = [];
+  if (s.spells?.length) {
+    for (const sp of s.spells) {
+      if (sp.delay > 0) { sp.delay = Math.max(0, sp.delay - dt); if (sp.delay > 0) continue; }
+      castStep(sp, active, live, dt, spellHits);
+      sp.age += dt;
+    }
+    s.spells = s.spells.filter(sp => {
+      const done = sp.delay <= 0 && sp.age >= (INSTANT.has(sp.effect) ? INSTANT_SHOW : sp.duration);
+      if (done) doneSpellIds.push(sp.id);
+      return !done;
+    });
+  }
 
   // Heal auras first, from health as it stood at the start of the tick.
   for (const h of active) {
@@ -265,13 +329,17 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: 
       if (u.burnT === 0) u.burnDps = 0;
       if (u.hp <= 0) continue;
     }
-    const slowed = u.slowT > 0;
+    const slowed = u.slowT > 0, raged = u.rageT > 0;
     u.slowT = Math.max(0, u.slowT - dt);
+    u.rageT = Math.max(0, u.rageT - dt);
+    u.weakT = Math.max(0, u.weakT - dt);
+    u.curseT = Math.max(0, u.curseT - dt);
+    u.mightT = Math.max(0, u.mightT - dt);
     if (u.stunT > 0) {
       u.stunT = Math.max(0, u.stunT - dt);
       continue;
     }
-    const pace = slowed ? SLOW_FACTOR : 1;
+    const pace = (slowed ? SLOW_FACTOR : 1) * (raged ? RAGE_FACTOR : 1);
     u.cooldown = Math.max(0, u.cooldown - dt * pace);
     const charged = u.trait === 'charge' && u.chargeDist >= CHARGE_AFTER;
     const aggro = Math.max(AGGRO_RANGE, u.range + 1);
@@ -297,7 +365,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: 
         // windup: charge in reach for WINDUP_SECONDS before each hit.
         if (u.windup && u.windupT < WINDUP_SECONDS) u.windupT = Math.min(WINDUP_SECONDS, u.windupT + dt * pace);
         if (!u.windup || u.windupT >= WINDUP_SECONDS) {
-          hit(u, target, active, live, hits, charged ? CHARGE_MULT : 1);
+          hit(u, target, active, live, hits, (charged ? CHARGE_MULT : 1) * outMult(u));
           u.cooldown = 1 / u.attackSpeed;
           u.attackSeq++;
           u.windupT = 0;
@@ -323,6 +391,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: 
   for (const t of live) {
     if (t.hp <= 0) continue;
     t.cooldown = Math.max(0, t.cooldown - dt);
+    if (t.stunT && t.stunT > 0) { t.stunT = Math.max(0, t.stunT - dt); continue; }
     if (!awake(s, t)) continue;
     let target: SimUnit | null = null;
     let best = Infinity;
@@ -383,7 +452,7 @@ export function step(s: SimState, dt: number, tower: TowerStats = TOWER, rules: 
   // Losing the king takes the whole side down: three towers.
   for (const side of [0, 1] as Side[]) if (kingDown(s, side)) for (const t of s.towers) if (t.side === side) t.hp = 0;
   const over = kingDown(s, 0) || kingDown(s, 1) || (s.time >= MATCH_SECONDS && lost(s, 0) !== lost(s, 1));
-  return { deadUnitIds, hits, spawned, over, winner: over ? judge(s) : null };
+  return { deadUnitIds, hits, spellHits, doneSpellIds, spawned, over, winner: over ? judge(s) : null };
 }
 
 // The tiebreaker: troops freeze and every standing tower loses the same health each step, never
@@ -398,14 +467,18 @@ function drain(s: SimState, dt: number): StepResult {
   const f0 = fell(0), f1 = fell(1);
   for (const side of [0, 1] as Side[]) if (kingDown(s, side)) for (const t of s.towers) if (t.side === side) t.hp = 0;
   const over = f0 || f1;
-  return { deadUnitIds: [], hits: [], spawned: [], over, winner: !over ? null : f0 && f1 ? -1 : f0 ? 1 : 0 };
+  return { deadUnitIds: [], hits: [], spellHits: [], doneSpellIds: [], spawned: [], over, winner: !over ? null : f0 && f1 ? -1 : f0 ? 1 : 0 };
 }
 
 // flying: melee units can't reach it; ranged units and towers can.
 const canHit = (u: SimUnit, e: SimUnit) => e.trait !== 'flying' || u.range > 1;
 
-// Damage to a unit, through its shield first.
+// Damage a unit deals, after weaken and might (they cancel out near enough).
+const outMult = (u: SimUnit) => (u.weakT > 0 ? WEAKEN_MULT : 1) * (u.mightT > 0 ? MIGHT_MULT : 1);
+
+// Damage to a unit, through its shield first. A cursed unit takes more from everything.
 function hurt(u: SimUnit, amount: number) {
+  if (u.curseT > 0) amount *= CURSE_MULT;
   const soak = Math.min(u.shield, amount);
   u.shield -= soak;
   u.hp -= amount - soak;
@@ -492,4 +565,91 @@ const lost = (s: SimState, side: Side) => s.towers.filter(t => t.side === side &
 export function judge(s: SimState): Side | -1 {
   const a = lost(s, 0), b = lost(s, 1);
   return a === b ? -1 : a < b ? 0 : 1;
+}
+
+// ---------- spells ----------
+
+// Status from a spell or a hit, by on_hit name. Burn takes its damage per second from `dmg`.
+function applyOnHit(u: SimUnit, on: OnHit | SpellOnHit, dmg: number) {
+  if (on === 'burn') { u.burnT = BURN_SECONDS; u.burnDps = Math.max(u.burnDps, dmg * BURN_SHARE); }
+  else if (on === 'slow') u.slowT = Math.max(u.slowT, SLOW_SECONDS);
+  else if (on === 'stun') {
+    u.stunT = Math.max(u.stunT, STUN_SECONDS);
+    u.cooldown = 1 / u.attackSpeed;
+    u.windupT = 0;
+  }
+}
+
+// One step of a landed spell. Every effect touches units whose body overlaps the circle; attack
+// spells also hit enemy towers that do, for SPELL_TOWER_SHARE of the damage, and freeze holds
+// their fire. Buffs touch your own units, everything else the other side's.
+function castStep(sp: SimSpell, units: SimUnit[], towers: SimTower[], dt: number, out: SpellHit[]) {
+  const cls = SPELL_CLASS_OF[sp.effect as SpellEffect];
+  const inside = (x: number, y: number, r: number) => dist(sp.x, sp.y, x, y) - r <= sp.radius;
+  const touched = units.filter(u => u.hp > 0 && (cls === 'buff' ? u.side === sp.side : u.side !== sp.side) && inside(u.x, u.y, UNIT_RADIUS));
+  const towersIn = cls === 'buff' ? [] : towers.filter(t => t.hp > 0 && t.side !== sp.side && inside(t.x, t.y, towerRadius(t.lane)));
+
+  const damage = (amount: number) => {
+    for (const u of touched) {
+      const hp = u.hp;
+      hurt(u, amount);
+      out.push({ spell: sp.id, tower: false, damage: hp - Math.max(0, u.hp), kill: hp > 0 && u.hp <= 0 });
+      applyOnHit(u, sp.on_hit, amount);
+    }
+    for (const t of towersIn) {
+      const hp = t.hp;
+      t.hp = Math.max(0, hp - amount * SPELL_TOWER_SHARE);
+      out.push({ spell: sp.id, tower: true, damage: hp - t.hp, kill: hp > 0 && t.hp <= 0 });
+    }
+  };
+  // Damage pulses: an instant spell's one hit, or a zone's every SPELL_PULSE from landing on.
+  const pulseDue = () => (INSTANT.has(sp.effect) ? sp.pulses === 0 : sp.age < sp.duration && sp.age >= sp.pulses * SPELL_PULSE);
+  const linger = (t: number) => Math.max(t, SPELL_LINGER);
+
+  switch (sp.effect) {
+    case 'blast':
+    case 'storm':
+      if (pulseDue()) { damage(sp.amount); sp.pulses++; }
+      break;
+    case 'shockwave':
+      if (!pulseDue()) break;
+      damage(sp.amount);
+      sp.pulses++;
+      for (const u of touched) {
+        if (u.hp <= 0) continue;
+        const d = dist(sp.x, sp.y, u.x, u.y);
+        // Dead centre: thrown back toward its own side.
+        const [nx, ny] = d > 1e-6 ? [(u.x - sp.x) / d, (u.y - sp.y) / d] : [0, u.side === 0 ? -1 : 1];
+        u.x += nx * KNOCKBACK;
+        u.y += ny * KNOCKBACK;
+      }
+      break;
+    case 'vortex':
+      if (sp.age >= sp.duration) break;
+      for (const u of touched) {
+        const d = dist(sp.x, sp.y, u.x, u.y), move = Math.min(d, PULL_SPEED * dt);
+        if (d > 1e-6) { u.x -= ((u.x - sp.x) / d) * move; u.y -= ((u.y - sp.y) / d) * move; }
+      }
+      if (pulseDue()) { damage(sp.amount); sp.pulses++; }
+      break;
+    case 'shield':
+      if (sp.pulses > 0) break;
+      sp.pulses++;
+      for (const u of touched) { u.shield += sp.amount; u.maxShield = Math.max(u.maxShield, u.shield); }
+      break;
+    default: {
+      // Zones that hold a status (or heal) on everyone inside.
+      if (sp.age >= sp.duration) break;
+      for (const u of touched) {
+        if (sp.effect === 'freeze') { u.stunT = linger(u.stunT); u.windupT = 0; }
+        else if (sp.effect === 'slow') u.slowT = linger(u.slowT);
+        else if (sp.effect === 'weaken') u.weakT = linger(u.weakT);
+        else if (sp.effect === 'curse') u.curseT = linger(u.curseT);
+        else if (sp.effect === 'rage') u.rageT = linger(u.rageT);
+        else if (sp.effect === 'might') u.mightT = linger(u.mightT);
+        else if (sp.effect === 'heal') u.hp = Math.min(u.maxHp, u.hp + sp.amount * dt);
+      }
+      if (sp.effect === 'freeze') for (const t of towersIn) t.stunT = linger(t.stunT ?? 0);
+    }
+  }
 }

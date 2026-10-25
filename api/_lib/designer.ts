@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { designOffline } from '../../shared/offline_designer.js';
+import { designOfflineAny } from '../../shared/offline_spell.js';
 import { SYSTEM_PROMPT } from '../../shared/prompt.js';
 import { price, type TroopDesign } from '../../shared/troop.js';
 import { provider, type ProviderName } from './providers.js';
@@ -30,14 +30,16 @@ export interface Designed {
 
 // The configured model when its key is set, the offline designer when it isn't or the call fails.
 // Never throws.
-export async function designTroop(description: string): Promise<Designed> {
+// spellOnly: aimed past the player's own zone, so the answer is always a spell.
+export async function designTroop(description: string, spellOnly = false): Promise<Designed> {
   const t0 = performance.now();
   const p = designer();
   let design: TroopDesign | null = null;
   let raw = '', error = '';
   if (p.hasKey()) {
     try {
-      ({ design, raw } = await p.design(description, TIMEOUT_MS));
+      ({ design, raw } = await p.design(description, TIMEOUT_MS, spellOnly));
+      if (spellOnly && design.kind !== 'spell') throw new Error('answered a troop where only a spell fits');
     } catch (e) {
       const any = e as { status?: number; error?: { error?: { message?: string } } };
       const raw = e instanceof Error ? e.message : String(e);
@@ -48,7 +50,7 @@ export async function designTroop(description: string): Promise<Designed> {
     }
   }
   const source = design ? p.name : 'offline';
-  design ??= designOffline(description);
+  design ??= designOfflineAny(description, spellOnly);
   const ms = Math.round(performance.now() - t0);
   return { design, cost: price(design), ms, source, model: source === 'offline' ? '' : p.model, prompt: PROMPT_HASH, raw, error };
 }

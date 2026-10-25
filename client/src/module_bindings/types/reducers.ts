@@ -8,6 +8,7 @@ import { type Infer as __Infer } from "spacetimedb";
 // Import all reducer arg schemas
 import BeginDeployReducer from "../begin_deploy_reducer";
 import CancelDeployReducer from "../cancel_deploy_reducer";
+import CastSpellReducer from "../cast_spell_reducer";
 import CreateRoomReducer from "../create_room_reducer";
 import DeployTroopReducer from "../deploy_troop_reducer";
 import ForfeitReducer from "../forfeit_reducer";
@@ -26,6 +27,7 @@ import StartMatchReducer from "../start_match_reducer";
 
 export type BeginDeployParams = __Infer<typeof BeginDeployReducer>;
 export type CancelDeployParams = __Infer<typeof CancelDeployReducer>;
+export type CastSpellParams = __Infer<typeof CastSpellReducer>;
 export type CreateRoomParams = __Infer<typeof CreateRoomReducer>;
 export type DeployTroopParams = __Infer<typeof DeployTroopReducer>;
 export type ForfeitParams = __Infer<typeof ForfeitReducer>;

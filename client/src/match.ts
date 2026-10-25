@@ -6,14 +6,15 @@ import type { Attack, Element, Motion, OnHit, Targets, Trait, TroopDesign } from
 import type { Player, Room } from './module_bindings/types';
 import type { Net } from './net';
 import { exactCost } from './value';
-import type { DrawPending, DrawTower, DrawTroop, DrawUnit } from './render';
+import type { DrawPending, DrawSpell, DrawTower, DrawTroop, DrawUnit } from './render';
 
 export type MatchStatus = 'lobby' | 'playing' | 'done';
 
 // Quirk and state fields the renderer reads, under SimUnit's names (shared/sim.ts).
 export type UnitQuirkView = Pick<SimUnit, 'attackSpeed' |
   'attack' | 'targets' | 'onHit' | 'windup' | 'trait' | 'motion' | 'element' | 'burnT' | 'burnDps' | 'slowT' | 'stunT' |
-  'windupT' | 'shield' | 'maxShield' | 'spawnT' | 'chargeDist' | 'lastTargetX' | 'lastTargetY' | 'chainXs' | 'chainYs'>;
+  'windupT' | 'shield' | 'maxShield' | 'spawnT' | 'chargeDist' | 'lastTargetX' | 'lastTargetY' | 'chainXs' | 'chainYs' |
+  'weakT' | 'curseT' | 'rageT' | 'mightT'>;
 
 export interface MatchUnit extends DrawUnit, UnitQuirkView {
   attackSeq: number; // bumps on every hit
@@ -29,6 +30,7 @@ export function quirkView(u: Omit<UnitQuirkView, 'attack' | 'targets' | 'onHit' 
     burnT: u.burnT, burnDps: u.burnDps, slowT: u.slowT, stunT: u.stunT, windupT: u.windupT,
     shield: u.shield, maxShield: u.maxShield, spawnT: u.spawnT, chargeDist: u.chargeDist,
     lastTargetX: u.lastTargetX, lastTargetY: u.lastTargetY, chainXs: u.chainXs, chainYs: u.chainYs,
+    weakT: u.weakT, curseT: u.curseT, rageT: u.rageT, mightT: u.mightT,
   };
 }
 export interface MatchTower extends DrawTower {
@@ -49,9 +51,12 @@ export interface MatchSource {
   towers(): MatchTower[];
   troops(): Map<bigint, DrawTroop>;
   pendings(): DrawPending[];
+  spells(): DrawSpell[];
   // Same contract as the server's reducers: errors reject with the reducer's message,
   // e.g. 'too expensive: 12' or 'not enough elixir: 6'.
+  // Locks anywhere on the board: past your zone only a spell can land, and a troop snaps back.
   beginDeploy(nonce: number, x: number, y: number): Promise<void>;
+  // A design with kind 'spell' goes out as cast_spell.
   deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl?: string): Promise<void>;
   cancelDeploy(nonce: number): Promise<void>;
   // Art that arrived after the deploy: set it on your troops with this description that have none.
@@ -175,11 +180,25 @@ export class OnlineMatch implements MatchSource {
       .map(p => ({ side: p.side, x: p.x, y: p.y, age: Number(nowMicros - p.createdAt.microsSinceUnixEpoch) / 1e6 }));
   }
 
+  spells(): DrawSpell[] {
+    const code = this.code;
+    return [...this.net.conn.db.spell.iter()]
+      .filter(s => s.roomCode === code)
+      .map(s => ({ id: s.id, side: s.side, x: s.x, y: s.y, effect: s.effect, radius: s.radius, duration: s.duration, delay: s.delay, age: s.age, element: s.element, name: s.name, cost: s.cost, flavor: s.flavor }));
+  }
+
   beginDeploy(nonce: number, x: number, y: number) {
     return this.net.conn.reducers.beginDeploy({ nonce, x, y });
   }
 
   deployTroop(nonce: number, x: number, y: number, description: string, d: TroopDesign, spriteUrl = '') {
+    if (d.kind === 'spell' && d.spell) {
+      const s = d.spell;
+      return this.net.conn.reducers.castSpell({
+        nonce, x, y, description, name: d.name, effect: s.effect, radius: s.radius, duration: s.duration, amount: s.amount,
+        onHit: s.on_hit, element: d.element, flavor: d.flavor,
+      });
+    }
     return this.net.conn.reducers.deployTroop({
       nonce, x, y, description, name: d.name, health: d.health, damage: d.damage, attackSpeed: d.attack_speed,
       moveSpeed: d.move_speed, range: d.range, count: d.count, battleCry: d.battle_cry, voiceStyle: d.voice_style,

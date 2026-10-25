@@ -1,5 +1,5 @@
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, onBoard, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { newTowers } from '../../shared/sim';
 import { MAX_COST, price, type TroopDesign } from '../../shared/troop';
@@ -141,6 +141,8 @@ const myRoom = () => online?.room();
 const match = (): MatchSource | null => local ?? (myRoom() ? online : null);
 const mySide = (): Side => match()?.side ?? 0;
 const canDeployAt = (x: number, y: number) => canDeploy(mySide(), x, y, match()?.towers() ?? []);
+// Aimed past your own zone (your half and any pocket you've opened): only a spell can land there.
+const spellSpot = ([x, y]: [number, number]) => onBoard(x, y) && !canDeployAt(x, y);
 // Colours go by side on both screens: side 0 (the host, or you against the bot) is blue, side 1 red.
 const SIDE_NAME = ['Blue side', 'Red side'];
 const houseOf = (side: Side): House => (side === 0 ? 'raven' : 'sun');
@@ -804,6 +806,7 @@ function starve(need: number) {
 // Deploy with the art if it's already here, else deploy now and set the art when it lands.
 async function deployWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
   const m = match();
+  if (d.kind === 'spell') art = Promise.resolve(null); // a spell is drawn by the board, not fal
   attempts.get(nonce)?.waitForArt(art.then(url => url ?? ''));
   void art.then(url => {
     const why = spriteError(description);
@@ -820,7 +823,7 @@ async function sendWithArt(nonce: number, spot: [number, number], description: s
   const m = match();
   const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
   const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
-  if (!ok || ready !== undefined) return;
+  if (!ok || ready !== undefined || d.kind === 'spell') return;
   const url = await art;
   if (url && m) call(m.attachSprite(description, url), err => diag.warn('DB', `set_troop_sprite for "${description}" failed: ${err}`));
 }
@@ -943,16 +946,18 @@ async function designAt(nonce: number, spot: [number, number], description: stri
   dropWords(nonce, description);
   dropStep(nonce, 'STT', `final words "${description}" (${how?.from ?? 'typed'}${how?.transcript && how.transcript !== description ? `, heard "${how.transcript}"` : ''})`);
   dropStep(nonce, 'DESIGN', 'design request → /api/troop');
-  dropStep(nonce, 'ART', 'art request → /api/sprite');
-  const art = requestSprite(description); // in parallel with the designer; often already started
+  // Aimed past your zone: a spell, which has no sprite to draw.
+  const spellOnly = spellSpot(spot);
+  if (!spellOnly) dropStep(nonce, 'ART', 'art request → /api/sprite');
+  const art = spellOnly ? Promise.resolve(null) : requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
   try {
-    const d = await designTroop(description);
+    const d = await designTroop(description, spellOnly);
     attempts.get(nonce)?.gotDesign(d);
     const { design, ms, source, early } = d;
     dropDesigned(nonce, source);
     if (source === 'offline' && d.error) dropStep(nonce, 'DESIGN', `model NOT used, offline troop instead: ${explain(d.error)}`, 'warn', d.error);
-    dropStep(nonce, 'DESIGN', `design response: ${design.name} · source ${source}${d.model ? ` (${d.model})` : ''} · cost ${price(design)} · ${ms} ms${d.apiMs !== undefined ? ` (api ${d.apiMs} ms)` : ''}${early ? ' · early' : ''}`, ms > 3000 ? 'warn' : 'info');
+    dropStep(nonce, 'DESIGN', `design response: ${design.kind === 'spell' ? `spell (${design.spell?.effect}) ` : ''}${design.name} · source ${source}${d.model ? ` (${d.model})` : ''} · cost ${price(design)} · ${ms} ms${d.apiMs !== undefined ? ` (api ${d.apiMs} ms)` : ''}${early ? ' · early' : ''}`, ms > 3000 ? 'warn' : 'info');
     const tags = [source === 'offline' && 'improvised', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
     status(`${design.name} · ${ms} ms${tags ? ` (${tags})` : ''}`); // the cost waits for the landing reveal
@@ -974,7 +979,7 @@ async function deployDescription(description: string) {
 const input = new InputController(board.canvas, {
   playing: () => match()?.status === 'playing',
   started: () => (match()?.time ?? -1) > 0.5,
-  canDeploy: ([x, y]) => canDeployAt(x, y),
+  canDeploy: ([x, y]) => onBoard(x, y),
   toWorld: (px, py) => board.toWorld(px, py),
   begin: beginAt,
   deploy: designAt,
@@ -984,8 +989,10 @@ const input = new InputController(board.canvas, {
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
   prefetch: words => {
     dropStep(null, 'STT', `partial "${words}"`);
-    prefetchDesign(words);
-    prefetchSprite(words);
+    const at = input.cursorSpot();
+    const spellOnly = !!at && spellSpot(at);
+    prefetchDesign(words, spellOnly);
+    if (!spellOnly) prefetchSprite(words);
   },
   released: (nonce, words) => {
     dropStep(nonce, 'MIC', `fire cut (released) with "${words}"`);
@@ -1067,7 +1074,7 @@ addEventListener('keydown', e => {
 board.canvas.addEventListener('mousemove', e => {
   if (!input.mouseKeys) return void (aim = lock = null);
   const [x, y] = board.toWorld(e.clientX, e.clientY);
-  aim = canDeployAt(x, y) ? [x, y] : null;
+  aim = onBoard(x, y) ? [x, y] : null;
 });
 board.canvas.addEventListener('mouseleave', () => (aim = null));
 board.canvas.addEventListener('click', () => {
@@ -1135,6 +1142,7 @@ function frame() {
     towers: m.towers(),
     troops,
     pendings: m.pendings(),
+    spells: m.spells(),
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
     input: input.view(),

@@ -2,9 +2,10 @@
 // Combat itself lives in shared/sim.ts; this file only moves rows in and out of it.
 import { ScheduleAt, type Identity } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, type Side } from '../../shared/arena';
+import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, onBoard, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
-import { newTowers, newUnit, step, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
+import { newSpell, newTowers, newUnit, step, type SimSpell, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
+import type { SpellEffect, SpellOnHit } from '../../shared/spell';
 import { newTally, tallyStep, troopsHit, type TroopTally } from '../../shared/tally';
 import { sanitizeWish, type Attack, type Element, type Motion, type OnHit, type Targets, type Trait, type VoiceStyle } from '../../shared/troop';
 
@@ -112,6 +113,11 @@ const unit = table(
     lastTargetY: t.f32().default(0),
     chainXs: t.array(t.f32()).default([]),
     chainYs: t.array(t.f32()).default([]),
+    // Spell statuses (shared/sim.ts), defaulted like the rest.
+    weakT: t.f32().default(0),
+    curseT: t.f32().default(0),
+    rageT: t.f32().default(0),
+    mightT: t.f32().default(0),
   }
 );
 
@@ -128,10 +134,39 @@ const tower = table(
     maxHp: t.f32(),
     cooldown: t.f32(),
     attackSeq: t.u32(),
+    stunT: t.f32().default(0), // frozen by a spell
+  }
+);
+
+// A cast spell, from cast_spell until it's done (SimSpell in shared/sim.ts). Its look rides along
+// for the renderer, like a troop row's.
+const spell = table(
+  { name: 'spell', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    roomCode: t.string().index('btree'),
+    owner: t.identity(),
+    side: t.u8(),
+    description: t.string(),
+    name: t.string(),
+    cost: t.u8(),
+    effect: t.string(),
+    radius: t.f32(),
+    duration: t.f32(),
+    amount: t.f32(),
+    onHit: t.string(),
+    element: t.string(),
+    flavor: t.string(),
+    x: t.f32(),
+    y: t.f32(),
+    delay: t.f32(),
+    age: t.f32(),
+    pulses: t.u16(),
   }
 );
 
 // A spot locked while the troop is still being described or generated. The opponent sees it.
+// Past the owner's zone it's a spell spot, kept where it was aimed; a troop there snaps back.
 const pending = table(
   { name: 'pending', public: true },
   {
@@ -300,7 +335,7 @@ const troopLog = table(
 );
 
 const spacetimedb = schema({
-  player, room, troop, unit, tower, pending, matchTimer,
+  player, room, troop, unit, tower, spell, pending, matchTimer,
   matchLog, roomMatch, playerMatch, playerScheme, generation, utterance, event, troopLog,
 });
 export default spacetimedb;
@@ -382,7 +417,7 @@ export const startMatch = spacetimedb.reducer(ctx => {
   if (!r.guest) throw new SenderError('waiting for opponent');
   if (r.status === 'playing') return;
   clearMatch(ctx, r.code);
-  for (const tw of newTowers()) ctx.db.tower.insert({ ...tw, id: 0n, roomCode: r.code });
+  for (const tw of newTowers()) ctx.db.tower.insert({ ...tw, id: 0n, roomCode: r.code, stunT: 0 });
   ctx.db.room.code.update({
     ...r,
     status: 'playing',
@@ -420,11 +455,11 @@ export const beginDeploy = spacetimedb.reducer(
   (ctx, { nonce, x, y }) => {
     const { r, side } = myMatch(ctx);
     const towers = [...ctx.db.tower.roomCode.filter(r.code)];
-    if (!canDeploy(side, x, y, towers)) throw new SenderError('deploy on your own half');
+    if (!onBoard(x, y)) throw new SenderError('off the board');
     for (const p of ctx.db.pending.roomCode.filter(r.code)) {
       if (p.owner.equals(ctx.sender) && p.nonce === nonce) return;
     }
-    const [cx, cy] = clampDeploy(side, x, y, towers);
+    const [cx, cy] = canDeploy(side, x, y, towers) ? clampDeploy(side, x, y, towers) : [x, y];
     ctx.db.pending.insert({ id: 0n, roomCode: r.code, owner: ctx.sender, nonce, side, x: cx, y: cy, createdAt: ctx.timestamp });
   }
 );
@@ -490,7 +525,8 @@ export const deployTroop = spacetimedb.reducer(
     const towers = [...ctx.db.tower.roomCode.filter(r.code)];
     let x = a.x, y = a.y, delay = arrivalDelay(0);
     if (p) {
-      x = p.x; y = p.y;
+      // A spell spot (past the zone) that got a troop after all: it lands on your side instead.
+      [x, y] = clampDeploy(side, p.x, p.y, towers);
       delay = arrivalDelay(Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6);
       ctx.db.pending.id.delete(p.id);
     } else if (!canDeploy(side, x, y, towers)) {
@@ -539,6 +575,50 @@ export const deployTroop = spacetimedb.reducer(
   }
 );
 
+// A spell: anywhere on the board, at the spot begin_deploy locked. Stats come from the client
+// like a troop's, so re-clamp and re-price; same errors as deploy_troop.
+export const castSpell = spacetimedb.reducer(
+  {
+    nonce: t.u32(),
+    x: t.f32(),
+    y: t.f32(),
+    description: t.string(),
+    name: t.string(),
+    effect: t.string(),
+    radius: t.f32(),
+    duration: t.f32(),
+    amount: t.f32(),
+    onHit: t.string(),
+    element: t.string(),
+    flavor: t.string(),
+  },
+  (ctx, a) => {
+    const { r, side } = myMatch(ctx);
+    const elixir = side === 0 ? r.elixir0 : r.elixir1;
+    const { design, cost, error } = priceDeploy({
+      kind: 'spell', name: a.name, element: a.element as Element, flavor: a.flavor,
+      spell: { effect: a.effect as SpellEffect, radius: a.radius, duration: a.duration, amount: a.amount, on_hit: a.onHit as SpellOnHit },
+    }, elixir);
+    if (error) throw new SenderError(error);
+    const p = findPending(ctx, a.nonce);
+    let x = a.x, y = a.y, delay = arrivalDelay(0);
+    if (p) {
+      x = p.x; y = p.y;
+      delay = arrivalDelay(Number(ctx.timestamp.microsSinceUnixEpoch - p.createdAt.microsSinceUnixEpoch) / 1e6);
+      ctx.db.pending.id.delete(p.id);
+    } else if (!onBoard(x, y)) {
+      throw new SenderError('off the board');
+    }
+    const sp = design.spell!;
+    ctx.db.spell.insert({
+      id: 0n, roomCode: r.code, owner: ctx.sender, side, description: a.description.slice(0, 300), name: design.name, cost,
+      effect: sp.effect, radius: sp.radius, duration: sp.duration, amount: sp.amount, onHit: sp.on_hit,
+      element: design.element, flavor: design.flavor, x, y, delay, age: 0, pulses: 0,
+    });
+    ctx.db.room.code.update(side === 0 ? { ...r, elixir0: r.elixir0 - cost } : { ...r, elixir1: r.elixir1 - cost });
+  }
+);
+
 // Art arrives after the troop is already fighting.
 export const setTroopSprite = spacetimedb.reducer({ troopId: t.u64(), spriteUrl: t.string() }, (ctx, a) => {
   const tr = ctx.db.troop.id.find(a.troopId);
@@ -562,6 +642,7 @@ export const tick = spacetimedb.reducer({ onSchedule: matchTimer }, { timer: mat
 
   const unitRows = [...ctx.db.unit.roomCode.filter(r.code)];
   const towerRows = [...ctx.db.tower.roomCode.filter(r.code)];
+  const spellRows = [...ctx.db.spell.roomCode.filter(r.code)];
   const state: SimState = {
     time: r.time,
     elixir: [r.elixir0, r.elixir1],
@@ -575,7 +656,14 @@ export const tick = spacetimedb.reducer({ onSchedule: matchTimer }, { timer: mat
     towers: towerRows.map(
       (tw): SimTower => ({
         id: Number(tw.id), side: tw.side as Side, lane: tw.lane, x: tw.x, y: tw.y, hp: tw.hp, maxHp: tw.maxHp,
-        cooldown: tw.cooldown, attackSeq: tw.attackSeq,
+        cooldown: tw.cooldown, attackSeq: tw.attackSeq, stunT: tw.stunT,
+      })
+    ),
+    spells: spellRows.map(
+      (sp): SimSpell => ({
+        ...newSpell(Number(sp.id), sp.side as Side, sp.x, sp.y,
+          { effect: sp.effect as SpellEffect, radius: sp.radius, duration: sp.duration, amount: sp.amount, on_hit: sp.onHit as SpellOnHit }, sp.delay),
+        age: sp.age, pulses: sp.pulses,
       })
     ),
   };
@@ -601,9 +689,15 @@ export const tick = spacetimedb.reducer({ onSchedule: matchTimer }, { timer: mat
   const towerById = new Map(towerRows.map(tw => [Number(tw.id), tw]));
   for (const tw of state.towers) {
     const row = towerById.get(tw.id)!;
-    if (row.hp !== tw.hp || row.cooldown !== tw.cooldown || row.attackSeq !== tw.attackSeq) {
-      ctx.db.tower.id.update({ ...row, hp: tw.hp, cooldown: tw.cooldown, attackSeq: tw.attackSeq });
+    if (row.hp !== tw.hp || row.cooldown !== tw.cooldown || row.attackSeq !== tw.attackSeq || row.stunT !== (tw.stunT ?? 0)) {
+      ctx.db.tower.id.update({ ...row, hp: tw.hp, cooldown: tw.cooldown, attackSeq: tw.attackSeq, stunT: tw.stunT ?? 0 });
     }
+  }
+  const spellById = new Map(spellRows.map(sp => [Number(sp.id), sp]));
+  for (const id of res.doneSpellIds) ctx.db.spell.id.delete(spellById.get(id)!.id);
+  for (const sp of state.spells ?? []) {
+    const row = spellById.get(sp.id)!;
+    ctx.db.spell.id.update({ ...row, delay: sp.delay, age: sp.age, pulses: sp.pulses });
   }
   for (const p of [...ctx.db.pending.roomCode.filter(r.code)]) {
     if (now - p.createdAt.microsSinceUnixEpoch > PENDING_TTL_MICROS) ctx.db.pending.id.delete(p.id);
@@ -871,6 +965,7 @@ function clearMatch(ctx: Ctx, code: string) {
   for (const u of [...ctx.db.unit.roomCode.filter(code)]) ctx.db.unit.id.delete(u.id);
   for (const tw of [...ctx.db.tower.roomCode.filter(code)]) ctx.db.tower.id.delete(tw.id);
   for (const tr of [...ctx.db.troop.roomCode.filter(code)]) ctx.db.troop.id.delete(tr.id);
+  for (const sp of [...ctx.db.spell.roomCode.filter(code)]) ctx.db.spell.id.delete(sp.id);
   for (const p of [...ctx.db.pending.roomCode.filter(code)]) ctx.db.pending.id.delete(p.id);
 }
 

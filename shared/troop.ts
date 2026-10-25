@@ -1,5 +1,7 @@
 // Troop stat schema, clamps and pricing. The schema is the single source of truth:
 // a new mechanic = a new field here, engine support in sim.ts, and a line in the prompt.
+// A design is a troop or a spell (kind); spells have their own schema in spell.ts.
+import { SPELL_EFFECTS, SPELL_ON_HITS, priceSpell, sanitizeSpell, type SpellSpec } from './spell.js';
 
 export const VOICE_STYLES = [
   'gruff_warrior',
@@ -51,7 +53,14 @@ export interface TroopLook {
 
 export const PLAIN_QUIRKS: TroopQuirks = { attack: 'single', targets: 'any', on_hit: 'none', windup: false, trait: 'none' };
 
+export const KINDS = ['troop', 'spell'] as const;
+export type Kind = (typeof KINDS)[number];
+
 export type TroopDesign = TroopStats & TroopQuirks & TroopLook & {
+  // 'spell' carries `spell` and lands anywhere; its troop stats are placeholders nothing reads.
+  // Missing means a troop, so designs from before spells still read as troops.
+  kind?: Kind;
+  spell?: SpellSpec;
   name: string;
   battle_cry: string;
   voice_style: VoiceStyle;
@@ -128,7 +137,8 @@ export function power(s: TroopStats, p: Pricing = PRICING): number {
 // Same stats and quirks always give the same cost. Can exceed MAX_COST; callers reject those.
 // Quirks come from `s` itself (a whole design) unless passed separately; the second argument may
 // also be the pricing knobs, so price(design, knobs) still works for the balance sim.
-export function price(s: TroopStats & Partial<TroopQuirks>, q?: Partial<TroopQuirks> | Pricing, p: Pricing = PRICING): number {
+export function price(s: TroopStats & Partial<TroopQuirks> & Pick<TroopDesign, 'kind' | 'spell'>, q?: Partial<TroopQuirks> | Pricing, p: Pricing = PRICING): number {
+  if (s.kind === 'spell' && s.spell) return priceSpell(s.spell);
   if (q && 'K' in q) [p, q] = [q, undefined];
   const mult = quirkMultiplier(q ?? s);
   return Math.max(1, Math.round((power(clampStats(s), p) * mult) / p.K));
@@ -143,8 +153,12 @@ export function trimWords(s: string, n = 8): string {
   return words.slice(0, n).join(' ');
 }
 
-// Cleans up a raw design (from Claude or a client) into something safe to play.
-export function sanitizeDesign(raw: Partial<TroopDesign>): TroopDesign {
+// A spell's fields as the model writes them, flat beside name, element and flavor.
+export type RawSpell = Partial<Record<'effect' | 'radius' | 'duration' | 'amount', unknown>>;
+
+// Cleans up a raw design (from Claude or a client) into something safe to play. A spell's own
+// fields come flat from the model or nested as `spell` from an already sanitized design.
+export function sanitizeDesign(raw: Partial<TroopDesign> & RawSpell): TroopDesign {
   const stats = clampStats({
     health: Number(raw.health),
     damage: Number(raw.damage),
@@ -157,11 +171,15 @@ export function sanitizeDesign(raw: Partial<TroopDesign>): TroopDesign {
   const voice = VOICE_STYLES.includes(raw.voice_style as VoiceStyle)
     ? (raw.voice_style as VoiceStyle)
     : 'cheerful_hero';
-  return {
+  const out: TroopDesign = {
     ...stats, ...sanitizeQuirks(raw), ...sanitizeLook(raw),
     name, battle_cry: trimWords(String(raw.battle_cry ?? '')).slice(0, 80), voice_style: voice,
     wish: sanitizeWish(raw.wish),
   };
+  if (raw.kind !== 'spell') return out;
+  const spell = sanitizeSpell({ on_hit: raw.on_hit, ...(raw.spell ?? raw) });
+  // A spell has no body, so no troop quirks; on_hit lives in `spell`.
+  return { ...out, ...PLAIN_QUIRKS, name: name === 'Mystery Troop' ? 'Mystery Spell' : name, motion: 'cast', kind: 'spell', spell };
 }
 
 // At most 3 words, lowercase, so "Poison Cloud!" and "poison cloud" count as one wish in the logs.
@@ -185,13 +203,15 @@ export function sanitizeLook(raw: Partial<TroopLook>): TroopLook {
   return { motion, element: oneOf(ELEMENTS, raw.element), flavor: trimWords(String(raw.flavor ?? ''), 10).slice(0, 80) };
 }
 
-// JSON schema for Claude's structured output. Clamps are enforced in code (clampStats),
+// JSON schema for Claude's structured output: one of two shapes, troop or spell, told apart by
+// `kind`, so a troop doesn't spend output tokens on spell fields or the other way round. Clamps are enforced in code (clampStats),
 // since structured outputs don't support numeric min/max. battle_cry and voice_style aren't asked
 // for: nothing has used them since the battle cries were cut, and every output token is latency.
 // sanitizeDesign fills them in.
 export const TROOP_SCHEMA = {
   type: 'object',
   properties: {
+    kind: { type: 'string', enum: ['troop'] },
     name: { type: 'string' },
     health: { type: 'integer' },
     damage: { type: 'integer' },
@@ -210,8 +230,29 @@ export const TROOP_SCHEMA = {
     wish: { type: 'string' }, // last and usually "", so it costs a handful of output tokens
   },
   required: [
-    'name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count',
+    'kind', 'name', 'health', 'damage', 'attack_speed', 'move_speed', 'range', 'count',
     'attack', 'targets', 'on_hit', 'windup', 'trait', 'motion', 'element', 'flavor', 'wish',
   ],
   additionalProperties: false,
 } as const;
+
+export const SPELL_SCHEMA = {
+  type: 'object',
+  properties: {
+    kind: { type: 'string', enum: ['spell'] },
+    name: { type: 'string' },
+    effect: { type: 'string', enum: [...SPELL_EFFECTS] },
+    radius: { type: 'number' },
+    duration: { type: 'number' },
+    amount: { type: 'integer' },
+    on_hit: { type: 'string', enum: [...SPELL_ON_HITS] },
+    element: { type: 'string', enum: [...ELEMENTS] },
+    flavor: { type: 'string' },
+    wish: { type: 'string' },
+  },
+  required: ['kind', 'name', 'effect', 'radius', 'duration', 'amount', 'on_hit', 'element', 'flavor', 'wish'],
+  additionalProperties: false,
+} as const;
+
+// What the designer answers with: either. Aimed over the river, only SPELL_SCHEMA is offered.
+export const DESIGN_SCHEMA = { anyOf: [TROOP_SCHEMA, SPELL_SCHEMA] } as const;

@@ -39,7 +39,7 @@ type Spot = [number, number]; // world coords
 export interface InputHost {
   playing(): boolean;
   started?(): boolean; // past the versus card and countdown
-  canDeploy(spot: Spot): boolean; // your half, or a pocket you've opened
+  canDeploy(spot: Spot): boolean; // anywhere on the board: past your zone it casts a spell
   toWorld(px: number, py: number): Spot;
   begin(spot: Spot, by: string): number | null;
   deploy(nonce: number, spot: Spot, description: string, how: DeployHow): void;
@@ -470,6 +470,13 @@ export class InputController {
     return this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null);
   }
 
+  // The board spot under the cursor (hand, else mouse), null with neither. Says whether words
+  // being spoken now are aimed for a spell.
+  cursorSpot(): Spot | null {
+    const c = this.cursor();
+    return c ? this.host.toWorld(c.x, c.y) : null;
+  }
+
   // Where the hand points, null with no hand. The home screen leans toward it as it does the mouse.
   handPoint(): Pt | null {
     return this.handCursor;
@@ -606,7 +613,7 @@ export class InputController {
     }
     const spot = this.host.toWorld(p.x, p.y);
     if (!this.host.canDeploy(spot)) {
-      this.flash(p, 'cancel', 'your half only');
+      this.flash(p, 'cancel', 'off the board');
       return true;
     }
     const nonce = this.host.begin(spot, by);
