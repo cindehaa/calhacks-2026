@@ -4,6 +4,7 @@ import { ScheduleAt, type Identity } from 'spacetimedb';
 import { schema, table, t, SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
 import { ELIXIR_MAX, MATCH_START, ELIXIR_START, TICK_HZ, TIEBREAK_AT, canDeploy, clampDeploy, onBoard, type Side } from '../../shared/arena';
 import { arrivalDelay, priceDeploy, unitSpots } from '../../shared/deploy';
+import { offLimits } from '../../shared/pavilion';
 import { newSpell, newTowers, newUnit, step, type SimSpell, type SimState, type SimTower, type SimUnit } from '../../shared/sim';
 import type { SpellEffect, SpellOnHit } from '../../shared/spell';
 import { newTally, tallyStep, troopsHit, type TroopTally } from '../../shared/tally';
@@ -816,8 +817,8 @@ export const logGeneration = spacetimedb.reducer(
 
 type GenerationRow = NonNullable<ReturnType<Ctx['db']['generation']['id']['find']>>;
 
-// A deployed generation row, copied into the Pavilion. Never throws: a log must not be lost (or a
-// reducer fail) over the showcase.
+// A deployed generation row, copied into the Pavilion unless it's off limits (shared/pavilion.ts).
+// Never throws: a log must not be lost (or a reducer fail) over the showcase.
 function addToPavilion(ctx: Ctx, g: GenerationRow) {
   if (g.outcome !== 'deployed') return;
   try {
@@ -825,6 +826,7 @@ function addToPavilion(ctx: Ctx, g: GenerationRow) {
     let d: { kind?: string; name?: string; element?: string; flavor?: string } = {};
     try { d = JSON.parse(g.design) ?? {}; } catch { /* empty or cut off: fall back to the description */ }
     const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+    if (offLimits(g.description, str(d.name, 40), str(d.flavor, 200))) return;
     ctx.db.pavilion.insert({
       id: 0n,
       generationId: g.id,
