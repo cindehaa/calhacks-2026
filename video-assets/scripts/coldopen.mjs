@@ -87,10 +87,10 @@ if (existsSync(sub)) {
   n++;
 }
 
-// Sound: the music bed, the line, a flap as each banner comes in, a swoosh on each slide, and the
+// Sound: the game's battle music, the line, a flap as each banner comes in, a swoosh on each slide, and the
 // match's own sound from the countdown on.
 const audio = [
-  { f: 'music/cold_open.mp3', at: 0, gain: 0.55, fadeOutAt: starts[5] - 0.2 },
+  { f: 'game-audio/music/battle.mp3', at: 0, gain: 0.9 }, // the game's battle theme: its quiet opening builds under the drone and plays on through the countdown, as in a match
   { f: 'narrator/1 cold open.m4a', at: LINE_AT, gain: 1.6 },
   { f: 'sfx/banner_flap.mp3', at: starts[1], gain: 0.7 },
   { f: 'sfx/swoosh_1.mp3', at: starts[2] - 0.1, gain: 0.9 },

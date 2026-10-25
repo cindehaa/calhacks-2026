@@ -8,7 +8,7 @@ The gameplay doesn't need screen-recording: the whole duel is rendered from the 
 
 | Beat | Time | Asset |
 |---|---|---|
-| 1 Cold open, stitched | 0:00 | `film/out/cold-open.mp4` (13 s): drone, banners, face slates, countdown, with the line, its subtitle, music and swooshes. `node scripts/coldopen.mjs --isaac <clip> --cindy <clip>` swaps the slates for the filmed intros |
+| 1 Cold open, stitched | 0:00 | `film/out/cold-open.mp4` (13 s): drone, banners, face slates, countdown, with the line, its subtitle, the game's battle music and swooshes. `node scripts/coldopen.mjs --isaac <clip> --cindy <clip>` swaps the slates for the filmed intros |
 | 1.1 Drone shot | 0:00 | `film/out/drone.mp4` (7 s). Narrator `narrator/1 cold open.m4a` + `graphics/out/subtitle-1-cold-open.mov` |
 | 1.2–1.3 Team banners | 0:04 | `graphics/out/banner-sun.mp4` (Isaac, red) and `banner-raven.mp4` (Cindy, blue). Alpha versions: `banner-*-alpha.mov`. Swoosh into each face: `sfx/swoosh_1..3.mp3`, `sfx/banner_flap.mp3` |
 | 1.4 Countdown | 0:08 | `film/out/clips/<view>/01-countdown.mp4`, the game's own 3-2-1-FIGHT! |
@@ -20,21 +20,21 @@ The gameplay doesn't need screen-recording: the whole duel is rendered from the 
 | 2.5 Troop generated | 0:30 | `callout-stats.mov` + `narrator/5 troop generated.m4a` + `subtitle-5-troop-generated.mov`; `stats-knight.mov` (sprite, stats and quirks pop in, then "designed by Claude") + `credit-claude.mov` if you want it separate. `sfx/slowmo_boom.mp3` |
 | 2.6 Cost | 0:38 | `callout-cost.mov` + `narrator/6 cost.m4a` + `subtitle-6-cost.mov` + `sfx/cost_reel.mp3` |
 | 2.7 The reply | 0:42 | Optional `callout-live.mov` + `narrator/7 play live.m4a` + `subtitle-7-play-live.mov` + `credit-spacetimedb.mov` |
-| 2.8 The turn | 0:52 | `music/turn_drone.mp3`, `sfx/heartbeat.mp3` |
-| 2.9 Escalation | 1:00 | `music/escalation_build_1.mp3` or `_2` (46 s, builds to a climax at its end; trim its start so the climax hits 1:42). Captions: `graphics/out/stills/caption-*.png`. B-roll: `broll/taylor-swift.mp4`, `broll/skibidi.mp4` |
+| 2.8 The turn | 0:52 | Drop the battle music out; `sfx/heartbeat.mp3` |
+| 2.9 Escalation | 1:00 | `game-audio/music/battle.mp3` back in, then `game-audio/music/overtime.mp3` (the same theme at its climax) up to the cut to silence at 1:42. Captions: `graphics/out/stills/caption-*.png`. B-roll: `broll/taylor-swift.mp4`, `broll/skibidi.mp4` |
 | 2.10 The peak | 1:38 | `broll/titan.mp4`, `stats-titan.mov` |
 | 2.11 The drop | 1:42 | Hard cut to silence. `sfx/meow_1..4.mp3`, `caption-innocent-whisper.png`, `broll/cat.mp4`, `stats-cat.mov` |
 | 2.12–2.13 Towers fall, result | 1:44 | Screen recording; `game-audio/sfx/tower_destroyed.mp3`, `game-audio/sfx/defeat.mp3` |
-| 3 Title card | 1:50 | Meow over black, `sfx/riser_1..2.mp3` ramps up, `graphics/out/title.mp4` lands at its peak (t = 0 is the slam) with `sfx/title_slam.mp3`. A beat of silence, then the hype track |
-| 4 Montage | 1:55 | `music/hype_track_1.mp3` or `_2` (62 s, opens on the drop). Duck it under people talking |
+| 3 Title card | 1:50 | `film/out/title-sequence.mp4` (8.4 s, `scripts/titleseq.mjs`): black, `sfx/riser_1` climbs, `graphics/out/title.mp4` slams in at its peak on `sfx/title_hit_1.mp3`, a beat of silence, then the battle music at full strength (from 24 s into the track) |
+| 4 Montage | 1:55 | `game-audio/music/battle.mp3` carrying on from the title sequence. Duck it under people talking |
 | 5 URL reveal | 2:40 | `graphics/out/url.mov` over the montage + `sfx/url_shimmer.mp3` |
-| 6 End card | 2:50 | `graphics/out/endcard.mp4` (10 s), "Just a hackathon project." lands at 5 s. `game-audio/music/menu.mp3` fits under it |
+| 6 End card | 2:50 | `graphics/out/endcard.mp4` (10 s): black and minimal, built for Cal Hacks 13.0 by Isaac Ng and Cindy Li, powered by the Claude, Cartesia and SpacetimeDB logos |
 | Grade | all | `grade/artifice-frost-fire.cube` on the gameplay and the face footage |
 
 ## What's in each folder
 
 - **`narrator/`**: our own recorded lines, 1 to 7: "Welcome to the battle of creativity.", "Aim with your finger.", "If you can imagine it, you can summon it.", "Open your hand and watch it come to life.", "Every troop gets fair stats.", "The more powerful the troop, the more embers it costs.", "Play your friends live." Each has a matching word-by-word subtitle in `graphics/out/subtitle-*.mov`.
-- **`music/`**: ElevenLabs music via fal. `cold_open` (14 s), `turn_drone` (12 s), `escalation_build_1/2` (46 s), `hype_track_1/2` (62 s). Two takes of the long ones; pick by ear.
+- **Music** is the game's own battle theme (`game-audio/music/battle.mp3`, and `overtime.mp3` for its climax). The generated tracks in `music/` and `music/candidates/` aren't used.
 - **`sfx/`**: ElevenLabs sound effects via fal: swooshes, banner flap, callout stamps, risers, title slam, slow-mo boom, heartbeat, cost reel, URL shimmer and four meows.
 - **`game-audio/`**: copied untouched from `client/public/audio`: the menu, battle and overtime music, match sounds and announcer lines.
 - **`troops/`**: every troop in the duel script, designed and drawn by the live game's own API (`/api/troop`, `/api/sprite`): the design JSON (stats, quirks, cost, model) and the sprite PNG. The sprite API caches by the words said, so saying the same line in the game shows the same art.
