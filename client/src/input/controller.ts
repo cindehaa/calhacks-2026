@@ -11,7 +11,7 @@ import { drawCursor, drawDwell, MISS_MS, type CursorState, type InputView } from
 import { clearNotice, notice, noticeShowing } from '../notice';
 import { sfx } from '../sfx';
 import { OneEuro } from './filter';
-import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand';
+import { HAND_CONNECTIONS, HandTracker, pointerOf, releaseHandTracker, type HandFrame } from './hand';
 import { drawHandView, drawScreenInset } from './handview';
 import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
@@ -370,6 +370,8 @@ export class InputController {
     this.publish({ kind: 'tick', t: now });
     this.flashes = this.flashes.filter(x => now - x.t < MISS_MS);
     menuPointer.update(now, this.handCursor, this.host.playing());
+    // A round under way without the camera: the warm tracker isn't wanted, so give its GPU memory back.
+    if (!this.tracker && this.host.playing() && (this.host.started?.() ?? true)) releaseHandTracker();
     // Once the countdown is over, so it isn't missed under the versus card.
     if (this.fellBack && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) {
       this.fellBack = false;
