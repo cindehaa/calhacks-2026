@@ -1,0 +1,218 @@
+/* The Pavilion of Imagination (pavilion.ts): every summoned troop under one roof. You stand in a
+   stone portico on the home screen's frozen night, looking into a hall lit by two braziers: frost
+   outside, the fire and the troops inside. Above the result screen, the dialogs and (opened by /#pavilion) the title.
+   --px and --py (-1..1) are the pointer and scroll lean, set by pavilion.ts. */
+.pavilion { position: fixed; inset: 0; z-index: 9; overflow: hidden; background: var(--night); font-family: var(--chakra); color: var(--text);
+  --colW: clamp(58px, 6.2vw, 104px); --roofH: clamp(122px, 19vh, 170px); --depth: 1700px; --px: 0; --py: 0; }
+.pavilion[hidden] { display: none; }
+.pavilion * { font-variant-numeric: lining-nums !important; }
+.pavilion .hubSky { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pavDim { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 55% 45% at 50% 55%, #05060c66, transparent 100%), linear-gradient(180deg, transparent 30%, #05060c55); }
+/* The wall scrolls in a window that starts under the frieze, so nothing ever passes over the roof
+   (its sky corners are see-through), and fades out into the shadow under the eaves. The mask also
+   makes it its own stacking context, so a lifted pile can't rise above the portico either. */
+.pavScroll { position: absolute; top: calc(var(--roofH) - 8px); left: 0; right: 0; bottom: 0; z-index: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #2a3050 transparent;
+  padding: 26px calc(var(--colW) + clamp(22px, 3vw, 52px)) 140px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 44px); mask-image: linear-gradient(180deg, transparent 0, #000 44px); }
+
+/* the hall behind: a CSS 3D box, open at the front, receding to the vanishing point */
+.pavStage { position: absolute; top: calc(var(--roofH) - 8px); bottom: 0; left: var(--colW); right: var(--colW); pointer-events: none; overflow: hidden;
+  perspective: 680px; perspective-origin: calc(50% + var(--px) * 7%) calc(38% + var(--py) * 8%); }
+.pavRoom { position: absolute; inset: 0; transform-style: preserve-3d; }
+.pavRoom > * { position: absolute; backface-visibility: hidden; }
+.pavCeiling { left: 0; right: 0; top: 0; height: var(--depth); transform-origin: 50% 0; transform: rotateX(-90deg);
+  background: linear-gradient(180deg, transparent 0, #05060c 92%),
+    repeating-linear-gradient(90deg, #343d6e 0 16px, #4a5490 16px 20px, #1a1f44 20px 46px, #141838 46px 190px, #0e1230 190px 200px),
+    repeating-linear-gradient(180deg, #343d6e 0 16px, #1a1f44 16px 40px, transparent 40px 200px), #141838; }
+.pavFloor { left: 0; right: 0; bottom: 0; height: var(--depth); transform-origin: 50% 100%; transform: rotateX(90deg);
+  background: linear-gradient(0deg, transparent 0, #05060c 88%),
+    radial-gradient(ellipse 30% 22% at 0% 100%, #ff8a2e55, transparent 100%), radial-gradient(ellipse 30% 22% at 100% 100%, #ff8a2e55, transparent 100%),
+    radial-gradient(ellipse 34% 30% at 50% 100%, #ffd27a22, transparent 100%),
+    repeating-linear-gradient(90deg, #0b0e22 0 3px, transparent 3px 170px), repeating-linear-gradient(0deg, #0b0e22 0 3px, transparent 3px 170px),
+    linear-gradient(0deg, #2e3462, #1c2146 40%); }
+.pavSide { top: 0; bottom: 0; width: var(--depth); }
+.pavSide.l { left: 0; transform-origin: 0 50%; transform: rotateY(90deg); }
+.pavSide.r { right: 0; transform-origin: 100% 50%; transform: rotateY(-90deg); }
+/* a colonnade down each side, open to the snow between its columns, fogging out with distance */
+.pavSide { background: linear-gradient(90deg, transparent 0, #05060cee 85%),
+  linear-gradient(180deg, #2e3568 0 46px, #f3d58a55 46px 48px, transparent 48px calc(100% - 34px), #252b4a calc(100% - 34px) calc(100% - 28px), #1c2140 calc(100% - 28px)),
+  repeating-linear-gradient(90deg, transparent 0 150px, #0d1030 150px, #2e3568 160px, #5a65a8 170px, #3b4478 182px, #141838 198px, transparent 198px 300px); }
+.pavSide.r { background: linear-gradient(270deg, transparent 0, #05060cee 85%),
+  linear-gradient(180deg, #2e3568 0 46px, #f3d58a55 46px 48px, transparent 48px calc(100% - 34px), #252b4a calc(100% - 34px) calc(100% - 28px), #1c2140 calc(100% - 28px)),
+  repeating-linear-gradient(270deg, transparent 0 150px, #0d1030 150px, #2e3568 160px, #5a65a8 170px, #3b4478 182px, #141838 198px, transparent 198px 300px); }
+.pavRear { inset: 0; transform: translateZ(calc(var(--depth) * -1)); background: linear-gradient(180deg, #05060c 0 10%, transparent 30%); }
+.pavRearGlow { position: absolute; left: 20%; right: 20%; bottom: 0; height: 60%; background: radial-gradient(ellipse 50% 60% at 50% 100%, #ffb02e44, transparent 100%); }
+
+/* the portico, nearest of all: it slides a little against the hall as the view leans */
+.pavNear { position: absolute; inset: 0; z-index: 3; pointer-events: none; transform: translate(calc(var(--px) * -10px), calc(var(--py) * -6px)); }
+.pavGable { position: absolute; left: -12px; right: -12px; top: 0; height: var(--roofH); filter: drop-shadow(0 12px 14px #000c); animation: pavDrop .8s cubic-bezier(.2, .8, .2, 1) both; }
+.pavGable::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 34px; background: linear-gradient(180deg, #05060ccc, transparent); }
+.pavGableSvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pavEmblem { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); filter: drop-shadow(0 0 16px #ffb02e99); animation: pavGlow 3s ease-in-out infinite; }
+.pavTitle { position: absolute; left: 0; right: 0; top: 62%; height: 34%; margin: 0; display: grid; place-items: center;
+  font: 700 clamp(20px, 2.7vw, 40px)/1 'Cinzel Decorative', var(--cinzel); letter-spacing: .06em; color: var(--amber);
+  background: linear-gradient(180deg, #ffd27a 0 50%, var(--amber) 50% 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 var(--amberSide)) drop-shadow(0 1px 0 #000); }
+
+/* the near columns: round shafts (lit edge, fluting, shadowed side, brazier warmth on the inside),
+   capitals and bases with a top face and a front */
+.pavCol { position: absolute; top: calc(var(--roofH) - 4px); bottom: 0; width: var(--colW); display: flex; flex-direction: column; filter: drop-shadow(0 0 18px #000a); }
+.pavCol.l { left: 0; } .pavCol.r { right: 0; }
+.pavCol > div:not(.pavFire) { position: relative; }
+.pavAbacus { height: 18px; margin: 0 -12px; background: linear-gradient(180deg, #eef6fb 0 3px, #6872b8 3px 7px, #3b4478 7px 100%); box-shadow: 0 4px 0 #0b0e22; z-index: 2; }
+.pavEchinus { height: 20px; margin: 0 -5px; border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: linear-gradient(90deg, #12163a, #3b4478 18%, #7a84c8 36%, #4a5490 58%, #1c2140 86%, #0b0e22); }
+.pavNeck { height: 9px; margin: 0 2px; background: linear-gradient(90deg, #0b0e22, #252b5a 18%, #4a5490 36%, #2e3568 60%, #12163a); }
+.pavShaft { flex: 1; margin: 0 4px;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 3px), #0006 calc(12.5% - 3px) 12.5%),
+    linear-gradient(90deg, #0b0e22 0%, #232a5a 10%, #4a5490 28%, #7a84c8 38%, #4a5490 52%, #252b5a 76%, #0b0e22 100%); }
+.pavCol.l .pavShaft { box-shadow: inset -22px 0 26px -14px #ff8a2e77; }
+.pavCol.r .pavShaft { box-shadow: inset 22px 0 26px -14px #ff8a2e77; }
+.pavTorus { height: 16px; margin: 0 -3px; border-radius: 999px; background: linear-gradient(90deg, #12163a, #3b4478 18%, #7a84c8 36%, #4a5490 58%, #1c2140 86%, #0b0e22); }
+.pavPlinthBase { height: 34px; margin: 0 -12px; background: linear-gradient(180deg, #6872b8 0 3px, #4a5490 3px 9px, #2e3568 9px 60%, #1c2140 60%); box-shadow: 0 -2px 0 #0b0e22; }
+
+.pavFire { position: absolute; bottom: 34px; left: 50%; width: 64px; height: 120px; margin-left: -32px; }
+.pavStand { position: absolute; left: 50%; bottom: 0; width: 14px; height: 34px; transform: translateX(-50%); background: linear-gradient(90deg, #4a5490 50%, #1c2140 50%); }
+.pavBowl { position: absolute; left: 50%; bottom: 30px; width: 60px; height: 22px; transform: translateX(-50%); clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
+  background: linear-gradient(90deg, #252b4a, #5a65a8 35%, #3b4478 60%, #12163a); box-shadow: inset 0 4px 0 #ff8a2e; }
+.pavFlame { position: absolute; left: 50%; bottom: 48px; width: 44px; height: 56px; transform: translateX(-50%); }
+.pavFlame i { position: absolute; left: 50%; bottom: 0; transform-origin: 50% 100%; clip-path: polygon(50% 0, 100% 70%, 78% 100%, 22% 100%, 0 70%); }
+.pavFlame i:nth-child(1) { width: 44px; height: 56px; margin-left: -22px; background: linear-gradient(180deg, #ff5d2e, #ff8a2e); animation: pavFlick .5s ease-in-out infinite alternate; }
+.pavFlame i:nth-child(2) { width: 30px; height: 42px; margin-left: -15px; background: linear-gradient(180deg, #ffb02e, #ffd27a); animation: pavFlick .37s .1s ease-in-out infinite alternate-reverse; }
+.pavFlame i:nth-child(3) { width: 14px; height: 22px; margin-left: -7px; background: #fff3cf; animation: pavFlick .29s ease-in-out infinite alternate; }
+.pavGlowFire { position: absolute; left: 50%; bottom: 40px; width: 360px; height: 360px; transform: translate(-50%, 50%); border-radius: 50%;
+  background: radial-gradient(circle, #ff8a2e40, #ff8a2e14 40%, transparent 70%); animation: pavPulse 2.4s ease-in-out infinite; }
+.pavSparks { position: absolute; left: 0; right: 0; bottom: 90px; height: 1px; }
+.pavSparks i { position: absolute; left: var(--x); bottom: 0; width: 3px; height: 3px; background: #ffb02e; box-shadow: 0 0 6px #ff8a2e; opacity: 0;
+  animation: pavSpark var(--t) var(--d) linear infinite; }
+
+/* the way out: big, top left, where the hand finds it */
+.pavBack { position: absolute; top: 12px; left: calc(var(--colW) + 10px); z-index: 4; --h: 54px; }
+.pavBack .face { gap: 10px; padding: 0 22px 0 16px; }
+.pavBack .face b { font: 700 16px var(--chakra); letter-spacing: .14em; text-transform: uppercase; }
+
+/* the count, under the roof */
+.pavHead { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding-bottom: clamp(16px, 2.6vh, 26px); }
+.pavCount { display: flex; flex-direction: column; align-items: center; animation: rise .7s .2s cubic-bezier(.2, .8, .2, 1) both; }
+.pavCount b { font: 900 clamp(60px, 8.6vw, 132px)/.95 var(--cinzel); color: #fff; letter-spacing: .02em; text-shadow: 0 6px 0 #0e1230, 0 0 48px #ffb02e66; }
+.pavCount b.bump { animation: pavBump .6s cubic-bezier(.2, .9, .3, 1.4); }
+.pavCount small { font: 700 clamp(14px, 1.3vw, 18px) var(--chakra); letter-spacing: .26em; text-transform: uppercase; color: var(--gold); }
+.pavSub { margin: 6px 0 0; font: 600 clamp(15px, 1.3vw, 19px) var(--chakra); color: var(--muted); }
+.pavSub #pavYours { color: var(--amber); font-weight: 800; }
+.pavStatus { margin: 10px 0 0; max-width: 560px; font-size: 16px; line-height: 1.4; color: var(--ice2); }
+
+/* your latest troop, on a lit plinth above the collection */
+.pavSpot { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 auto clamp(26px, 4vh, 44px); }
+.pavSpot[hidden] { display: none; }
+.pavSpotStage { position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 18px; }
+.pavBeamL, .pavBeamR { position: absolute; top: -60px; width: 160px; height: calc(100% + 40px); pointer-events: none; opacity: .55; mix-blend-mode: screen;
+  background: linear-gradient(180deg, #ffd27a40, transparent 85%); filter: blur(8px); animation: pavPulse 3s ease-in-out infinite; }
+.pavBeamL { left: -40px; clip-path: polygon(0 0, 30% 0, 100% 100%, 50% 100%); }
+.pavBeamR { right: -40px; clip-path: polygon(70% 0, 100% 0, 50% 100%, 0 100%); }
+/* the glow is on a wrapper: the card's clip-path would cut a filter on the card itself */
+.pavSpotCard { position: relative; width: clamp(210px, 18vw, 260px); animation: pavLand .9s .3s cubic-bezier(.2, .9, .3, 1.25) both, pavGlow 2.6s 1.2s ease-in-out infinite; }
+/* the plinth is a block: a top face narrowing away from you, then its front */
+.pavPlinthTop { width: calc(clamp(210px, 18vw, 260px) + 40px); height: 22px; margin-top: -12px; clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 100%, 0 100%);
+  background: radial-gradient(ellipse 50% 80% at 50% 30%, color-mix(in srgb, var(--el) 40%, #4a5490), #3b4478); }
+.pavPlinth { width: calc(clamp(210px, 18vw, 260px) + 40px); height: 34px;
+  background: linear-gradient(180deg, #f3d58a 0 2px, #2e3568 2px 55%, #1c2140 55%); box-shadow: 0 18px 24px -6px #000c; }
+
+.pavWallHead { display: flex; align-items: center; gap: 16px; max-width: 1500px; margin: 0 auto 22px; }
+.pavWallHead[hidden] { display: none; }
+.pavWallHead i { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, #f3d58a66, transparent); }
+
+/* the collection: one pile per troop, repeats stacked behind */
+.pavWall { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: clamp(22px, 2vw, 30px) clamp(18px, 1.8vw, 26px); max-width: 1500px; margin: 0 auto; }
+.pavEmpty { grid-column: 1 / -1; text-align: center; font-size: 18px; color: var(--muted); padding: 40px 0; }
+/* Each pile stands like a slab on the floor: leaned back a touch, with a solid edge under it (the
+   game's slab drop shadow) and a contact shadow; it lifts upright when pointed at. */
+.pavWall { perspective: 1200px; }
+.pavPile { position: relative; transform-origin: 50% 100%; transform: rotateX(7deg) rotate(calc(var(--tilt) * .3));
+  filter: drop-shadow(0 7px 0 #0b0e22) drop-shadow(0 3px 0 #000);
+  transition: transform .55s cubic-bezier(.33, 1, .68, 1), filter .55s cubic-bezier(.33, 1, .68, 1); } /* settling back: unhurried */
+.pavPile::before { content: ''; position: absolute; left: 4%; right: 4%; bottom: -22px; height: 22px; border-radius: 50%; background: radial-gradient(ellipse, #000b, transparent 70%); }
+.pavPile:hover { transition-duration: .45s; transform: translateY(-10px) rotateX(0deg) rotate(calc(var(--tilt) * .3)); filter: drop-shadow(0 10px 0 #0b0e22) drop-shadow(0 18px 18px #000c); z-index: 1; }
+.pavPile.rise { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+.pavSheet { position: absolute; inset: 0; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  background: linear-gradient(160deg, #1c2140 0 56%, #151a36 56% 100%); box-shadow: inset 0 0 0 1px #2a3050; }
+.pavSheet.s1 { transform: translate(8px, -8px) rotate(calc(var(--tilt) + 2.5deg)); filter: brightness(1.15); }
+.pavSheet.s2 { transform: translate(15px, -14px) rotate(calc(var(--tilt) * -1 + 5deg)); }
+.pavPile.mine .pavSheet { background: linear-gradient(160deg, #3a2c14 0 56%, #2c2110 56% 100%); }
+.pavTimes { position: absolute; right: -10px; bottom: 58px; z-index: 2; min-width: 38px; padding: 4px 9px; transform: rotate(-6deg);
+  font: 900 18px var(--cinzel); color: #1a0e00; text-align: center; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  background: linear-gradient(180deg, #ffd27a 0 50%, var(--amber) 50%); filter: drop-shadow(0 3px 0 var(--amberSide)); }
+
+.pavCard { position: relative; margin: 0; display: flex; flex-direction: column; overflow: hidden;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  background: linear-gradient(160deg, #2a3266 0 56%, #212853 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; }
+.pavArt { position: relative; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(ellipse 42% 95% at 50% -5%, color-mix(in srgb, var(--el) 34%, transparent), transparent 100%),
+    radial-gradient(ellipse 60% 45% at 50% 82%, color-mix(in srgb, var(--el) 30%, transparent), transparent 80%), #11152c; }
+.pavPedestal { position: absolute; left: 18%; right: 18%; bottom: 8%; height: 14%; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 30%, #4a5490, #1c2140 72%); box-shadow: inset 0 2px 0 #f3d58a88, 0 0 22px color-mix(in srgb, var(--el) 45%, transparent); }
+.pavArt img { position: absolute; left: 8%; bottom: 13%; width: 84%; height: 80%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 6px 6px #000c); }
+.pavGlyph { position: relative; margin-top: -14%; font: 800 clamp(34px, 3.4vw, 48px)/1 var(--cinzel); color: var(--elLight); text-shadow: 0 3px 0 #0008; }
+.pavCard:not(.noArt) .pavGlyph { visibility: hidden; }
+.pavCard.spell .pavPedestal { background: radial-gradient(ellipse, color-mix(in srgb, var(--elLight) 50%, transparent), transparent 70%); box-shadow: none; }
+.pavCard figcaption { display: flex; flex-direction: column; gap: 3px; padding: 9px 10px 12px; border-top: 2px solid #f3d58a55;
+  background: linear-gradient(180deg, #252b4a, #1c2140); }
+.pavCard figcaption b { font: 700 15px/1.15 var(--cinzel); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pavCard figcaption small { font: 500 13px/1.3 var(--chakra); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+.pavCost { position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; padding: 0 6px; display: grid; place-items: center; border-radius: 12px;
+  font: 800 13px var(--chakra); color: #1a0e00; background: linear-gradient(180deg, #ffd27a, var(--ember)); box-shadow: 0 2px 0 #7a3a00; }
+.pavTag, .pavMine { position: absolute; top: 8px; left: 8px; padding: 3px 8px; font: 800 11px var(--chakra); letter-spacing: .16em; text-transform: uppercase; }
+.pavTag { background: #2f3a7a; color: #dfe3ff; }
+.pavMine { background: var(--amber); color: #1a0e00; }
+.pavCard.spell .pavMine { top: 34px; }
+.pavCard.mine { background: linear-gradient(160deg, #4a3a1c 0 56%, #3a2c14 56% 100%); box-shadow: inset 0 0 0 2px #ffb02e, inset 0 1px 0 #ffffff33; }
+.pavCard.mine figcaption { background: linear-gradient(180deg, #4a3a1c, #3a2c14); border-top-color: var(--amber); }
+
+.pavSpotCard .pavCard figcaption b { font-size: 22px; white-space: normal; }
+.pavSpotCard .pavCard figcaption small { font-size: 16px; -webkit-line-clamp: 3; }
+.pavSpotCard .pavCost { width: 32px; height: 32px; border-radius: 16px; font-size: 16px; }
+
+/* a pile that grew while you watch */
+.pavPile.fresh { animation: pavArrive .9s cubic-bezier(.2, .9, .3, 1.3) both; z-index: 1; }
+.pavPile.fresh .pavCard { box-shadow: inset 0 0 0 3px #fff; }
+.pavPile.fresh::after { content: ''; position: absolute; inset: -18px; pointer-events: none; background: radial-gradient(circle, #ffd27a77, transparent 65%); animation: pavFade 6s ease-out forwards; }
+
+
+.pavToast { position: fixed; left: 50%; bottom: 28px; z-index: 3; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 14px 24px;
+  background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%); color: #1a0e00; filter: drop-shadow(0 6px 0 var(--amberSide));
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+.pavToast[hidden] { display: none; }
+.pavToast .gLabel { color: #1a0e00; }
+.pavToast b { font: 800 20px var(--cinzel); }
+.pavToast.show { animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+
+@keyframes pavArrive { from { opacity: 0; transform: scale(.6) translateY(-30px) rotate(-8deg); } 60% { transform: scale(1.08); } }
+@keyframes pavLand { from { opacity: 0; transform: translateY(-60px) scale(.9); } }
+@keyframes pavDrop { from { opacity: 0; transform: translateY(-40px); } }
+@keyframes pavFade { to { opacity: 0; } }
+@keyframes pavBump { 40% { transform: scale(1.12); color: var(--gold); } }
+@keyframes pavGlow { 50% { filter: drop-shadow(0 0 24px #ffb02eaa); } }
+@keyframes pavPulse { 50% { opacity: .7; } }
+@keyframes pavFlick { from { transform: scaleY(.88) skewX(-3deg); } to { transform: scaleY(1.08) skewX(3deg); } }
+@keyframes pavSpark { 0% { opacity: 0; transform: translate(0, 0); } 10% { opacity: 1; } 100% { opacity: 0; transform: translate(calc((var(--x) - 50%) * .4), -220px); } }
+
+/* home's way in: top left, across from the corner tools */
+.pavEntry { position: absolute; top: 14px; left: 16px; z-index: 3; --h: 52px; }
+.pavEntry .face { gap: 10px; padding: 0 18px; }
+.pavEntry .face b { font: 700 15px var(--cinzel); letter-spacing: .04em; text-transform: none; }
+.pavEntry .face small { font: 600 13px var(--chakra); color: var(--muted); }
+.pavEntry .bLabel { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+
+@media (max-width: 760px) {
+  .pavilion { --colW: 0px; --roofH: 110px; }
+  .pavCol { display: none; }
+  .pavBack { left: 10px; }
+  .pavWall { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
+  .pavCard figcaption b { font-size: 13px; }
+  .pavCard figcaption small { font-size: 12px; }
+  .pavEntry .face small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pavPile.rise, .pavPile.fresh, .pavSpotCard, .pavToast.show, .pavCount b.bump, .pavGable, .pavCount,
+  .pavFlame i, .pavSparks i, .pavGlowFire, .pavBeamL, .pavBeamR, .pavEmblem { animation: none; }
+}

@@ -110,6 +110,17 @@ test('saves up for a big troop, then drops it', () => {
   assert.equal(mem.saveFor, null);
 });
 
+test('easy sticks to small troops', () => {
+  const rand = seeded(3);
+  for (let i = 0; i < 200; i++) {
+    const s = newMatch();
+    s.elixir = [10, 15];
+    if (i % 2) addUnit(s, 0);
+    const move = botDecide(s, 1, { ...ready(), threatSince: -10 }, BOT_LEVELS.easy, rand);
+    if (move) assert.ok(ANCHORS[move.anchor].cost <= BOT_LEVELS.easy.maxCost, ANCHORS[move.anchor].name);
+  }
+});
+
 test('never picks what it cannot afford, and always stays on its half', () => {
   const rand = seeded(7);
   for (let i = 0; i < 500; i++) {

@@ -23,13 +23,29 @@ test('how-to: one line', () => {
   assert.ok(pinch.howTo.length > 10 && pinch.howTo.length < 120);
 });
 
-test('pinch: onset commits once at its aim; menus get uiActivate', () => {
+test('pinch: the close picks up, the release places at its aim; menus click on the release', () => {
   const r = rig();
   r.send({ kind: 'pinch', t: 100, aim: { x: 40, y: 400 } });
-  assert.deepEqual(r.out, [{ kind: 'commit', t: 100, by: 'pinch', at: { x: 40, y: 400 } }]);
+  assert.deepEqual(r.out, [], 'nothing on the close');
+  assert.equal(r.inst.state?.(), 'holding');
+  r.send({ kind: 'release', t: 600, aim: { x: 300, y: 450 } });
+  assert.deepEqual(r.out, [{ kind: 'commit', t: 600, by: 'release', at: { x: 300, y: 450 } }]);
+  assert.equal(r.inst.state?.(), 'ready');
+  r.send({ kind: 'release', t: 700, aim: { x: 1, y: 1 } });
+  assert.equal(r.out.length, 1, 'a release with nothing held does nothing');
   r.world.menus = true;
   r.send({ kind: 'pinch', t: 900, aim: { x: 3, y: 3 } });
-  assert.deepEqual(r.out.at(-1), { kind: 'uiActivate', at: { x: 3, y: 3 } });
+  assert.equal(r.out.length, 1, 'menus: nothing on the close either');
+  r.send({ kind: 'release', t: 1000, aim: { x: 4, y: 4 } });
+  assert.deepEqual(r.out.at(-1), { kind: 'uiActivate', at: { x: 4, y: 4 } });
+});
+
+test('pinch: losing the hand while holding places nothing', () => {
+  const r = rig();
+  r.send({ kind: 'pinch', t: 0, aim: { x: 100, y: 400 } });
+  r.send({ kind: 'hand', t: 100, visible: false });
+  r.send({ kind: 'release', t: 200, aim: { x: 100, y: 400 } });
+  assert.deepEqual(r.out, []);
 });
 
 // A camera frame: thumbs-down score and whether the pinch measure says closed.
@@ -81,6 +97,7 @@ test('thumbs down: a pinch sequence never cancels', () => {
   r.send({ kind: 'pinch', t, aim: { x: 100, y: 400 } });
   r.send({ kind: 'deploy', t, phase: 'pending', nonce: 1 });
   for (t += 33; t < onset + 800; t += 33) r.send(frame(t, 0.95, true)); // held pinched
+  r.send({ kind: 'release', t, aim: { x: 100, y: 400 } });
   for (; t < onset + 1000; t += 33) r.send(frame(t, 0.3, false)); // letting go
   for (; t < onset + 2000; t += 33) r.send(frame(t, 0, false)); // open hand
   assert.deepEqual(r.kinds(), ['commit']);
@@ -89,6 +106,7 @@ test('thumbs down: a pinch sequence never cancels', () => {
   r2.send({ kind: 'deploy', t: 0, phase: 'pending', nonce: 1 });
   r2.send(frame(1000, 0.9, true));
   r2.send({ kind: 'pinch', t: 1000, aim: { x: 1, y: 1 } });
+  r2.send({ kind: 'release', t: 1033, aim: { x: 1, y: 1 } });
   for (let u = 1033; u < 1399; u += 33) r2.send(frame(u, 0.9, false));
   assert.deepEqual(r2.kinds(), ['commit'], 'nothing in the 400 ms after pinch onset');
 });

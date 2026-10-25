@@ -18,7 +18,7 @@ export class HttpError extends Error {
 
 // Never let a key value reach a response or a log line.
 export function scrub(s: string): string {
-  for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CARTESIA_API_KEY', 'FAL_KEY', 'BLOB_READ_WRITE_TOKEN', 'GEMINI_API_KEY', 'CEREBRAS_API_KEY', 'GROQ_API_KEY']) {
+  for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CARTESIA_API_KEY', 'FAL_KEY', 'FAL_KEY_FALLBACK', 'BLOB_READ_WRITE_TOKEN', 'GEMINI_API_KEY', 'CEREBRAS_API_KEY', 'GROQ_API_KEY']) {
     const v = (process.env[k] ?? '').trim();
     if (v.length >= 8) s = s.split(v).join('***');
   }
@@ -56,7 +56,7 @@ async function upstream<T>(what: string, f: () => Promise<T>): Promise<T> {
 }
 
 export const ROUTES: Record<string, (body: Body) => Promise<unknown>> = {
-  '/api/troop': b => designTroop(text(b)),
+  '/api/troop': b => designTroop(text(b), b.spell === true),
   '/api/warm': () => warm(),
   // A 60 s Cartesia token for the browser's STT socket.
   '/api/voice-token': async () => {

@@ -23,7 +23,6 @@
     "@types/three": "0.169.0",
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "2.8.1",
-    "@vercel/functions": "3.10.3",
     "spacetimedb": "2.13.0",
     "three": "0.169.0"
   },

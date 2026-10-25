@@ -36,6 +36,7 @@ import {
 // Import all reducer arg schemas
 import BeginDeployReducer from "./begin_deploy_reducer";
 import CancelDeployReducer from "./cancel_deploy_reducer";
+import CastSpellReducer from "./cast_spell_reducer";
 import CreateRoomReducer from "./create_room_reducer";
 import DeployTroopReducer from "./deploy_troop_reducer";
 import ForfeitReducer from "./forfeit_reducer";
@@ -58,6 +59,7 @@ import StartMatchReducer from "./start_match_reducer";
 import PendingRow from "./pending_table";
 import PlayerRow from "./player_table";
 import RoomRow from "./room_table";
+import SpellRow from "./spell_table";
 import TowerRow from "./tower_table";
 import TroopRow from "./troop_table";
 import UnitRow from "./unit_table";
@@ -105,6 +107,20 @@ const tablesSchema = __schema({
       { name: 'room_code_key', constraint: 'unique', columns: ['code'] },
     ],
   }, RoomRow),
+  spell: __table({
+    name: 'spell',
+    indexes: [
+      { accessor: 'id', name: 'spell_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'roomCode', name: 'spell_room_code_idx_btree', algorithm: 'btree', columns: [
+        'roomCode',
+      ] },
+    ],
+    constraints: [
+      { name: 'spell_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SpellRow),
   tower: __table({
     name: 'tower',
     indexes: [
@@ -153,6 +169,7 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("begin_deploy", BeginDeployReducer),
   __reducerSchema("cancel_deploy", CancelDeployReducer),
+  __reducerSchema("cast_spell", CastSpellReducer),
   __reducerSchema("create_room", CreateRoomReducer),
   __reducerSchema("deploy_troop", DeployTroopReducer),
   __reducerSchema("forfeit", ForfeitReducer),

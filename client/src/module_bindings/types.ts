@@ -132,6 +132,29 @@ export const RoomMatch = __t.object("RoomMatch", {
 });
 export type RoomMatch = __Infer<typeof RoomMatch>;
 
+export const Spell = __t.object("Spell", {
+  id: __t.u64(),
+  roomCode: __t.string(),
+  owner: __t.identity(),
+  side: __t.u8(),
+  description: __t.string(),
+  name: __t.string(),
+  cost: __t.u8(),
+  effect: __t.string(),
+  radius: __t.f32(),
+  duration: __t.f32(),
+  amount: __t.f32(),
+  onHit: __t.string(),
+  element: __t.string(),
+  flavor: __t.string(),
+  x: __t.f32(),
+  y: __t.f32(),
+  delay: __t.f32(),
+  age: __t.f32(),
+  pulses: __t.u16(),
+});
+export type Spell = __Infer<typeof Spell>;
+
 export const Tower = __t.object("Tower", {
   id: __t.u64(),
   roomCode: __t.string(),
@@ -143,6 +166,7 @@ export const Tower = __t.object("Tower", {
   maxHp: __t.f32(),
   cooldown: __t.f32(),
   attackSeq: __t.u32(),
+  stunT: __t.f32(),
 });
 export type Tower = __Infer<typeof Tower>;
 
@@ -234,6 +258,10 @@ export const Unit = __t.object("Unit", {
   lastTargetY: __t.f32(),
   chainXs: __t.array(__t.f32()),
   chainYs: __t.array(__t.f32()),
+  weakT: __t.f32(),
+  curseT: __t.f32(),
+  rageT: __t.f32(),
+  mightT: __t.f32(),
 });
 export type Unit = __Infer<typeof Unit>;
 

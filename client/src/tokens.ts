@@ -2,6 +2,7 @@
 // from the troop's name (or description), falling back to initials. Glyphs are pre-rendered
 // once per (glyph, size) into small canvases, so a frame is one drawImage per unit.
 
+import { SPELL_CLASS_OF, type SpellClass, type SpellEffect } from '../../shared/spell';
 // First match wins, so put specific words before generic ones ("wizard" before "fire").
 const KEYWORDS: [RegExp, string][] = [
   [/\bbees?\b|wasp|hornet/, '🐝'],
@@ -179,6 +180,18 @@ const ELEMENT_COLORS: Record<string, [string, string]> = {
 
 export function elementColors(element: string | undefined): [string, string] | null {
   return (element && ELEMENT_COLORS[element]) || null;
+}
+
+// A spell's colours, [main, light]: its element's, else its class's (attack ember, nerf frost,
+// buff green). Freeze is always ice.
+const SPELL_CLASS_COLORS: Record<SpellClass, [string, string]> = {
+  attack: ['#ff6a3d', '#ffc9a8'],
+  nerf: ['#8f9bff', '#dfe3ff'],
+  buff: ['#5ff0a0', '#d6ffe6'],
+};
+export function spellColors(effect: string, element: string | undefined): [string, string] {
+  if (effect === 'freeze') return ELEMENT_COLORS.ice;
+  return elementColors(element) ?? SPELL_CLASS_COLORS[SPELL_CLASS_OF[effect as SpellEffect] ?? 'attack'];
 }
 
 // Attack anticipation: the wind-up starts this long before the predicted hit, so the strike

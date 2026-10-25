@@ -1,0 +1,8 @@
+node_modules/
+# Large renders; `npm run graphics` makes them again
+graphics/out/*.mov
+# Built from the game's source by scripts/render.mjs
+graphics/src/game.js
+broll/plates/*.jpg
+# Renders of the scripted match (scripts/film.mjs and friends): large, and made again from the script
+film/out/

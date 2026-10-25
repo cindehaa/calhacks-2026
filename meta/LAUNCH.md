@@ -28,9 +28,7 @@ The hero shot is always the same three beats in under 3 seconds: a person says s
 These block every step after them.
 
 - [ ] **Pick the game name.** Still "Untitled" in SPEC.md. Needed for posts, the table sign and Devpost.
-- [ ] **Decide how strangers get in.** The deployed site sits behind `SITE_PASSWORD` (`middleware.ts`), so a link on X opens a locked page. Options:
-  - Open the site, with a per-IP cap on `/api/troop`, `/api/sprite` and `/api/voice-token` (none exists today) and spend limits set in the Anthropic, fal and Cartesia consoles. Best reach; needed if posts carry a link.
-  - Keep the gate and print the password on the table sign and in the Cal Hacks Discord only. Safe, but posts become "come find us at table X" rather than "play now".
+- [x] **Decide how strangers get in.** The site is open: the password gate was removed on 2026-10-24. Still needed: a per-IP cap on `/api/troop`, `/api/sprite` and `/api/voice-token` (none exists today) and spend limits set in the Anthropic, fal and Cartesia consoles.
 - [ ] **`?bot` link** (already on PROGRESS.md's list): opens straight into Play vs Bot, so a QR scan is one step from playing. Bot matches need no SpacetimeDB, so they survive bad hall wifi.
 - [ ] **Short link and QR code** to that URL, on a printed or on-screen sign at the table.
 - [ ] **Recording consent:** a line on the sign ("we're filming play for our demo, tell us if you'd rather not") and a verbal yes before anyone's face goes in a post.

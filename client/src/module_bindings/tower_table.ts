@@ -21,4 +21,5 @@ export default __t.row({
   maxHp: __t.f32().name("max_hp"),
   cooldown: __t.f32(),
   attackSeq: __t.u32().name("attack_seq"),
+  stunT: __t.f32().name("stun_t"),
 });

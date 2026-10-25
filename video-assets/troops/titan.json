@@ -1,0 +1,30 @@
+{
+  "slug": "titan",
+  "speaker": "Isaac",
+  "line": "An ancient frost titan, older than the mountains, crowned in lightning, leading an army of giants across the frozen wastes",
+  "cost": 17,
+  "model": "claude-haiku-5-5",
+  "source": "claude",
+  "keyed": false,
+  "sprite": "/api/sprite/ce6a55bfa2545ea7a0d8.png",
+  "design": {
+    "health": 3000,
+    "damage": 450,
+    "attack_speed": 0.7,
+    "move_speed": 0.5,
+    "range": 1,
+    "count": 1,
+    "attack": "splash",
+    "targets": "any",
+    "on_hit": "slow",
+    "windup": false,
+    "trait": "none",
+    "motion": "smash",
+    "element": "ice",
+    "flavor": "slams frozen fists in a shockwave of ice",
+    "name": "Frost Titan",
+    "battle_cry": "",
+    "voice_style": "cheerful_hero",
+    "wish": "lightning crown"
+  }
+}

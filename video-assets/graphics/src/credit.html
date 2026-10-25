@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Credit</title>
+<!-- A sponsor's part in a feature, as a quiet note in the bottom-left corner: "Designed by Claude".
+     Plain text, no panel. ?text=Speech by Cartesia&dur=3.5 -->
+<link rel="stylesheet" href="kit.css">
+<style>
+  #note { position: absolute; left: 64px; bottom: 56px; font: 600 30px var(--ui); letter-spacing: .02em; color: var(--text); text-shadow: 0 2px 4px #000c, 0 0 18px #000a; }
+</style>
+<div id="stage"><div id="note"></div></div>
+<script type="module">
+  import { P, num, prog, ease, mix, life, register } from './kit.js';
+  const D = num('dur', 3.5);
+  const note = document.getElementById('note');
+  note.textContent = P.get('text') ?? 'Speech by Cartesia';
+  register(D, (t) => {
+    note.style.opacity = life(t, D, 0.35, 0.4);
+    note.style.transform = `translateY(${mix(8, 0, prog(t, 0, 0.5, ease.out))}px)`;
+  });
+</script>

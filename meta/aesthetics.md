@@ -2,7 +2,7 @@
 
 The design vision for the game: how it should look, sound and feel. Update it whenever a design choice is made or changes, so new art, sound and UI work starts from the same place. Dated decisions go at the bottom.
 
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25
 
 ## Theme: warmth and frost
 
@@ -112,7 +112,6 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **In-match HUD:** the clock sits on a stone plaque top right under the tools (Cinzel figures, "vs Bot", "Double embers", "Overtime · triple embers" or "Tiebreaker" in amber under it; the figures turn amber in overtime, counting down its own 30 s), clear of the enemy king tower. The DOUBLE EMBERS, OVERTIME and TIEBREAKER announcements are a compact dark pill with an ember outline at the top centre, holding only the title, sized to it (shrunk to fit a narrow screen, never clipped), that drops in and fades after about 2 s. They never cover the river or bridges; on a phone the pill sits just under the clock and tools. Only the 3-2-1-FIGHT countdown stays mid-screen, before anything is on the board, drawn in the menus' 3D language: each number is a gold faceted Cinzel figure (wordmark split, amber side, warm glow) on a frost octagon medallion with a dark split face and a solid side, popping in and shedding ice chips; FIGHT! (Cinzel Decorative) stretches the medallion into a chamfered slab with an amber rim and throws off embers and ice. Elixir is a violet ten-segment bar with a hexagonal count gem, turning amber for double elixir. The describe field is a chamfered dark slab with an amber underline on focus; hints and status are plain text lines. No starter-troop chips: every troop is said or typed. The camera / mic panel (buttons, camera preview, readouts) sits top left only at `/dev`; otherwise it takes no space and the camera button stays in the tools during a match. The raw connection status shows only online and only when something is wrong. Text drawn on the board (troop names, health, the countdown) is Cinzel, whose figures are lining.
 - **Camera image:** the raw camera feed shows in one place only, setup, beside "What the game sees" (the virtual hand, a small screen outline with the cursor where it lands, and the gesture: Aiming, Pinch · click, Thumbs down). Home, menus and matches show only the drawn hand; the `/dev` panel's preview draws the skeleton on dark.
 - **Virtual hand:** with the camera on, a small stone panel (bottom right in a match; on home, a stone slab like Practice in the button row right of Play online, with a Cinzel label, hidden on phones there) draws the hand the tracker sees (the 21 landmarks, mirrored, nearer joints thicker in ice tones). The index fingertip and a label show the gesture: amber Aiming, pale gold Flick · sent, rose Fist · clearing, or Show your hand.
-- **Password gate:** the same wordmark, a chamfered password field and an amber Enter slab.
 - Art lives in `client/public/ui` as SVG (ranges, frost, island, banners, moon); menu weather is `client/src/hubfx.ts`.
 
 ## Open questions
@@ -166,3 +165,5 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** The two side slots on home match: the virtual hand is drawn as the same stone slab as Practice, and with the camera off a Turn on camera slab stands in for it.
 - **2026-10-24:** The menu track is now two minutes instead of one, so it plays longer before it loops.
 - **2026-10-24:** The 3-2-1-FIGHT countdown matches the menus: gold faceted figures on a frost octagon medallion, and FIGHT! on an amber-rimmed chamfered slab with embers, replacing plain white outlined text.
+- **2026-10-24:** The password gate is gone: the deployed site opens straight onto home.
+- **2026-10-25:** Demo video assets (`video-assets/`) reuse the game's look: trailer callouts in the wordmark's faceted gold Cinzel on a chamfered stone band with an amber underline, slammed in with the countdown's embers and ice; sponsor credits on small stone tags; a troop stats card (sprite on a side-coloured ring, stats as gold bars against the game's clamps, quirks as plain-word chips); captions in the opponent's frost-white bubble edged in the speaker's side colour; the home tapestries shot from below over the night sky; the wordmark slamming in under the low-poly moon for the title card. Narration is a deep Cartesia trailer voice; new music and sound effects keep the frost-and-fire palette. A LUT grades footage cool in the shadows and warm in the highlights.

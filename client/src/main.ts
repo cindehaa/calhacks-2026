@@ -1,5 +1,5 @@
 import { ANCHORS } from '../../shared/anchors';
-import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
+import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, onBoard, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { newTowers } from '../../shared/sim';
 import { MAX_COST, price, type TroopDesign } from '../../shared/troop';
@@ -7,11 +7,12 @@ import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, TOUCH, type DeployHow } from './input/controller';
-import { preloadHandModel } from './input/hand';
+import { warmHandTracker } from './input/hand';
 import { isCancel, Transcript } from './input/speech';
 import { spokenLetters } from './input/spell';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
+import type { InputView } from './input/draw';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
 import { Recorder } from './recorder';
@@ -35,6 +36,7 @@ import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
 import { boardReactions, homeReactions, menuReactions } from './react';
+import { closePavilion, mountPavilion, openPavilion, pavilionOpen } from './pavilion';
 import { inject as injectAnalytics } from '@vercel/analytics';
 import './mobile.css';
 
@@ -71,7 +73,9 @@ function dial() {
     netMsg
   );
 }
-dial();
+// Film mode (dev only): a scripted match for the demo video (film.ts), with no server.
+const FILM = import.meta.env.DEV && new URLSearchParams(location.search).has('film');
+if (!FILM) dial();
 runHealthCheck();
 
 // The connection dropped: "reconnecting…" while it redials every few seconds, and if that's
@@ -141,6 +145,8 @@ const myRoom = () => online?.room();
 const match = (): MatchSource | null => local ?? (myRoom() ? online : null);
 const mySide = (): Side => match()?.side ?? 0;
 const canDeployAt = (x: number, y: number) => canDeploy(mySide(), x, y, match()?.towers() ?? []);
+// Aimed past your own zone (your half and any pocket you've opened): only a spell can land there.
+const spellSpot = ([x, y]: [number, number]) => onBoard(x, y) && !canDeployAt(x, y);
 // Colours go by side on both screens: side 0 (the host, or you against the bot) is blue, side 1 red.
 const SIDE_NAME = ['Blue side', 'Red side'];
 const houseOf = (side: Side): House => (side === 0 ? 'raven' : 'sun');
@@ -174,8 +180,14 @@ function enter() {
   else setup.open();
 }
 $('title').addEventListener('pointerdown', enter);
+if (TOUCH) $('enterBtn').textContent = 'Tap to start';
 addEventListener('keydown', e => {
   if (entered) return;
+  if (pavilionOpen()) {
+    // Opened over the title by /#pavilion: Esc closes it (onto home); other keys stay with it.
+    if (e.key === 'Escape') closePavilion();
+    return;
+  }
   e.preventDefault();
   e.stopImmediatePropagation();
   enter();
@@ -228,8 +240,22 @@ initDevSettings();
 $('practiceBack').onclick = () => openPractice(false);
 $('practice').onclick = e => { if (e.target === e.currentTarget) openPractice(false) };
 
+// The Pavilion: every troop anyone has summoned, from home or after a match (pavilion.ts).
+// /#pavilion opens it on load, over the title, for a second tab during a demo; closing it from
+// there lands on home like pressing a key would.
+mountPavilion({
+  onClose: () => {
+    if (location.hash === '#pavilion') history.replaceState(null, '', location.pathname + location.search);
+    if (!entered) enter();
+  },
+});
+if (location.hash === '#pavilion') openPavilion();
+addEventListener('hashchange', () => { if (location.hash === '#pavilion') openPavilion() });
+$('pavilionBtn').onclick = () => openPavilion();
+$('resPavilionBtn').onclick = () => openPavilion();
+
 // Every menu button ticks.
-for (const id of ['lobby', 'practice', 'raven', 'pause', 'forfeitAsk', 'result']) {
+for (const id of ['lobby', 'practice', 'raven', 'pause', 'forfeitAsk', 'result', 'pavilion']) {
   $(id).addEventListener('click', e => { if ((e.target as HTMLElement).closest('button')) sfx.play('click') });
 }
 
@@ -269,10 +295,17 @@ $('handBtn').onclick = async e => {
   await input.setCamera(true);
   if (!input.setupState().camera) setup.open();
 };
+// Phones don't aim with the camera, so the button is just the mic, on and off in one tap.
 $('camBtn').onclick = e => {
-  setup.open();
   (e.currentTarget as HTMLElement).blur();
+  if (TOUCH) void input.setMic(!input.setupState().mic);
+  else setup.open();
 };
+if (TOUCH) {
+  $('camBtn').innerHTML = icon('mic', 'light', 20);
+  $('camBtn').setAttribute('aria-label', 'Mic');
+  $('camBtn').title = 'Mic';
+}
 $('rematchBtn').onclick = () => {
   call(match()?.rematch());
   if (local) botStarted(local.level);
@@ -314,6 +347,7 @@ function renderLobby() {
   if (hv && hv.parentElement !== home) home.appendChild(hv);
   if (p && document.activeElement !== $('nameInput')) $<HTMLInputElement>('nameInput').value = p.name;
   if (r?.status === 'playing') ravenOpen = false;
+  if (r?.status === 'playing' || local?.status === 'playing') closePavilion(); // a rematch the other side started
   renderRaven();
 }
 
@@ -497,7 +531,7 @@ function byForfeit(m: MatchSource) {
 }
 
 function foeName(m: MatchSource) {
-  if (local) return `Bot (${local.level})`;
+  if (local) return local.foe || `Bot (${local.level})`;
   const r = myRoom(), id = m.side === 0 ? r?.guest : r?.host;
   return (id && net?.conn.db.player.identity.find(id)?.name) || 'Opponent';
 }
@@ -691,6 +725,7 @@ function renderTools(m: MatchSource | null) {
   $('pauseBtn').hidden = !(local && live);
   $<HTMLButtonElement>('pauseBtn').disabled = !local || local.time < 0;
   $('forfeitBtn').hidden = !(!local && live);
+  if (TOUCH) $('camBtn').classList.toggle('off', !input.setupState().mic);
   if (!live || local) $('forfeitAsk').hidden = true;
 }
 
@@ -804,6 +839,7 @@ function starve(need: number) {
 // Deploy with the art if it's already here, else deploy now and set the art when it lands.
 async function deployWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
   const m = match();
+  if (d.kind === 'spell') art = Promise.resolve(null); // a spell is drawn by the board, not fal
   attempts.get(nonce)?.waitForArt(art.then(url => url ?? ''));
   void art.then(url => {
     const why = spriteError(description);
@@ -820,7 +856,7 @@ async function sendWithArt(nonce: number, spot: [number, number], description: s
   const m = match();
   const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
   const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
-  if (!ok || ready !== undefined) return;
+  if (!ok || ready !== undefined || d.kind === 'spell') return;
   const url = await art;
   if (url && m) call(m.attachSprite(description, url), err => diag.warn('DB', `set_troop_sprite for "${description}" failed: ${err}`));
 }
@@ -905,6 +941,21 @@ if (import.meta.env.DEV) {
   });
 }
 
+// The film script plays both sides through the same paths as a real match: your lines through
+// beginAt / designAt like a pinch and your voice, the other side's as the opponent's drops.
+let filmView: (() => InputView | undefined) | null = null;
+if (FILM) {
+  void import('./film').then(f => f.openFilm({
+    board, drops, beginAt, designAt,
+    start: m => {
+      lock = aim = null;
+      ravenOpen = false;
+      local = m;
+    },
+    setView: v => (filmView = v),
+  }));
+}
+
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
 function beginAt(spot: [number, number], by: string): number | null {
   if (match()?.status !== 'playing') return null;
@@ -936,6 +987,15 @@ function cancelAt(nonce: number, msg: string, transcript = '') {
   status(msg, !!msg);
 }
 
+// The first drop past your own half each session says what's happening, so a troop that comes
+// back a spell doesn't read as the game mishearing you.
+let spellHinted = false;
+function spellHintOnce() {
+  if (spellHinted) return;
+  spellHinted = true;
+  notice('Over the river, whatever you say becomes a spell', { ms: 3200, key: 'spell' });
+}
+
 async function designAt(nonce: number, spot: [number, number], description: string, how?: DeployHow) {
   status(`designing “${description}”…`);
   attempts.get(nonce)?.released(description, how?.from ?? 'typed', how?.transcript, how?.by);
@@ -943,16 +1003,19 @@ async function designAt(nonce: number, spot: [number, number], description: stri
   dropWords(nonce, description);
   dropStep(nonce, 'STT', `final words "${description}" (${how?.from ?? 'typed'}${how?.transcript && how.transcript !== description ? `, heard "${how.transcript}"` : ''})`);
   dropStep(nonce, 'DESIGN', 'design request → /api/troop');
-  dropStep(nonce, 'ART', 'art request → /api/sprite');
-  const art = requestSprite(description); // in parallel with the designer; often already started
+  // Aimed past your zone: a spell, which has no sprite to draw. Anywhere else the designer decides.
+  const spellOnly = spellSpot(spot);
+  if (spellOnly) spellHintOnce();
+  if (!spellOnly) dropStep(nonce, 'ART', 'art request → /api/sprite');
+  const art = spellOnly ? Promise.resolve(null) : requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
   try {
-    const d = await designTroop(description);
+    const d = await designTroop(description, spellOnly);
     attempts.get(nonce)?.gotDesign(d);
     const { design, ms, source, early } = d;
     dropDesigned(nonce, source);
     if (source === 'offline' && d.error) dropStep(nonce, 'DESIGN', `model NOT used, offline troop instead: ${explain(d.error)}`, 'warn', d.error);
-    dropStep(nonce, 'DESIGN', `design response: ${design.name} · source ${source}${d.model ? ` (${d.model})` : ''} · cost ${price(design)} · ${ms} ms${d.apiMs !== undefined ? ` (api ${d.apiMs} ms)` : ''}${early ? ' · early' : ''}`, ms > 3000 ? 'warn' : 'info');
+    dropStep(nonce, 'DESIGN', `design response: ${design.kind === 'spell' ? `spell (${design.spell?.effect}) ` : ''}${design.name} · source ${source}${d.model ? ` (${d.model})` : ''} · cost ${price(design)} · ${ms} ms${d.apiMs !== undefined ? ` (api ${d.apiMs} ms)` : ''}${early ? ' · early' : ''}`, ms > 3000 ? 'warn' : 'info');
     const tags = [source === 'offline' && 'improvised', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
     status(`${design.name} · ${ms} ms${tags ? ` (${tags})` : ''}`); // the cost waits for the landing reveal
@@ -974,7 +1037,7 @@ async function deployDescription(description: string) {
 const input = new InputController(board.canvas, {
   playing: () => match()?.status === 'playing',
   started: () => (match()?.time ?? -1) > 0.5,
-  canDeploy: ([x, y]) => canDeployAt(x, y),
+  canDeploy: ([x, y]) => onBoard(x, y),
   toWorld: (px, py) => board.toWorld(px, py),
   begin: beginAt,
   deploy: designAt,
@@ -984,8 +1047,10 @@ const input = new InputController(board.canvas, {
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
   prefetch: words => {
     dropStep(null, 'STT', `partial "${words}"`);
-    prefetchDesign(words);
-    prefetchSprite(words);
+    const at = input.cursorSpot();
+    const spellOnly = !!at && spellSpot(at);
+    prefetchDesign(words, spellOnly);
+    if (!spellOnly) prefetchSprite(words);
   },
   released: (nonce, words) => {
     dropStep(nonce, 'MIC', `fire cut (released) with "${words}"`);
@@ -1018,7 +1083,7 @@ function flagMismatch() {
 const setup = initSetup(input, showTutorialOnce);
 // The hand model is ~17 MB: fetch it while the title and menu are up, once the page itself has
 // loaded, so the camera starts quickly. Touch-only devices type instead, so they skip it.
-if (!TOUCH) addEventListener('load', () => setTimeout(() => void preloadHandModel().catch(e => diag.warn('HAND', `hand model preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });
+if (!TOUCH) addEventListener('load', () => setTimeout(() => void warmHandTracker().catch(e => diag.warn('HAND', `hand tracker preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });
 
 // Input events from the controller, in the console under their stage.
 function inputEvent(kind: string, detail: string) {
@@ -1039,7 +1104,11 @@ $<HTMLFormElement>('describe').onsubmit = e => {
   if (TOUCH) input.blur(); // put the keyboard away so the board shows again
   deployDescription(text);
 };
-if (TOUCH) $<HTMLInputElement>('descInput').placeholder = 'Type a troop';
+if (TOUCH) {
+  $<HTMLInputElement>('descInput').placeholder = 'Type a troop';
+  document.body.classList.add('touch');
+  input.setMouseKeys(true); // a tap is the mouse here: it aims, and fires what was said or typed
+}
 
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) {
@@ -1064,14 +1133,22 @@ addEventListener('keydown', e => {
   }
 });
 
-board.canvas.addEventListener('mousemove', e => {
+// pointermove, not mousemove, so a finger dragging on a phone moves the aim too.
+board.canvas.addEventListener('pointermove', e => {
   if (!input.mouseKeys) return void (aim = lock = null);
   const [x, y] = board.toWorld(e.clientX, e.clientY);
-  aim = canDeployAt(x, y) ? [x, y] : null;
+  aim = onBoard(x, y) ? [x, y] : null;
 });
 board.canvas.addEventListener('mouseleave', () => (aim = null));
+board.canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' || !input.mouseKeys) return;
+  const [x, y] = board.toWorld(e.clientX, e.clientY);
+  aim = onBoard(x, y) ? [x, y] : null;
+});
 board.canvas.addEventListener('click', () => {
-  if (input.tookClick() || !aim) return; // a hold-to-talk press already deployed or cancelled
+  const taken = input.tookClick();
+  if (TOUCH) setTimeout(() => (aim = null)); // no hover on a phone: the ring goes with the finger
+  if (taken || !aim) return; // a hold-to-talk press already deployed or cancelled
   lock = aim;
   $('descInput').focus();
 });
@@ -1135,9 +1212,10 @@ function frame() {
     towers: m.towers(),
     troops,
     pendings: m.pendings(),
+    spells: m.spells(),
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
-    input: input.view(),
+    input: filmView?.() ?? input.view(),
     drops: m.status === 'playing' ? drops.views(performance.now()) : [],
     time: m.time,
     status: m.status,

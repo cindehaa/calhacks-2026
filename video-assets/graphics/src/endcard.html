@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>End card</title>
+<!-- Beat 6: a minimal end card, like a tech company's: black, who made it and for what, then the
+     logos of the tech that powers the game (logos/: Claude's spark, Cartesia's wordmark,
+     SpacetimeDB's mark and wordmark, each as the brand ships it for dark backgrounds). Everything
+     fades in at once and holds. ?dur=10 -->
+<link rel="stylesheet" href="kit.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=block">
+<style>
+  body { background: #000; --sans: 'Inter', system-ui, sans-serif; }
+  #col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #event { font: 600 52px var(--sans); color: #fff; letter-spacing: -.02em; }
+  #names { margin-top: 14px; font: 400 32px var(--sans); color: #8a8a8a; letter-spacing: -.01em; }
+  #by { margin: 110px 0 40px; font: 500 20px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: #6a6a6a; }
+  #logos { display: flex; align-items: center; gap: 120px; }
+  .logo { display: flex; align-items: center; gap: 18px; }
+  #url { position: absolute; left: 0; right: 0; bottom: 90px; text-align: center; font: 400 26px var(--sans); color: #8a8a8a; }
+</style>
+<div id="stage">
+  <div id="col">
+    <div id="event">Built for Cal Hacks 13.0</div>
+    <div id="names">by Isaac Ng and Cindy Li</div>
+    <div id="by">Powered by</div>
+    <div id="logos">
+      <div class="logo"><img src="logos/claude.svg" style="height:88px" alt="Claude"></div>
+      <div class="logo"><img src="logos/cartesia.svg" style="height:42px" alt="Cartesia"></div>
+      <div class="logo"><img src="logos/spacetimedb-mark.svg" style="height:72px" alt=""><img src="logos/spacetimedb-text.svg" style="height:36px" alt="SpacetimeDB"></div>
+    </div>
+  </div>
+  <div id="url"></div>
+</div>
+<script type="module">
+  import { P, num, life, register } from './kit.js';
+  const D = num('dur', 10);
+  document.getElementById('url').textContent = P.get('url') ?? 'artifice-game.vercel.app';
+  await Promise.all([...document.images].map((i) => i.decode()));
+  const stage = document.getElementById('stage');
+  register(D, (t) => { stage.style.opacity = life(t, D, 0.8, 0.6); });
+</script>
