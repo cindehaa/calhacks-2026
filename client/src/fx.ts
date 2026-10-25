@@ -828,15 +828,7 @@ export class Fx {
   drawBanners(g: CanvasRenderingContext2D, cx: number, cy: number, width: number, top: (w: number) => number): void {
     const now = this.now;
     const ct = now - this.countdownAt;
-    if (ct >= 0 && ct < COUNT_STEP * 3 + 0.8) {
-      const step = Math.floor(ct / COUNT_STEP);
-      const local = step < 3 ? (ct - step * COUNT_STEP) / COUNT_STEP : (ct - 3 * COUNT_STEP) / 0.8;
-      const text = step < 3 ? String(3 - step) : 'FIGHT!';
-      const pop = 1 + Math.max(0, 0.35 - local) * 1.6;
-      const alpha = local > 0.7 ? (1 - local) / 0.3 : 1;
-      const size = Math.min(width * (step < 3 ? 0.3 : 0.2), step < 3 ? 110 : 84) * pop;
-      this.bigText(g, text, cx, cy, size, step < 3 ? '#ffffff' : '#ffd27a', alpha);
-    }
+    if (ct >= 0 && ct < COUNT_STEP * 3 + FIGHT_HOLD) this.drawCountdown(g, cx, cy, width, ct);
     const dt = now - this.banner.at;
     if (dt >= 0 && dt < 2.4) {
       const inn = Math.min(1, dt / 0.18), out = dt > 1.9 ? (2.4 - dt) / 0.5 : 1;
@@ -860,6 +852,102 @@ export class Fx {
     }
   }
 
+  // 3, 2, 1 in the menus' style: a gold faceted figure (lit top half, amber bottom half on an
+  // extruded amber side, like the wordmark) on a frost octagon medallion with a dark split face and
+  // a solid side face, lit from the upper left. FIGHT! stretches the medallion into a chamfered slab
+  // whose rim catches amber, and throws off embers and ice chips.
+  private drawCountdown(g: CanvasRenderingContext2D, cx: number, cy: number, width: number, ct: number): void {
+    const step = Math.floor(ct / COUNT_STEP);
+    const fight = step >= 3;
+    const local = fight ? (ct - 3 * COUNT_STEP) / FIGHT_HOLD : (ct - step * COUNT_STEP) / COUNT_STEP;
+    const k = this.reduced ? 1 : Math.min(1, local / 0.24);
+    const grow = this.reduced ? 1 : 0.55 + 0.45 * backOut(k); // pops in past full size, then settles
+    const alpha = local > 0.72 ? (1 - local) / 0.28 : 1;
+    const r = Math.min(width * 0.14, 58) * grow; // the medallion's half height
+    const hw = fight ? r + (Math.min(width * 0.46, r * 3.1) - r) * (1 - (1 - k) ** 3) : r;
+    const text = fight ? 'FIGHT!' : String(3 - step);
+    g.save();
+    g.globalAlpha = Math.max(0, alpha);
+
+    // firelight (or a cold sheen) behind it
+    const glow = g.createRadialGradient(cx, cy, r * 0.4, cx, cy, hw + r * 1.4);
+    glow.addColorStop(0, fight ? 'rgba(255,138,46,0.34)' : 'rgba(156,195,224,0.16)');
+    glow.addColorStop(1, 'rgba(255,138,46,0)');
+    g.fillStyle = glow;
+    g.fillRect(cx - hw - r * 1.5, cy - r * 2.5, (hw + r * 1.5) * 2, r * 5);
+
+    if (!this.reduced) this.drawSparks(g, cx, cy, hw, r, local, fight);
+
+    // the solid side face below, then the rim, then the dark face inset in it
+    const c = r * 0.6, d = r * 0.13, rim = r * 0.12;
+    g.fillStyle = '#000';
+    chamfer(g, cx - hw, cy - r + d + 3, hw * 2, r * 2, c); g.fill();
+    g.fillStyle = fight ? '#8a4a00' : '#2b4a66';
+    chamfer(g, cx - hw, cy - r + d, hw * 2, r * 2, c); g.fill();
+    g.fillStyle = facets(g, cx, cy, hw, r, fight ? '#ffc45a' : '#dbe9f4', fight ? '#f39200' : '#9cc3e0');
+    chamfer(g, cx - hw, cy - r, hw * 2, r * 2, c); g.fill();
+    g.fillStyle = facets(g, cx, cy, hw, r, '#262e5e', '#1a2045');
+    chamfer(g, cx - hw + rim, cy - r + rim, (hw - rim) * 2, (r - rim) * 2, c - rim * 0.42); g.fill();
+    // a 1 px lit top edge
+    g.strokeStyle = 'rgba(255,255,255,0.7)';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(cx - hw + c, cy - r + 0.5); g.lineTo(cx + hw - c, cy - r + 0.5); g.stroke();
+
+    // the figure, wordmark style: black and amber side under a split gold face with a warm glow
+    let size = fight ? r * 0.9 : r * 1.18;
+    g.font = `${fight ? '700' : '900'} ${Math.round(size)}px ${fight ? "'Cinzel Decorative', 'Cinzel'" : "'Cinzel'"}, Georgia, serif`;
+    const fitW = (hw - rim) * 2 * 0.84, tw = g.measureText(text).width;
+    if (tw > fitW) {
+      size *= fitW / tw;
+      g.font = `${fight ? '700' : '900'} ${Math.round(size)}px ${fight ? "'Cinzel Decorative', 'Cinzel'" : "'Cinzel'"}, Georgia, serif`;
+    }
+    g.textAlign = 'center';
+    g.textBaseline = 'alphabetic';
+    const m = g.measureText(text);
+    const asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
+    const base = cy + (asc - desc) / 2 - size * 0.03; // optically centred, nudged up for its side
+    const depth = Math.max(2, size * 0.06);
+    g.fillStyle = '#000';
+    g.fillText(text, cx, base + depth + Math.max(1.5, size * 0.035));
+    g.fillStyle = '#8a4a00';
+    g.fillText(text, cx, base + depth);
+    const face = g.createLinearGradient(0, base - asc, 0, base + desc);
+    face.addColorStop(0, '#ffd27a'); face.addColorStop(0.5, '#ffd27a');
+    face.addColorStop(0.5, '#ffb02e'); face.addColorStop(1, '#ffb02e');
+    g.fillStyle = face;
+    g.shadowColor = 'rgba(255,138,46,0.55)';
+    g.shadowBlur = size * 0.28;
+    g.fillText(text, cx, base);
+    g.restore();
+  }
+
+  // Ice chips fly off each number; FIGHT! throws a ring of embers and ice. Small faceted diamonds,
+  // placed by a fixed scatter so each burst looks the same every frame it's drawn.
+  private drawSparks(g: CanvasRenderingContext2D, cx: number, cy: number, hw: number, r: number, local: number, fight: boolean): void {
+    const n = fight ? 18 : 8;
+    const e = 1 - (1 - Math.min(1, local / 0.6)) ** 2;
+    const fade = Math.max(0, 1 - local / 0.6);
+    if (fade <= 0) return;
+    for (let i = 0; i < n; i++) {
+      const j = Math.sin(i * 12.9898 + (fight ? 4.1 : 1.3)) * 43758.5453;
+      const rnd = j - Math.floor(j);
+      const a = (i / n) * Math.PI * 2 + rnd * 0.5;
+      const reach = (fight ? 1.2 : 0.6) + rnd * 0.9;
+      const x = cx + Math.cos(a) * (hw + r * reach * e);
+      const y = cy + Math.sin(a) * r * (1 + reach * e * 1.3) - (fight && i % 2 === 0 ? r * 0.5 * e : 0); // embers drift up
+      const s = r * (0.07 + rnd * 0.06) * (0.4 + 0.6 * fade);
+      const ember = fight && i % 2 === 0;
+      g.fillStyle = ember ? (rnd > 0.5 ? '#ffb02e' : '#ff8a2e') : (rnd > 0.5 ? '#dbe9f4' : '#9cc3e0');
+      g.beginPath();
+      g.moveTo(x, y - s * 1.4); g.lineTo(x + s, y); g.lineTo(x, y + s * 1.4); g.lineTo(x - s, y);
+      g.closePath();
+      g.save();
+      g.globalAlpha *= fade;
+      g.fill();
+      g.restore();
+    }
+  }
+
   private bigText(g: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string, alpha: number): void {
     g.save();
     g.globalAlpha = Math.max(0, alpha);
@@ -877,6 +965,27 @@ export class Fx {
 }
 
 const COUNT_STEP = COUNTDOWN / 3; // one number per second
+const FIGHT_HOLD = 0.8; // how long FIGHT! stays up
+
+const backOut = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
+
+// A rectangle with its corners cut at 45°: an octagon when it's square, like the menus' markers.
+function chamfer(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, c: number): void {
+  const cc = Math.min(c, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + cc, y); g.lineTo(x + w - cc, y); g.lineTo(x + w, y + cc); g.lineTo(x + w, y + h - cc);
+  g.lineTo(x + w - cc, y + h); g.lineTo(x + cc, y + h); g.lineTo(x, y + h - cc); g.lineTo(x, y + cc);
+  g.closePath();
+}
+
+// The menus' two-facet fill (CSS `linear-gradient(160deg, lit 0 56%, shadow 56% 100%)`).
+function facets(g: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number, lit: string, shadow: string): CanvasGradient {
+  const dx = Math.sin((160 * Math.PI) / 180), dy = -Math.cos((160 * Math.PI) / 180);
+  const L = Math.abs(hw * dx) + Math.abs(hh * dy);
+  const f = g.createLinearGradient(cx - dx * L, cy - dy * L, cx + dx * L, cy + dy * L);
+  f.addColorStop(0, lit); f.addColorStop(0.56, lit); f.addColorStop(0.56, shadow); f.addColorStop(1, shadow);
+  return f;
+}
 
 export function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const rr = Math.min(r, w / 2, h / 2);
