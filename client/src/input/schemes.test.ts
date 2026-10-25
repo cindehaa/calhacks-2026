@@ -1,6 +1,7 @@
 // The control scheme's state machine: feed signal sequences in, check the intents that come out.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { grab } from './schemes/grab';
 import { pinch } from './schemes/pinch';
 import type { Intent, Pt, SchemeCtx, Signal } from './schemes/types';
 
@@ -119,4 +120,57 @@ test('pinch: Space on a menu clicks at the fingertip', () => {
   r.send({ kind: 'hand', t: 0, visible: true, cursor: { x: 5, y: 6 }, overHalf: false, pinched: false, gestures: { Thumb_Down: 0, Open_Palm: 1, Pointing_Up: 1, Pinch: 0 } });
   r.send({ kind: 'key', t: 1, key: 'Space', repeat: false });
   assert.deepEqual(r.out, [{ kind: 'uiActivate', at: { x: 5, y: 6 }, fallback: true }]);
+});
+
+// ---------- hold and let go (grab.ts) ----------
+
+function grabRig(w: Partial<World> = {}) {
+  const world: World = { menus: false, playing: true, cursor: { x: 100, y: 400 }, waiting: 'goblin', camera: true, half: p => p.y > 300, ...w };
+  const out: Intent[] = [];
+  const ctx: SchemeCtx = {
+    menus: () => world.menus, playing: () => world.playing, cursor: () => world.cursor,
+    waiting: () => world.waiting, camera: () => world.camera, canDeployAt: p => world.half(p),
+  };
+  const inst = grab.create(i => void out.push(i), ctx);
+  return { world, out, inst, send: (s: Signal) => inst.on(s) };
+}
+const at = (t: number, x: number, pinched: boolean): Signal => ({
+  kind: 'hand', t, visible: true, cursor: { x, y: 400 }, overHalf: true, pinched,
+  gestures: { Thumb_Down: 0, Open_Palm: 0, Pointing_Up: 1, Pinch: pinched ? 1 : 0 },
+});
+
+test('grab: the close picks up, letting go places, aimed from just before it opened', () => {
+  const r = grabRig();
+  r.send(at(0, 100, true));
+  r.send({ kind: 'pinch', t: 0, aim: { x: 100, y: 400 } });
+  assert.deepEqual(r.out, [], 'nothing on the close');
+  assert.equal(r.inst.state?.(), 'holding');
+  for (let t = 33; t <= 330; t += 33) r.send(at(t, 100 + t, true)); // drag right
+  for (let t = 363; t <= 500; t += 33) r.send(at(t, 600, false)); // opens; the aim point jumps
+  assert.equal(r.out.length, 1);
+  const c = r.out[0] as Extract<Intent, { kind: 'commit' }>;
+  assert.equal(c.kind, 'commit');
+  assert.equal(c.by, 'release');
+  assert.ok(c.at!.x > 300 && c.at!.x < 400, `aimed from the drag, not the jump (${c.at!.x})`);
+  assert.equal(r.inst.state?.(), 'ready');
+});
+
+test('grab: a flicker open mid-drag does not drop it; losing the hand places nothing', () => {
+  const r = grabRig();
+  r.send({ kind: 'pinch', t: 0, aim: { x: 100, y: 400 } });
+  r.send(at(33, 100, true));
+  r.send(at(66, 100, false)); // one frame open
+  r.send(at(99, 100, true));
+  assert.deepEqual(r.out, []);
+  r.send({ kind: 'hand', t: 132, visible: false });
+  r.send(at(165, 100, false));
+  r.send(at(400, 100, false));
+  assert.deepEqual(r.out, [], 'hand lost: nothing placed');
+});
+
+test('grab: menus click on the close, as before', () => {
+  const r = grabRig({ menus: true });
+  r.send({ kind: 'pinch', t: 0, aim: { x: 3, y: 3 } });
+  assert.deepEqual(r.out, [{ kind: 'uiActivate', at: { x: 3, y: 3 } }]);
+  assert.notEqual(r.inst.state?.(), 'holding');
 });

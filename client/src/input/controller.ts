@@ -24,6 +24,7 @@ import { KEYS, load, save } from './store';
 import { CursorHistory, type Pt } from './trail';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
 import { activateUi, menuBack, menuMode, menuPointer } from './menus';
+import { grab } from './schemes/grab';
 import { pinch, THUMB_DOWN } from './schemes/pinch';
 import type { Intent, Scheme, SchemeCtx, SchemeInstance, Signal } from './schemes/types';
 import { DEV_MODE } from '../devmode';
@@ -33,6 +34,9 @@ import './input.css';
 export const TOUCH = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
 
 type Spot = [number, number]; // world coords
+
+const SCHEMES = { pinch, grab };
+type SchemeId = keyof typeof SCHEMES;
 
 // What the game provides. begin() starts the server-side deploy clock and returns its handle
 // (null refuses); deploy() and cancel() finish it.
@@ -65,7 +69,8 @@ export interface DeployHow {
 }
 
 // pinch: thresholds fitted to the player's hand (practice.ts) or set in the ⋯ menu, null for the defaults.
-interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref; pinch: PinchThresholds | null }
+// scheme: place on the pinch closing (pinch.ts) or on letting go of a held one (grab.ts, prototype).
+interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref; pinch: PinchThresholds | null; scheme: SchemeId }
 
 // A fire waiting for the recogniser to finish its last words: those from audio up to cut. The cut
 // happens FIRE_GRACE_MS after the fire (cut is Infinity until then: every word is the troop's).
@@ -112,14 +117,16 @@ export class InputController {
   private nearMiss = new NearMiss(); // pinches that almost close, for the pinch guide
   private trail = new CursorHistory(); // the hand cursor, to aim from before a pinch
 
-  readonly scheme: Scheme = pinch;
+  get scheme(): Scheme {
+    return SCHEMES[this.prefs.scheme] ?? pinch;
+  }
   private inst!: SchemeInstance;
   private inFlight = new Map<number, { at: Pt; sent: boolean }>(); // begun deploys, until they settle
   private handled = false; // an intent during this publish did something (a click that fired)
   readonly listeners: { signal: ((s: Signal) => void)[]; intent: ((i: Intent, ok: boolean) => void)[] } = { signal: [], intent: [] };
   private pinchT = -Infinity;
   private prefs: Prefs = {
-    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, camera: false, mic: false, mouseKeys: true, hand: 'auto', pinch: null,
+    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, camera: false, mic: false, mouseKeys: true, hand: 'auto', pinch: null, scheme: 'pinch',
     ...load<Partial<Prefs>>(KEYS.prefs),
   };
 
@@ -498,6 +505,13 @@ export class InputController {
     this.inst = this.scheme.create(i => this.act(i), ctx);
   }
 
+  setScheme(id: SchemeId): void {
+    this.prefs.scheme = id;
+    save(KEYS.prefs, this.prefs);
+    this.startScheme();
+    this.renderPanel();
+  }
+
   // What the scheme says it's doing, for the workshop page.
   schemeState(): string {
     return this.inst?.state?.() ?? '';
@@ -594,7 +608,8 @@ export class InputController {
 
 
   private cursorState(now: number): CursorState {
-    return now - this.pinchT < FIRE_SHOW_MS ? 'fire' : this.thumbDown >= THUMB_DOWN.score && !this.pinch.closed ? 'cancel' : 'open';
+    // Hold and let go: the cursor stays filled while the troop is held.
+    return now - this.pinchT < FIRE_SHOW_MS || this.schemeState() === 'holding' ? 'fire' : this.thumbDown >= THUMB_DOWN.score && !this.pinch.closed ? 'cancel' : 'open';
   }
 
   // ---------- fire / cancel ----------
@@ -746,7 +761,7 @@ export class InputController {
     sfx.play('miss');
     if (this.hinted) return;
     this.hinted = true;
-    const send = this.tracker ? 'pinch' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? (this.prefs.scheme === 'grab' ? 'pinch and let go' : 'pinch') : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
     notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
   }
@@ -872,6 +887,7 @@ export class InputController {
         <label>Pointing hand <select data-act="hand"><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
+        <label>Place troops <select data-act="scheme"><option value="pinch">On pinch</option><option value="grab">Hold, let go to place</option></select></label>
         <button data-act="calibrate" class="ghost">Fit pinch to my hand</button>
         <label title="Thumb to finger, in hand sizes: higher fires with a looser pinch">Pinch below <input type="range" data-act="pinchOn" min="0.15" max="0.8" step="0.01"><span class="inVal" data-val="pinchOn"></span></label>
         <label title="How far the hand has to open before the next pinch">Let go above <input type="range" data-act="pinchOff" min="0.25" max="1" step="0.01"><span class="inVal" data-val="pinchOff"></span></label>
@@ -892,6 +908,7 @@ export class InputController {
     q<HTMLInputElement>('mouseKeys').checked = this.prefs.mouseKeys;
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
     q<HTMLSelectElement>('hand').value = this.prefs.hand;
+    q<HTMLSelectElement>('scheme').value = this.prefs.scheme;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
     this.syncPinchUi();
     this.el.addEventListener('click', e => {
@@ -916,6 +933,7 @@ export class InputController {
       if (t.dataset.act === 'mouseKeys') this.prefs.mouseKeys = t.checked;
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
       if (t.dataset.act === 'hand') return this.setHandPref(t.value as HandPref);
+      if (t.dataset.act === 'scheme') return this.setScheme(t.value as SchemeId);
       if (t.dataset.act === 'vadDb') this.prefs.vadDb = this.vad.o.thresholdDb = Number(t.value);
       // The two pinch lines can't cross: moving one past the other pushes it along.
       if (t.dataset.act === 'pinchOn' || t.dataset.act === 'pinchOff') {
@@ -979,10 +997,10 @@ export class InputController {
 
   private hintText(): string {
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
-    const send = this.tracker ? 'pinch' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? (this.prefs.scheme === 'grab' ? 'pinch and let go' : 'pinch') : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'thumbs down' : TOUCH ? 'say “cancel”' : 'press Esc';
     if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;
-    if (this.tracker) return pinch.howTo;
+    if (this.tracker) return this.scheme.howTo;
     return `Say the troop, then ${send} to send it · ${clear} to cancel`;
   }
 
