@@ -1,6 +1,6 @@
 # Artifice
 
-A real-time, two-player arena battler where your deck is whatever you can describe. Point at the arena, say what the troop is, and AI turns your words into a fighting unit with stats, a price, artwork and its own voice.
+A real-time, two-player arena battler where your deck is whatever you can describe. Point at the arena, say what the troop is, and AI turns your words into a fighting unit with stats, quirks, a price and artwork. Say something that isn't a creature and it becomes a spell.
 
 Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeDB.
 
@@ -15,10 +15,12 @@ Built at Cal Hacks 13.0 (Oct 23–25, 2026) with Claude, Cartesia and SpacetimeD
 
 | Path | What |
 |---|---|
-| `shared/` | Plain TypeScript used everywhere: `sim.ts` (the combat `step()`), `troop.ts` (stat schema, clamps, `price()`), `anchors.ts` (the 10 reference troops), `arena.ts` (board and match constants), `prompt.ts` (the troop-designer prompt). |
+| `shared/` | Plain TypeScript used everywhere: `sim.ts` (the combat `step()`), `troop.ts` (stat schema, clamps, `price()`), `anchors.ts` (the 15 reference troops: 10 plain, 5 with quirks), `spell.ts` (the 12 spell effects), `arena.ts` (board and match constants), `prompt.ts` (the troop-designer prompt). |
 | `server/` | SpacetimeDB module: rooms, deploys, and the 20 Hz tick that runs `step()`. |
-| `client/` | Vite + TypeScript browser game: lobby, canvas arena, keyboard / mouse / text input, Cartesia STT. |
-| `api/` | Key proxy: one Vercel function per route, with the shared code in `api/_lib/` and a local server in `api/_dev.ts`. `POST /api/troop` turns a description into a priced troop with Claude, `POST /api/voice-token` mints a 60 s Cartesia token for the browser's sockets, `POST /api/sprite` draws a troop with fal and serves it at `/api/sprite/<id>.png` (cached in `.cache/sprites/`, or the function's temp dir on Vercel). |
+| `client/` | Vite + TypeScript browser game: lobby, 3D arena (Three.js), MediaPipe hand tracking, touch, keyboard / mouse / text input, Cartesia STT, the Pavilion. |
+| `api/` | Key proxy: one Vercel function per route, with the shared code in `api/_lib/` and a local server in `api/_dev.ts`. `POST /api/troop` turns a description into a priced troop with Claude, `POST /api/voice-token` mints a 60 s Cartesia token for the browser's sockets, `POST /api/sprite` draws a troop with fal and serves it at `/api/sprite/<id>.png`, `/api/pose` draws its attack-pose frame (both kept in `.cache/` locally, Vercel Blob when deployed). |
+| `sim/` | Headless balance sim: generated troops against the anchors, value per elixir. |
+| `bench/` | Designer benchmark (`npm run bench`, below). |
 | `meta/` | Spec, progress log and aesthetic vision. |
 
 ## Run it locally
@@ -60,12 +62,15 @@ The same store keeps gameplay recordings. Every match on the deployed site is re
 - **Talking a troop in:** start with `npm start` (or `npm run api` next to `npm run dev`); the api should print `voice: Cartesia`. Turn the mic on (setup screen, or the camera button top right; **Mic** top left at `/dev`; no camera needed), start a match, point the mouse at your half, **hold Space or the mouse button**, say the troop ("a fire dragon"), let go. Your words show at the spot as you talk and the troop deploys there. A hint under the text box says the same during a match. Without the api or a Cartesia key the browser's recogniser is used instead, which Chrome has and Brave doesn't.
 - **Mouse and keys:** say or type the troop, then click your half or press Space to send it there. Esc clears.
 - **First visit** opens a setup screen: turn on camera and mic, say hello. After that the camera and mic come back on by themselves each visit (the ⋯ menu has **Run setup again**).
-- **Camera** (camera button top right, or the top-left panel at `/dev`; opt-in): aim with the point halfway between your index and thumb tips, say the troop, pinch your thumb to any finger to send it, thumbs down to cancel a troop still being summoned, or before a pinch to clear the words said so far. On menus, a pinch clicks. The middle of the camera frame maps to the whole screen, like a touchpad; there's no calibration step. Space and Esc always stand in for the hand.
+- **Camera** (camera button top right, or the top-left panel at `/dev`; opt-in): aim with the point halfway between your index and thumb tips. Pinch your thumb to any finger to pick a troop up, say it while you hold (with the camera on, only words said during the pinch count), move to aim, and open your hand to place it. Thumbs down cancels a troop still being summoned (refunded), or before that clears the words said so far. On menus, letting go of a pinch clicks. The middle of the camera frame maps to the whole screen, like a touchpad. Setup fits the pinch threshold to your hand; the ⋯ menu has **Fit pinch to my hand** to redo it. Space and Esc always stand in for the hand.
 - **Mouse and keyboard** (⋯ menu, on by default): the mouse aims and clicks to send. Works alongside the hand; turn it off to play with the camera and mic only.
-- **Mic** (opt-in): always listening while on; everything said since the last send is the troop, and "cancel" cancels. Speech goes to Cartesia `ink-2` (the panel says "listening (Cartesia)"); without a Cartesia key, or if it can't connect, the browser's speech recognition takes over.
+- **Phone or tablet:** mic only, no camera. Hold a finger on your half, say the troop, drag to aim, lift to place.
+- **Mic** (opt-in): without the camera, always listening while on; everything said since the last send is the troop, and "cancel" cancels. Speech goes to Cartesia `ink-2` (the panel says "listening (Cartesia)"); without a Cartesia key, or if it can't connect, the browser's speech recognition takes over.
 - After you let go, your words, "designing…" and a silhouette show at the spot until the troop appears. `T` (or `?timings` in the URL) shows how long each step took; release → stats is the one that must beat the 2.5 s delay.
 - The view is 3D only: you start on top of your king tower, looking down the arena.
-- The 2.5 s deploy delay starts at the lock, so designing overlaps the wait. Cost shows once the troop lands; anything over 10, or over your embers (the resource; `elixir` in code), is refused with what it would have cost.
+- The 2.5 s deploy delay starts when you let go, and designing runs inside it. Cost shows only once the troop lands, so every description is a bet; anything over 15, or over your embers (the resource; `elixir` in code), is refused with what it would have cost.
+- **Spells:** the designer decides troop or spell from your words; aiming past your own deploy zone always casts a spell. Twelve effects across attack, nerf and buff; towers take 35% of spell damage.
+- **The Pavilion** (home screen, the result screen, or `/#pavilion`): every troop anyone has summoned.
 - Art is drawn while you talk and lands on the troop a second or two after it does; until then it fights as its placeholder token.
 - **Play vs Bot** (easy / normal / hard) runs the whole match in the browser, no server needed. `?` reopens the how-to card, `M` mutes all sound, music included.
 
