@@ -964,7 +964,7 @@ export class InputController {
     this.el.innerHTML = `
       <div class="inRow">
         <button data-act="cam" title="Pinch and hold, say it, aim, let go to place. Only what you say while pinching counts. Thumbs down to cancel.">Camera</button>
-        <button data-act="mic" title="Always listening while on: say the troop, then pinch, aim and let go, click, or press Space to send it">Mic</button>
+        <button data-act="mic" title="With the camera, say the troop while you pinch and hold; without it, say it, then click or press Space">Mic</button>
         <button data-act="menu" class="ghost" title="Camera and mic settings">⋯</button>
       </div>
       <div class="inPreview"><canvas></canvas></div>
