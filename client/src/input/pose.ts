@@ -53,11 +53,11 @@ export function thumbDownScore(lm: Landmark[], world: Landmark[], vw: number, vh
 
 // ---------- pinch ----------
 // Thumb tip against a finger's last segment, in hand sizes (the measure and thresholds from the
-// earlier pinch controls). Either the index or the middle finger counts, whichever closes first:
-// thumb to middle alone was hard for some hands.
+// earlier pinch controls). Any of the four fingers counts, whichever closes first: thumb to middle
+// alone was hard for some hands, and the aim no longer needs the index held still (pointerOf).
 export const PINCH_DEFAULTS = { on: 0.45, off: 0.65 };
 const THUMB_TIP = 4;
-const INDEX: [number, number] = [7, 8], MIDDLE: [number, number] = [11, 12]; // DIP → TIP
+const PADS: [number, number][] = [[7, 8], [11, 12], [15, 16], [19, 20]]; // DIP → TIP, index to pinky
 
 // Distance from p to the segment ab. The thumb meets the pad of the finger, not its tip landmark.
 export function segDist(p: number[], a: number[], b: number[]): number {
@@ -71,8 +71,13 @@ export function pinchMetric(lm: Landmark[], vw: number, vh: number): number {
   const P = (i: number) => [lm[i].x * vw, lm[i].y * vh];
   const s = handSize(lm, vw, vh);
   const d = ([a, b]: [number, number]) => segDist(P(THUMB_TIP), P(a), P(b)) / s;
-  return Math.min(d(INDEX), d(MIDDLE));
+  return Math.min(...PADS.map(d));
 }
+
+// Where the hand aims: halfway between the index and thumb tips, in the camera's 0..1 frame,
+// mirrored so moving your hand right moves the cursor right. Steadier than the index tip alone,
+// whichever finger the thumb goes to.
+export const pointerOf = (lm: Landmark[]): [number, number] => [1 - (lm[4].x + lm[8].x) / 2, (lm[4].y + lm[8].y) / 2];
 
 // A pinch closing this soon after the last one fired doesn't fire: in prod, a pointing hand's
 // thumb resting on the curled middle finger re-closed every 300-500 ms and fired empty deploys.
