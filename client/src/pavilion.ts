@@ -1,6 +1,6 @@
 // The Pavilion of Imagination: a wall of every troop and spell anyone has summoned, newest first
-// (repeats stacked into one pile), with the total, how many were yours, and your latest one in the spotlight. Opened from home and
-// from the result screen, or on its own at /pavilion (pavilion.html) for a second tab.
+// (repeats stacked into one pile), with the total, how many were yours, and your latest one in
+// the spotlight. An overlay over home or the result screen; /#pavilion opens it on load.
 //
 // It reads the public pavilion table over SpacetimeDB's HTTP SQL endpoint and polls for new rows,
 // rather than joining the game's subscription. That keeps it out of the game's way entirely: a
@@ -29,58 +29,81 @@ let onClose: (() => void) | null = null;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root!.querySelector(sel) as T;
 
-// The pavilion itself: a gabled stone roof with snow on it and icicles off the eaves, over a
-// carved beam with the name, between two columns with a brazier burning at each foot. The roof
-// scrolls away with the header; the columns and fires stay, framing the wall.
-function roof(): string {
-  let icicles = '';
-  for (let x = 14; x < 1000; x += 22 + ((x * 7) % 13)) {
-    const len = 8 + ((x * 13) % 17);
-    icicles += `<polygon points="${x - 4},188 ${x + 4},188 ${x},${188 + len}" fill="#dbe9f4" opacity="${0.55 + ((x * 3) % 5) / 10}"/>`;
+// ---------- the building ----------
+//
+// You stand in the portico looking in: two round columns and the gable overhead are the nearest
+// things, and behind them a room in CSS 3D (coffered ceiling, tiled floor, a colonnade down each
+// side open to the snow) recedes to one vanishing point. The wall of troops scrolls in front of
+// the room and under the roof. The pointer (and the scroll) nudge the vanishing point, so the near
+// columns and the far room slide against each other.
+
+// The gable, seen from a little below: snow on the raking cornice, its underside, the tympanum
+// with the star, then a row of modillions under the horizontal cornice and the frieze the name is
+// carved on. Drawn stretched to the screen's width, so only flat shapes and non-scaling strokes.
+function gable(): string {
+  let modillions = '', icicles = '';
+  for (let x = 8; x < 1000; x += 24) {
+    modillions += `<rect x="${x}" y="100" width="12" height="9" fill="#3b4478"/><rect x="${x}" y="106" width="12" height="3" fill="#141838"/>`;
   }
-  return `<svg class="pavRoof" viewBox="0 0 1000 214" preserveAspectRatio="none" aria-hidden="true">
-    <polygon points="20,160 500,24 500,160" fill="#343d6e"/><polygon points="500,24 980,160 500,160" fill="#252b4a"/>
-    <polygon points="120,152 500,50 500,152" fill="#1f2650"/><polygon points="500,50 880,152 500,152" fill="#181d3d"/>
-    <polyline points="120,152 500,50 880,152" fill="none" stroke="#f3d58a" stroke-width="3" vector-effect="non-scaling-stroke"/>
-    <polygon points="6,162 500,14 994,162 980,168 500,30 20,168" fill="#eef6fb"/>
-    <polygon points="500,14 994,162 980,168 500,30" fill="#9cc3e0"/>
-    <rect x="0" y="160" width="1000" height="16" fill="#2e3558"/><rect x="0" y="176" width="1000" height="12" fill="#1c2140"/>
-    <rect x="0" y="160" width="1000" height="2" fill="#ffffff30"/>
+  for (let x = 14; x < 1000; x += 21 + ((x * 7) % 13)) {
+    const len = 7 + ((x * 13) % 15);
+    icicles += `<polygon points="${x - 3.5},100 ${x + 3.5},100 ${x},${100 + len}" fill="#dbe9f4" opacity="${0.5 + ((x * 3) % 5) / 10}"/>`;
+  }
+  return `<svg class="pavGableSvg" viewBox="0 0 1000 176" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="pavTymp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151a3c"/><stop offset="1" stop-color="#232a58"/></linearGradient>
+      <linearGradient id="pavFrieze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b4478"/><stop offset=".12" stop-color="#2e3568"/><stop offset=".85" stop-color="#232a58"/><stop offset="1" stop-color="#141838"/></linearGradient>
+    </defs>
+    <polygon points="70,92 500,22 930,92" fill="url(#pavTymp)"/>
+    <polygon points="0,92 500,4 1000,92 1000,100 500,14 0,100" fill="#343d6e"/>
+    <polygon points="70,92 500,22 930,92 912,92 500,30 88,92" fill="#0e1230"/>
+    <polygon points="0,92 500,4 500,-6 0,84" fill="#eef6fb"/><polygon points="500,4 1000,92 1000,84 500,-6" fill="#b9d6ea"/>
+    <polyline points="110,92 500,34 890,92" fill="none" stroke="#f3d58a" stroke-width="2" vector-effect="non-scaling-stroke" opacity=".8"/>
+    <rect x="0" y="92" width="1000" height="8" fill="#4a5490"/><rect x="0" y="92" width="1000" height="1.5" fill="#eef6fb"/>
+    ${modillions}
+    <rect x="0" y="109" width="1000" height="60" fill="url(#pavFrieze)"/>
+    <rect x="0" y="109" width="1000" height="2" fill="#f3d58a" opacity=".55"/><rect x="0" y="167" width="1000" height="2" fill="#f3d58a" opacity=".35"/>
+    <rect x="0" y="169" width="1000" height="7" fill="#0b0e22"/>
     ${icicles}
   </svg>`;
 }
 
+// A near column: capital (abacus and echinus), a fluted round shaft lit by its brazier, and a
+// base (torus on a plinth), with the brazier standing on the plinth.
 function column(side: 'l' | 'r'): string {
   const sparks = Array.from({ length: 9 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${(i * 0.53) % 3}s;--t:${2.2 + ((i * 0.7) % 1.6)}s"></i>`).join('');
   return `<div class="pavCol ${side}" aria-hidden="true">
-    <div class="pavCap"></div><div class="pavShaft"></div><div class="pavBase"></div>
+    <div class="pavAbacus"></div><div class="pavEchinus"></div><div class="pavNeck"></div>
+    <div class="pavShaft"></div>
+    <div class="pavTorus"></div><div class="pavPlinthBase"></div>
     <div class="pavFire"><div class="pavGlowFire"></div><div class="pavSparks">${sparks}</div>
       <div class="pavFlame"><i></i><i></i><i></i></div><div class="pavBowl"></div><div class="pavStand"></div></div>
   </div>`;
 }
 
-function build(standalone: boolean): HTMLElement {
+// The room behind: a box open at the front, its back wall far off, its sides colonnades.
+function room(): string {
+  return `<div class="pavStage" aria-hidden="true"><div class="pavRoom">
+    <div class="pavCeiling"></div><div class="pavFloor"></div>
+    <div class="pavSide l"></div><div class="pavSide r"></div>
+    <div class="pavRear"><div class="pavRearGlow"></div></div>
+  </div></div>`;
+}
+
+function build(): HTMLElement {
   const el = document.createElement('div');
   el.id = 'pavilion';
-  el.className = `pavilion${standalone ? ' standalone' : ''}`;
+  el.className = 'pavilion';
   el.hidden = true;
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-labelledby', 'pavTitle');
-  // Standalone, "close" is the way into the game; over the game it just closes.
-  const close = standalone
-    ? `<a id="pavilionClose" class="slab amber pavPlay" href="/"><span class="face"><i class="ico" data-icon="swords" data-tone="carved" data-size="26"></i><b>Play</b></span></a>`
-    : `<button id="pavilionClose" class="slab stone icon" aria-label="Close"><span class="face"><i class="ico" data-icon="close" data-tone="light" data-size="18"></i></span></button>`;
   el.innerHTML = `
     <img class="gBg" src="/ui/home.svg" alt="">
-    <div class="pavDim"></div>
     <canvas class="hubSky" aria-hidden="true"></canvas>
-    <div class="pavFloor" aria-hidden="true"></div>
+    ${room()}
+    <div class="pavDim"></div>
     <div class="pavScroll">
       <header class="pavHead">
-        <div class="pavGable">${roof()}<span class="pavEmblem">${icon('star', 'gold', 54)}</span></div>
-        <div class="pavBeam">
-          <h2 id="pavTitle" class="pavTitle">Pavilion of Imagination</h2>
-        </div>
         <div class="pavCount"><b id="pavTotal">0</b><small>summoned this weekend</small></div>
         <p class="pavSub"><span id="pavYours"></span><span id="pavKinds"></span></p>
         <p id="pavStatus" class="pavStatus" hidden></p>
@@ -89,19 +112,49 @@ function build(standalone: boolean): HTMLElement {
       <div class="pavWallHead" id="pavWallHead"><i></i><span class="gLabel">The collection</span><i></i></div>
       <div id="pavWall" class="pavWall"></div>
     </div>
-    ${column('l')}${column('r')}
-    <div class="pavClose">${close}</div>
+    <div class="pavNear">
+      <div class="pavGable">${gable()}<span class="pavEmblem">${icon('star', 'gold', 46)}</span>
+        <h2 id="pavTitle" class="pavTitle">Pavilion of Imagination</h2></div>
+      ${column('l')}${column('r')}
+    </div>
+    <button id="pavilionClose" class="slab stone pavBack" aria-label="Back"><span class="face"><i class="ico" data-icon="close" data-tone="light" data-size="22"></i><b>Back</b></span></button>
     <div id="pavToast" class="pavToast" hidden></div>`;
   mountIcons(el);
-  el.querySelector('button#pavilionClose')?.addEventListener('click', () => closePavilion());
+  el.querySelector('#pavilionClose')!.addEventListener('click', () => closePavilion());
   hubFx(el.querySelector<HTMLCanvasElement>('.hubSky')!); // the same snow as home; it only draws while shown
+  parallax(el);
   return el;
 }
 
-// Creates the screen (hidden) once. `standalone` is the /pavilion page, where it's all there is.
-export function mountPavilion(opts: { standalone?: boolean; onClose?: () => void } = {}): void {
+// The pointer, and how far the wall has scrolled, lean the view: the vanishing point drifts with
+// them (eased, so a shaky hand doesn't jitter it) and the near portico slides the other way.
+function parallax(el: HTMLElement) {
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  const scroll = el.querySelector<HTMLElement>('.pavScroll')!;
+  let tx = 0, ty = 0, x = 0, y = 0, raf = 0;
+  const tick = () => {
+    raf = 0;
+    const s = Math.min(1, scroll.scrollTop / 1200);
+    x += (tx - x) * 0.08;
+    y += (ty + s * 0.6 - y) * 0.08;
+    el.style.setProperty('--px', x.toFixed(4));
+    el.style.setProperty('--py', y.toFixed(4));
+    if (!el.hidden && (Math.abs(tx - x) > 0.002 || Math.abs(ty + s * 0.6 - y) > 0.002)) raf = requestAnimationFrame(tick);
+  };
+  const kick = () => { if (!raf && !still.matches) raf = requestAnimationFrame(tick); };
+  addEventListener('pointermove', e => {
+    if (el.hidden) return;
+    tx = (e.clientX / innerWidth) * 2 - 1;
+    ty = (e.clientY / innerHeight) * 2 - 1;
+    kick();
+  }, { passive: true });
+  scroll.addEventListener('scroll', kick, { passive: true });
+}
+
+// Creates the screen (hidden) once. `onClose` runs whenever it closes.
+export function mountPavilion(opts: { onClose?: () => void } = {}): void {
   if (root) return;
-  root = build(!!opts.standalone);
+  root = build();
   onClose = opts.onClose ?? null;
   document.body.appendChild(root);
 }
@@ -237,7 +290,7 @@ function render(cascade: boolean, arrived: Exhibit[] = []): void {
       const [main, light] = colors(e);
       spot.innerHTML = `<span class="gLabel">${icon('star', 'gold', 16)} Your latest summon</span>
         <div class="pavSpotStage" style="--el:${main};--elLight:${light}"><i class="pavBeamL"></i><i class="pavBeamR"></i>
-          <div class="pavSpotCard">${card(e, e.spriteUrl, true, true)}</div><div class="pavPlinth"></div></div>`;
+          <div class="pavSpotCard">${card(e, e.spriteUrl, true, true)}</div><div class="pavPlinthTop"></div><div class="pavPlinth"></div></div>`;
       watchArt(spot);
     }
     spot.hidden = false;
