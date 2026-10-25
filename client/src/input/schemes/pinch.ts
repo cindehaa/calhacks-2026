@@ -18,7 +18,7 @@ export const THUMB_DOWN = { score: 0.7, holdMs: 250, afterPinchMs: 400 };
 export const pinch: Scheme = {
   id: 'pinch',
   name: 'Pinch',
-  howTo: 'Say it, pinch and hold to aim, let go to place. Thumbs down to cancel.',
+  howTo: 'Pinch and hold, say it while you aim, let go to place. Thumbs down to cancel.',
   needs: ['hand', 'pinch', 'words', 'deploy', 'key', 'mouse'],
   create(emit, ctx) {
     const pending = new Pending();
