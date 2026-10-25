@@ -23,7 +23,10 @@ const REMOVE_TIMEOUT_MS = 3000; // past this, the browser keys the background it
 // (art_store.ts); the sprite function serves it either way (the rewrites in vercel.json).
 const STORE = artStore('sprites');
 
-export const hasFalKey = () => !!(process.env.FAL_KEY ?? '').trim();
+// FAL_KEY_FALLBACK is a second account's key, used when the first one errors (out of balance, revoked,
+// rate limited, down).
+const falKeys = () => [process.env.FAL_KEY, process.env.FAL_KEY_FALLBACK].map(k => (k ?? '').trim()).filter(Boolean);
+export const hasFalKey = () => falKeys().length > 0;
 
 // Generated art as the api serves it: '/api/<kind>/<id>.png', or '.key.png?key' when the
 // background is still on and the browser has to key it.
@@ -130,19 +133,43 @@ const FAL_SLOTS = 8;
 let falBusy = 0;
 const falQueue: (() => void)[] = [];
 
-// fal's synchronous endpoint: one POST, the result in the response.
+// A key that answered 401/403 (revoked, or locked for an exhausted balance) is skipped for a while,
+// so every call doesn't pay a failed round trip before reaching the fallback.
+const KEY_COOLDOWN_MS = 10 * 60_000;
+const keyDeadUntil = new Map<string, number>();
+
+// fal's synchronous endpoint: one POST, the result in the response. An HTTP error or a failed
+// connection moves on to the next key; a timeout doesn't, since the caller's time is already spent.
 export async function fal<T>(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<T> {
   if (falBusy >= FAL_SLOTS) await new Promise<void>(go => falQueue.push(go));
   falBusy++;
   try {
-    const r = await fetch(`https://fal.run/${model}`, {
-      method: 'POST',
-      headers: { Authorization: `Key ${(process.env.FAL_KEY ?? '').trim()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!r.ok) throw new Error(`${model}: ${r.status} ${(await r.text()).slice(0, 160)}`);
-    return (await r.json()) as T;
+    const keys = falKeys();
+    const live = keys.filter(k => (keyDeadUntil.get(k) ?? 0) < Date.now());
+    const order = live.length ? live : keys;
+    const signal = AbortSignal.timeout(timeoutMs);
+    let err: unknown;
+    for (const [i, key] of order.entries()) {
+      try {
+        const r = await fetch(`https://fal.run/${model}`, {
+          method: 'POST',
+          headers: { Authorization: `Key ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+          signal,
+        });
+        if (!r.ok) {
+          if (r.status === 401 || r.status === 403) keyDeadUntil.set(key, Date.now() + KEY_COOLDOWN_MS);
+          throw new Error(`${model}: ${r.status} ${(await r.text()).slice(0, 160)}`);
+        }
+        keyDeadUntil.delete(key);
+        return (await r.json()) as T;
+      } catch (e) {
+        err = e;
+        if (signal.aborted || i === order.length - 1) break;
+        console.warn(`fal key ${i + 1} failed, trying the fallback:`, e instanceof Error ? e.message.slice(0, 160) : e);
+      }
+    }
+    throw err;
   } finally {
     falBusy--;
     falQueue.shift()?.();
