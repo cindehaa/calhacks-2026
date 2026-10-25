@@ -126,13 +126,14 @@
 .pavWall { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: clamp(22px, 2vw, 30px) clamp(18px, 1.8vw, 26px); max-width: 1500px; margin: 0 auto; }
 .pavEmpty { grid-column: 1 / -1; text-align: center; font-size: 18px; color: var(--muted); padding: 40px 0; }
 /* Each pile stands like a slab on the floor: leaned back a touch, with a solid edge under it (the
-   game's slab drop shadow) and a contact shadow; it lifts upright when pointed at. */
-.pavWall { perspective: 1200px; }
-.pavPile { position: relative; transform-origin: 50% 100%; transform: rotateX(7deg) rotate(calc(var(--tilt) * .3));
+   game's slab drop shadow) and a contact shadow; it lifts upright when pointed at. The perspective
+   is each pile's own: one on the whole wall puts the eye at the wall's middle, and on a long
+   collection the rows far above or below it are seen so steeply they squash flat. */
+.pavPile { position: relative; transform-origin: 50% 100%; transform: perspective(900px) rotateX(7deg) rotate(calc(var(--tilt) * .3));
   filter: drop-shadow(0 7px 0 #0b0e22) drop-shadow(0 3px 0 #000);
   transition: transform .55s cubic-bezier(.33, 1, .68, 1), filter .55s cubic-bezier(.33, 1, .68, 1); } /* settling back: unhurried */
 .pavPile::before { content: ''; position: absolute; left: 4%; right: 4%; bottom: -22px; height: 22px; border-radius: 50%; background: radial-gradient(ellipse, #000b, transparent 70%); }
-.pavPile:hover { transition-duration: .45s; transform: translateY(-10px) rotateX(0deg) rotate(calc(var(--tilt) * .3)); filter: drop-shadow(0 10px 0 #0b0e22) drop-shadow(0 18px 18px #000c); z-index: 1; }
+.pavPile:hover { transition-duration: .45s; transform: perspective(900px) translateY(-10px) rotateX(0deg) rotate(calc(var(--tilt) * .3)); filter: drop-shadow(0 10px 0 #0b0e22) drop-shadow(0 18px 18px #000c); z-index: 1; }
 .pavPile.rise { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
 .pavSheet { position: absolute; inset: 0; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   background: linear-gradient(160deg, #1c2140 0 56%, #151a36 56% 100%); box-shadow: inset 0 0 0 1px #2a3050; }
