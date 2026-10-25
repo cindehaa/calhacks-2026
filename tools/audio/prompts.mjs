@@ -118,7 +118,7 @@ const MUSIC_STYLE =
 export const MUSIC = {
   menu: {
     prompt: `cosy winter fireside lobby theme, warm plucked strings, celesta and soft music-box bells, gentle frosty chimes, relaxed, 100 BPM, ${MUSIC_STYLE}`,
-    duration: 60,
+    duration: 120,
   },
   battle: {
     prompt: `energetic orchestral battle theme on a frozen night, driving war drums, warm brass stabs over icy shimmering strings and glockenspiel, 120 BPM, ${MUSIC_STYLE}`,

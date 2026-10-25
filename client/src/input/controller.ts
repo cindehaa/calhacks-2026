@@ -82,7 +82,7 @@ function pointing(f: HandFrame): number {
   return (d(8) / (others || 1e-9) - 1.1) / 0.6;
 }
 
-const PINCH_AIM_MS = 100; // a pinch aims from the fingertip this long before it closed
+const PINCH_AIM_MS = 100; // a pinch aims from where the hand was this long before it closed
 
 const FLUSH_MS = 600; // cap on finalising an utterance when the talking stops or the words are cleared
 const LOST_MS = 1000; // hand out of view this long before "show your hand"
@@ -445,6 +445,11 @@ export class InputController {
 
   private cursor(): Pt | null {
     return this.handCursor ?? (this.prefs.mouseKeys ? this.mouse : null);
+  }
+
+  // Where the hand points, null with no hand. The home screen leans toward it as it does the mouse.
+  handPoint(): Pt | null {
+    return this.handCursor;
   }
 
   // ---------- the scheme: signals in, intents out ----------

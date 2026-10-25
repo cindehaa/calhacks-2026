@@ -13,7 +13,7 @@
 //    (the mic hand was picked up first).
 //  - A Left/Right preference only ever accepts that hand.
 import { applyH, DEFAULT_H } from './homography';
-import { thumbDownScore, type Landmark } from './pose';
+import { pointerOf, thumbDownScore, type Landmark } from './pose';
 
 export type Side = 'left' | 'right';
 export type HandPref = 'auto' | Side;
@@ -57,7 +57,7 @@ export function features(h: HandIn): HandFeatures {
   const grip = fingers.every(curled) && thumbDownScore(lm, world, 1, 1) < 0.5;
   const othersCurl = Math.min(...fingers.slice(1).map(r => clamp01((1.45 - r) / 0.3)));
   const pointing = Math.min(clamp01((fingers[0] - 1.3) / 0.35), othersCurl);
-  const [u, v] = applyH(DEFAULT_H, [1 - lm[8].x, lm[8].y]);
+  const [u, v] = applyH(DEFAULT_H, pointerOf(lm));
   const overBoard = u >= 0 && u <= 1 && v >= 0 && v <= 1;
   const nearMouth = center[1] < 0.25 || (center[1] < 0.6 && Math.abs(center[0] - 0.5) < 0.25);
   return { center, fingers, grip, pointing, overBoard, nearMouth };

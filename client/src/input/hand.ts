@@ -2,7 +2,6 @@
 // while the menu is up (preloadHandModel) and the camera status counts the bytes in.
 import { diag } from '../diag';
 import type { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
-import type { Pt2 } from './homography';
 import { sideFromLabel, type Side } from './handpick';
 import type { Landmark } from './pose';
 
@@ -94,9 +93,7 @@ export const HAND_CONNECTIONS: [number, number][] = [
   [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
 ];
 
-// The index fingertip aims, whatever the rest of the hand is doing. Mirrored so moving your hand
-// right moves the cursor right.
-export const pointerOf = (lm: Landmark[]): Pt2 => [1 - lm[8].x, lm[8].y];
+export { pointerOf } from './pose';
 
 export class HandTracker {
   readonly video: HTMLVideoElement;

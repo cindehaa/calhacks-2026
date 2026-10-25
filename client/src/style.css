@@ -500,8 +500,15 @@ body:not(.devMode) .devSettings { display: none; }
    Practice slab, so you can see tracking works before a match (never the camera image). The slot
    keeps its width when the camera is off, so Play online stays centred. */
 .handSlot { width: 172px; height: 113px; }
-.handSlot #handView:not([hidden]) { display: flex; position: static; width: 100%; height: 100%; padding: 6px 6px 8px; box-sizing: border-box; justify-content: center; }
-.handSlot #handView canvas { width: 100px; height: 76px; }
+/* there it is a stone slab like Practice beside it: same faces, chamfer, side and Cinzel label.
+   The side is a drop shadow on the slot, since the panel's own clip-path would cut it off. */
+.handSlot:has(#handView:not([hidden])) { filter: drop-shadow(0 9px 0 #0b0e22) drop-shadow(0 3px 0 #000); }
+.handSlot #handView:not([hidden]) { display: flex; position: static; width: 100%; height: 104px; padding: 8px 8px 10px; box-sizing: border-box; justify-content: center; gap: 6px;
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); border: 0; box-shadow: none; background: linear-gradient(160deg, #252b4a 0 56%, #1c2140 56% 100%); }
+.handSlot #handView canvas { width: 100px; height: 62px; }
+.handSlot #handView .hvState { font: 700 14px var(--cinzel); letter-spacing: .04em; text-transform: none; }
+.handSlot #handView[data-state="none"] .hvState { color: #fff; }
+.handSlot:has(#handView:not([hidden])) #handBtn { display: none; } /* camera off: a button to turn it on instead */
 #handView canvas { width: 128px; height: 120px; }
 #handView .hvState { font: 700 12px var(--chakra); letter-spacing: .08em; white-space: nowrap; text-transform: uppercase; color: var(--muted); text-align: center; }
 #handView[data-state="open"] .hvState { color: var(--amber); }

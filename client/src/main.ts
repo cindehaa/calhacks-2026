@@ -119,10 +119,12 @@ for (const [sel, house, rim, phase] of [['left', 'raven', 'right', 0], ['right',
 }
 resultFx($<HTMLCanvasElement>('resultSky'), () => ($('result').classList.contains('win') ? 'win' : $('result').classList.contains('lose') ? 'lose' : 'draw'));
 // The home menu's mist leans a little toward the cursor (the 3D arena under it leans in pov.ts).
-$('lobby').addEventListener('pointermove', e => {
-  $('lobby').style.setProperty('--px', ((e.clientX / innerWidth) * 2 - 1).toFixed(3));
-  $('lobby').style.setProperty('--py', ((e.clientY / innerHeight) * 2 - 1).toFixed(3));
-});
+// The hand cursor leans it the same way (see frame()).
+function leanMist(x: number, y: number) {
+  $('lobby').style.setProperty('--px', ((x / innerWidth) * 2 - 1).toFixed(3));
+  $('lobby').style.setProperty('--py', ((y / innerHeight) * 2 - 1).toFixed(3));
+}
+$('lobby').addEventListener('pointermove', e => leanMist(e.clientX, e.clientY));
 hubFx(document.querySelector('#lobby .hubSky')!, { embers: document.querySelector<HTMLElement>('#lobby .islandWrap')! });
 // Things react to pokes (react.ts): buttons, the home banners and wordmark, and the board.
 menuReactions();
@@ -260,6 +262,13 @@ renderLast();
 $('botBtn').onclick = () => openPractice(true);
 // No matchmaking yet: Play online opens a room, with code boxes to join a friend's instead.
 $('battleBtn').onclick = () => openRaven();
+// Home's camera button, where the virtual hand goes: asks for the camera, and if that fails opens
+// setup, which says how to allow it.
+$('handBtn').onclick = async e => {
+  (e.currentTarget as HTMLElement).blur();
+  await input.setCamera(true);
+  if (!input.setupState().camera) setup.open();
+};
 $('camBtn').onclick = e => {
   setup.open();
   (e.currentTarget as HTMLElement).blur();
@@ -1007,7 +1016,9 @@ function frame() {
   const visible = $('title').hidden;
   if (!m || !$('lobby').hidden) {
     if (!m) $('roomInfo').textContent = '';
-    board.draw({ mySide: 0, units: [], towers: HOME_TOWERS, troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby' }, visible);
+    const hand = input.handPoint();
+    if (hand) leanMist(hand.x, hand.y);
+    board.draw({ mySide: 0, units: [], towers: HOME_TOWERS, troops: new Map(), pendings: [], aim: null, lock: null, status: 'lobby', point: hand }, visible);
     recorder.update(false, false);
     return;
   }

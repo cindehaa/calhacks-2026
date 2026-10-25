@@ -43,20 +43,23 @@ test('cursor history returns the latest sample at or before t', () => {
   assert.equal(h.at(15)?.x, 3, 'old samples are trimmed');
 });
 
-test('pinch: fires once per pinch, with hysteresis, on either finger', async () => {
+test('pinch: fires once per pinch, with hysteresis, on any finger', async () => {
   const { PinchDetector, pinchMetric } = await import('./pose');
   const d = new PinchDetector();
   const fires = [0.9, 0.6, 0.44, 0.3, 0.5, 0.6, 0.44, 0.3, 0.7, 0.4].map((r, i) => d.push(r, i * 100));
   assert.deepEqual(fires.map((f, i) => (f ? i : -1)).filter(i => i >= 0), [2, 9]);
-  // An upright hand; the thumb tip on the middle finger's pad, then on the index's, then away.
+  // An upright hand; the thumb tip on each finger's pad in turn, then away.
   const hand = (thumb: [number, number]) => {
     const px: [number, number][] = Array.from({ length: 21 }, () => [320, 300]);
     px[0] = [320, 400]; px[5] = [280, 300]; px[9] = [320, 300]; px[17] = [380, 300];
-    px[7] = [280, 240]; px[8] = [280, 220]; px[11] = [320, 230]; px[12] = [320, 210]; px[4] = thumb;
+    px[7] = [280, 240]; px[8] = [280, 220]; px[11] = [320, 230]; px[12] = [320, 210];
+    px[15] = [350, 240]; px[16] = [350, 220]; px[19] = [380, 250]; px[20] = [380, 235]; px[4] = thumb;
     return px.map(([x, y]) => ({ x: x / 640, y: y / 480, z: 0 }));
   };
   assert.ok(pinchMetric(hand([322, 222]), 640, 480) < 0.45);
   assert.ok(pinchMetric(hand([281, 232]), 640, 480) < 0.45, 'thumb to index counts too');
+  assert.ok(pinchMetric(hand([352, 242]), 640, 480) < 0.45, 'thumb to ring counts');
+  assert.ok(pinchMetric(hand([382, 252]), 640, 480) < 0.45, 'thumb to pinky counts');
   assert.ok(pinchMetric(hand([200, 330]), 640, 480) > 0.65);
 });
 
@@ -90,4 +93,12 @@ test('thumbs down: thumb pointing down under curled fingers scores high; a pinch
   assert.ok(thumbDownScore(image([300, 230]), world(0.6), 640, 480) < 0.1, 'pinch: thumb tip up at the fingers');
   assert.ok(thumbDownScore(image([292, 420]), world(0), 640, 480) < 0.1, 'thumb down but fingers open');
   assert.ok(thumbDownScore(image([380, 340]), world(1), 640, 480) < 0.1, 'thumb out sideways');
+});
+
+test('pointer: halfway between the index and thumb tips, mirrored', async () => {
+  const { pointerOf } = await import('./pose');
+  const lm = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
+  lm[8] = { x: 0.2, y: 0.3, z: 0 }; lm[4] = { x: 0.4, y: 0.5, z: 0 };
+  const [u, v] = pointerOf(lm);
+  assert.ok(Math.abs(u - 0.7) < 1e-9 && Math.abs(v - 0.4) < 1e-9);
 });

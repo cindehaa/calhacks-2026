@@ -57,6 +57,7 @@ export interface View {
   aim: [number, number] | null; // world coords, own half only
   lock: [number, number] | null;
   input?: InputView; // hand cursor, pinch / voice lock and transcript, in screen px
+  point?: { x: number; y: number } | null; // the hand cursor on the home screen, for the camera's lean
   drops?: DropView[]; // your released drops still waiting on words or stats, world coords
   // Optional match state, for banners and stingers (3-2-1, double elixir, win/lose).
   time?: number; // match seconds elapsed
