@@ -36,7 +36,8 @@ const broll = (slug) => ({ src: `broll/${slug}.mp4`, from: 1.4, len: 1.6, mute: 
 
 const BATTLE = 'game-audio/music/battle.mp3', OVERTIME = 'game-audio/music/overtime.mp3';
 const SHOTS = [
-  { src: 'film/out/cold-open.mp4', ownMusic: true },
+  // The cold open with its faces and subtitle baked in (coldopen.mjs --faces --subtitle --out ...).
+  { src: existsSync(p('film/out/cold-open-baked.mp4')) ? 'film/out/cold-open-baked.mp4' : 'film/out/cold-open.mp4', ownMusic: true },
   { src: clip('cindy', '02-match-start'), music: { track: BATTLE, from: 3, gain: 0.45 } },
   { src: clip('cindy', '03-aim'), over: call('aim', '2 aim', '2-aim') },
   { src: clip('cindy', '04-imagine'), over: [...call('imagine', '3 imagine it', '3-imagine-it'), note('cartesia')] },

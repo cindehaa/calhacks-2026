@@ -8,7 +8,7 @@ The gameplay doesn't need screen-recording: the whole duel is rendered from the 
 
 | Beat | Time | Asset |
 |---|---|---|
-| 1 Cold open, stitched | 0:00 | `film/out/cold-open.mp4` (13 s): drone, banners, face slates, countdown, with the line, its subtitle, the game's battle music and swooshes. `node scripts/coldopen.mjs --isaac <clip> --cindy <clip>` swaps the slates for the filmed intros |
+| 1 Cold open, stitched | 0:00 | `film/out/cold-open.mp4` (11.5 s): drone, banners at 2x, countdown, with the line, the battle music and swooshes; the face slots are black and the subtitle is left off, for laying on in the editor. The pieces are in `film/out/cold-open/` (each face's push-in, the banners at 2x, `timings.json`); `cold-open-baked.mp4` has everything baked in |
 | 1.1 Drone shot | 0:00 | `film/out/drone.mp4` (7 s). Narrator `narrator/1 cold open.m4a` + `graphics/out/subtitle-1-cold-open.mov` |
 | 1.2–1.3 Team banners | 0:04 | `graphics/out/banner-sun.mp4` (Isaac, red) and `banner-raven.mp4` (Cindy, blue). Alpha versions: `banner-*-alpha.mov`. Swoosh into each face: `sfx/swoosh_1..3.mp3`, `sfx/banner_flap.mp3` |
 | 1.4 Countdown | 0:08 | `film/out/clips/<view>/01-countdown.mp4`, the game's own 3-2-1-FIGHT! |
