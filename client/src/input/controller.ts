@@ -545,13 +545,14 @@ export class InputController {
     return ok;
   }
 
-  // Take back the deploy still being summoned: the words still being finalised, else the newest
-  // one whose deploy_troop hasn't gone out. Nothing has been paid by then, so it's a full refund.
+  // Take back the deploy still being summoned: the words still being finalised, else the oldest
+  // one whose deploy_troop hasn't gone out, so with troops queued for embers each thumbs down
+  // clears the first in line, then the next. Nothing has been paid by then, so it's a full refund.
   private cancelPending(why: string): boolean {
     if (this.firing) return this.clear(why);
     const open = [...this.inFlight].filter(([, v]) => !v.sent);
     if (!open.length) return false;
-    const [nonce, { at }] = open[open.length - 1];
+    const [nonce, { at }] = open[0];
     this.inFlight.delete(nonce);
     this.flash(at, 'cancel', 'cancelled');
     this.host.cancel(nonce, `cancelled (${why})`, '');
@@ -566,6 +567,15 @@ export class InputController {
     if (!f) return;
     f.sent = true;
     this.publish({ kind: 'deploy', t: performance.now(), phase: 'sent', nonce });
+  }
+
+  // From the game: the match refused it for embers and it went back in the queue, so it can be
+  // cancelled again.
+  deployQueued(nonce: number): void {
+    const f = this.inFlight.get(nonce);
+    if (!f || !f.sent) return;
+    f.sent = false;
+    this.publish({ kind: 'deploy', t: performance.now(), phase: 'pending', nonce });
   }
 
   deployDone(nonce: number): void {
