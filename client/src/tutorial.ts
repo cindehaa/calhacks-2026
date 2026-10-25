@@ -1,6 +1,7 @@
 // First-time how-to-play card. Shows once (remembered in localStorage) after the setup screen,
 // closes itself after 10 s or when the match starts, and the "?" button or key reopens it.
 
+import { TOUCH } from './input/controller';
 import { pinchArt, pointArt, sayArt } from './input/handart';
 
 const SEEN_KEY = 'arena.tutorialSeen';
@@ -38,6 +39,15 @@ function close() {
   el.hidden = true;
   clearTimeout(tick);
   markSeen();
+}
+
+// Phones: say or type, then tap. No hands, no keys.
+if (el && TOUCH) {
+  const steps = el.querySelectorAll('ol li span:last-child');
+  steps[0].innerHTML = '<b>Say</b> a troop with the mic, or <b>type</b> one, like “wizard with fire”.';
+  steps[1].innerHTML = '<b>Tap</b> your half where it goes. It costs <b>embers</b>.';
+  el.querySelector('p.sub')!.textContent = 'Wrong troop? Say “cancel” before it lands.';
+  el.querySelector('.tutFoot .sub')!.textContent = 'Reopen with ?';
 }
 
 if (el) {

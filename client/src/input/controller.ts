@@ -172,11 +172,14 @@ export class InputController {
     });
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
     // Clicking the board with words waiting fires them there. With nothing said it's an ordinary
-    // click, which picks the spot for typing.
+    // click, which picks the spot for typing. On a phone, typed words fire at the tap too: the
+    // keyboard covers the board, so typing first and then tapping where is the natural order.
     canvas.addEventListener('mousedown', e => {
       this.clickTaken = false;
-      if (e.button !== 0 || !this.prefs.mouseKeys || !this.prompt.text || this.firing) return;
-      this.clickTaken = this.publish({ kind: 'mouse', t: performance.now(), at: { x: e.clientX, y: e.clientY }, phase: 'down' });
+      const typed = TOUCH && !!this.host.typedText().trim();
+      if (e.button !== 0 || !this.prefs.mouseKeys || !(this.prompt.text || typed) || this.firing) return;
+      this.clickTaken = typed ? this.fire({ x: e.clientX, y: e.clientY }, 'mouse') : this.publish({ kind: 'mouse', t: performance.now(), at: { x: e.clientX, y: e.clientY }, phase: 'down' });
+      if (typed && this.clickTaken) (document.activeElement as HTMLElement | null)?.blur();
     });
     // Space fires at the cursor (hand or mouse); Esc throws the words away. An empty text box
     // doesn't count as typing during a match: clicking the board focuses it.
@@ -978,6 +981,7 @@ export class InputController {
   }
 
   private hintText(): string {
+    if (!this.mic.on && TOUCH) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it in the browser’s site settings, or type a troop` : 'Type a troop and tap your half, or tap the mic (top right) to say it';
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
     const send = this.tracker ? 'pinch' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'thumbs down' : TOUCH ? 'say “cancel”' : 'press Esc';
