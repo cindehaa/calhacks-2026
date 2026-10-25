@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Subtitle</title>
+<!-- The narrator's line as a plain lower-third subtitle: frost-white Alegreya over a soft dark scrim,
+     each word rising in at its start time in the recording. Place it at the same start as the .m4a.
+     ?text=Aim with your finger.&words=1.14,1.36,1.56,1.68&dur=3.4&y=980 (no words: the whole line fades in) -->
+<link rel="stylesheet" href="kit.css">
+<style>
+  #scrim { position: absolute; left: 50%; border-radius: 50%; background: radial-gradient(closest-side, #05070fc0, #05070f80 55%, transparent); }
+  #line { position: absolute; left: 50%; margin: 0; width: max-content; max-width: 1500px; text-align: center; font: 700 44px/1.25 var(--ui); color: #e8ebf5; letter-spacing: .01em;
+    text-shadow: 0 2px 3px #000d, 0 0 16px #000a; }
+  #line span { display: inline-block; white-space: pre; }
+</style>
+<div id="stage"><div id="scrim"></div><p id="line"></p></div>
+<script type="module">
+  import { P, num, prog, ease, mix, life, register } from './kit.js';
+  const D = num('dur', 3.4), Y = num('y', 980), RISE = 0.18;
+  const line = document.getElementById('line'), scrim = document.getElementById('scrim');
+  const words = (P.get('text') ?? 'Aim with your finger.').split(/\s+/);
+  const at = P.get('words')?.split(',').map(Number);
+  // Laid out whole from the start, so revealing a word never moves the others.
+  line.innerHTML = words.map((w, i) => `<span>${w}${i < words.length - 1 ? ' ' : ''}</span>`).join('');
+  const spans = [...line.children];
+  document.fonts.ready.then(() => {
+    const w = line.offsetWidth, h = line.offsetHeight;
+    line.style.top = `${Y - h / 2}px`; line.style.marginLeft = `${-w / 2}px`;
+    scrim.style.width = `${w + 280}px`; scrim.style.height = `${h + 110}px`;
+    scrim.style.top = `${Y - (h + 110) / 2}px`; scrim.style.marginLeft = `${-(w + 280) / 2}px`;
+  });
+  register(D, (t) => {
+    const first = at ? at[0] : 0, all = life(t, D, 0.01, 0.3);
+    scrim.style.opacity = Math.min(prog(t, first - 0.15, 0.3, ease.linear), all);
+    spans.forEach((s, i) => {
+      const k = at ? prog(t, at[i] ?? at[at.length - 1], RISE, ease.out) : prog(t, 0, 0.25, ease.linear);
+      s.style.opacity = Math.min(k, all);
+      s.style.transform = `translateY(${mix(10, 0, k)}px)`;
+    });
+  });
+</script>

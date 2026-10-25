@@ -32,10 +32,22 @@ const JOBS = [
   // Feature callouts, in duel order (beats 2.2 to 2.7).
   ['callout-aim', 'callout', { text: 'Aim with|your finger' }, 1.2, true],
   ['callout-imagine', 'callout', { text: 'If you can imagine it,|you can summon it' }, 1.2, true],
-  ['callout-deploy', 'callout', { text: 'Open your hand,|and your imagination|comes to life' }, 1.2, true],
+  ['callout-deploy', 'callout', { text: 'Open your hand,|and watch it|come to life' }, 1.2, true],
+  ['callout-stats', 'callout', { text: 'Every troop|gets fair stats' }, 1.2, true],
   ['callout-cost', 'callout', { text: 'The more powerful the troop,|the more embers it costs' }, 1.2, true],
   ['callout-live', 'callout', { text: 'Play your friends|live' }, 1.2, true],
   ['callout-start', 'callout', { text: 'Start!', dur: 1.6 }, 0.8, true],
+  // Narrator subtitles, one per recorded line (narrator/*.m4a): word start times from the recording,
+  // and the file's length plus 0.4 s, so each lines up placed at the same start as its audio.
+  ...[
+    ['1-cold-open', 3.24, 'Welcome to the battle of creativity.', [0.36, 0.72, 1.34, 1.46, 1.76, 2.1]],
+    ['2-aim', 3.01, 'Aim with your finger.', [1.14, 1.36, 1.56, 1.68]],
+    ['3-imagine-it', 3.07, 'If you can imagine it, you can summon it.', [0.1, 0.34, 0.42, 0.54, 0.86, 1.4, 1.64, 1.84, 2.14]],
+    ['4-deploy', 3.24, 'Open your hand and watch it come to life.', [0.4, 0.72, 0.9, 1.26, 1.64, 1.94, 2.08, 2.32, 2.48]],
+    ['5-troop-generated', 2.82, 'Every troop gets fair stats.', [0.86, 1.14, 1.38, 1.66, 1.9]],
+    ['6-cost', 3.93, 'The more powerful the troop, the more embers it costs.', [0.36, 0.5, 0.7, 1.12, 1.32, 1.7, 1.84, 2.1, 2.54, 2.72]],
+    ['7-play-live', 2.56, 'Play your friends live.', [0.52, 0.76, 0.96, 1.38]],
+  ].map(([n, len, text, words]) => [`subtitle-${n}`, 'subtitle', { text, words: words.join(','), dur: +(len + 0.4).toFixed(2) }, +(len - 0.2).toFixed(2), true]),
   // Small sponsor credits under the features.
   ['credit-cartesia', 'credit', { by: 'speech by', name: 'Cartesia' }, 1.5, true],
   ['credit-claude', 'credit', { by: 'designed by', name: 'Claude' }, 1.5, true],

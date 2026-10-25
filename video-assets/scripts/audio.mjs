@@ -1,15 +1,14 @@
 #!/usr/bin/env node
-// Generates the demo video's narrator lines (Cartesia TTS), music cues and sound effects (fal:
-// ElevenLabs music and sound effects), in the game's warmth-and-frost style (meta/aesthetics.md).
-// Same models and keys as the game's own pack (tools/audio/generate.mjs).
+// Generates the demo video's music cues and sound effects (fal: ElevenLabs music and sound
+// effects), in the game's warmth-and-frost style (meta/aesthetics.md). Same models and keys as the
+// game's own pack (tools/audio/generate.mjs). The narrator is recorded by us (narrator/).
 //
-//   node --env-file=.env video-assets/scripts/audio.mjs [--only narrator/aim,music] [--force]
+//   node --env-file=.env video-assets/scripts/audio.mjs [--only music/hype,sfx/meow] [--force]
 //
 // Re-running skips files that already exist; --force with --only re-rolls them. Writes
 // video-assets/audio.json listing every file with its prompt.
 
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -18,38 +17,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { values: args } = parseArgs({
   options: { only: { type: 'string' }, force: { type: 'boolean', default: false }, concurrency: { type: 'string', default: '4' } },
 });
-
-// ---- Narrator ---------------------------------------------------------------
-// A trailer voice played dead straight. Every line is voiced by both main voices so the pick can be
-// made by ear; the opening line also gets an audition in four more.
-const VOICES = {
-  sterling: 'b134c304-d095-4d2b-a77a-914f5e8e84e7', // deep, commanding, dignified
-  damon: 'dbfa416f-d5c3-4006-854b-235ef6bdf4fd', // deep, serious, documentary gravitas
-};
-const AUDITION = {
-  darius: '23112795-d54e-4560-9568-791a87c30201', // husky, commanding
-  mark: '5619d38c-cf51-4d8e-9575-48f61a280413', // broadcast promo
-  clint: 'db69127a-dbaf-4fa9-b425-2fe67680c348', // raspy, dramatic
-  harlan: 'a892d232-f705-40d7-bc8d-e368b295ec2a', // old radio announcer
-};
-const B = (ms) => `<break time="${ms}ms"/>`;
-const LINES = {
-  // Cold open: the brief's line first, then two alternates.
-  open_a: `Are you up for${B(250)} a battle of creativity?`,
-  open_b: `Two players.${B(500)} One arena.${B(600)} And nothing but their imagination.`,
-  open_c: `This year${B(400)} only the most creative${B(300)} will survive.`,
-  countdown: `Three.${B(500)} Two.${B(500)} One.${B(500)} Start.`,
-  // Feature callouts, in the order they happen in the duel.
-  aim: 'Aim with your finger.',
-  imagine_a: `If you can imagine it${B(400)} you can summon it.`,
-  imagine_b: 'Your imagination is your deck.',
-  imagine_c: `No cards.${B(400)} Just imagination.`,
-  deploy_a: `Open your hand${B(400)} and your imagination comes to life.`,
-  deploy_b: `Drop it in.${B(400)} Watch it come to life.`,
-  cost: `The more powerful the troop${B(400)} the more embers it costs.`,
-  live: `Play your friends.${B(400)} Live.`,
-};
-const NARRATION = { speed: 0.9, emotion: 'serious' };
 
 // ---- Music -----------------------------------------------------------------
 // Every game track sits on a fireplace crackle; the video's cues keep it where it doesn't muddy.
@@ -98,10 +65,6 @@ const SFX = {
 // ---- Jobs ------------------------------------------------------------------
 function jobs() {
   const out = [];
-  for (const [line, text] of Object.entries(LINES)) {
-    for (const [name, id] of Object.entries(VOICES)) out.push({ key: `narrator/${line}.${name}`, ext: 'wav', kind: 'voice', text, voice: id });
-  }
-  for (const [name, id] of Object.entries(AUDITION)) out.push({ key: `narrator/audition/open_a.${name}`, ext: 'wav', kind: 'voice', text: LINES.open_a, voice: id });
   const takes = (dir, table, kind) => {
     for (const [name, s] of Object.entries(table)) {
       const n = s.variants ?? 1;
@@ -148,32 +111,7 @@ async function falWith(key, model, body) {
   return fetchOk(submit.response_url, { headers }).then((r) => r.json());
 }
 
-async function cartesia(job) {
-  const body = (config) => JSON.stringify({
-    model_id: 'sonic-3.6',
-    transcript: job.text,
-    voice: { mode: 'id', id: job.voice },
-    language: 'en',
-    output_format: { container: 'wav', encoding: 'pcm_s16le', sample_rate: 44100 },
-    ...(config && { generation_config: config }),
-  });
-  const init = (config) => ({
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.CARTESIA_API_KEY}`, 'Cartesia-Version': '2026-08-14', 'Content-Type': 'application/json' },
-    body: body(config),
-  });
-  try {
-    return Buffer.from(await fetchOk('https://api.cartesia.ai/tts/bytes', init(NARRATION)).then((r) => r.arrayBuffer()));
-  } catch (e) {
-    if (!/^4\d\d/.test(e.message)) throw e;
-    // An emotion the model doesn't know: fall back to speed alone.
-    console.warn(`  cartesia rejected ${JSON.stringify(NARRATION)}, retrying with speed only: ${e.message.slice(0, 160)}`);
-    return Buffer.from(await fetchOk('https://api.cartesia.ai/tts/bytes', init({ speed: NARRATION.speed })).then((r) => r.arrayBuffer()));
-  }
-}
-
 async function generate(job) {
-  if (job.kind === 'voice') return cartesia(job);
   const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
   const result = job.kind === 'music'
     ? await fal('fal-ai/elevenlabs/music', { prompt: job.prompt, music_length_ms: Math.round(job.duration * 1000), force_instrumental: true })
@@ -185,13 +123,6 @@ async function generate(job) {
   const file = result.audio ?? result.audio_file;
   if (!file?.url) throw new Error(`no audio in result: ${JSON.stringify(result).slice(0, 300)}`);
   return Buffer.from(await fetchOk(file.url).then((r) => r.arrayBuffer()));
-}
-
-// Narration comes back quiet and uneven; bring every line to -16 LUFS, the usual level for voice-over.
-function normalise(path) {
-  const tmp = `${path}.tmp.wav`;
-  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', path, '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '44100', '-c:a', 'pcm_s16le', tmp]);
-  renameSync(tmp, path);
 }
 
 // ---- Run -------------------------------------------------------------------
@@ -208,10 +139,7 @@ async function worker() {
       const audio = await generate(job);
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, audio);
-      if (job.kind === 'voice') normalise(path);
-      index[`${job.key}.${job.ext}`] = job.kind === 'voice'
-        ? { kind: 'voice', text: job.text, voice: job.voice, ...NARRATION }
-        : { kind: job.kind, prompt: job.prompt, duration: job.duration };
+      index[`${job.key}.${job.ext}`] = { kind: job.kind, prompt: job.prompt, duration: job.duration };
       console.log(`ok  ${job.key}.${job.ext} (${(audio.length / 1024).toFixed(0)} KB)`);
     } catch (e) {
       failed++;

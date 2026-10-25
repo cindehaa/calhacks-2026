@@ -37,7 +37,7 @@ const FLY_S = 1.6; // seconds from the home view to your eye
 // to a steeper view fitted to the whole board, which is portrait too. It blends in as the space
 // above the dock narrows from `wide` to `narrow`.
 const TALL = { pitch: -1.05, fov: 50, wide: 1.2, narrow: 0.8, top: 64 };
-interface Pose { x: number; y: number; z: number; pitch: number; yaw: number; fov: number }
+export interface Pose { x: number; y: number; z: number; pitch: number; yaw: number; fov: number }
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 const SPELL_AIM = '#c58bff'; // the aim past your zone, where only a spell lands
@@ -127,6 +127,7 @@ export class PovBoard {
   private lastView: View | null = null;
   private summons!: SummonCircles;
   eye: Eye = 'top';
+  filmPose: Pose | null = null; // film.ts: a scripted camera in place of your eye
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private cam = new THREE.PerspectiveCamera(62, 1, 0.05, 250);
@@ -451,7 +452,7 @@ export class PovBoard {
     }
     this.yaw += ((homeMode ? nx * HOME.lean : -nx * 0.22) - this.yaw) * k;
     this.pitch += ((homeMode ? ny * 0.03 : ny * 0.1) - this.pitch) * k;
-    const target = homeMode ? this.homePose(real) : this.eyePose(now, real);
+    const target = this.filmPose ?? (homeMode ? this.homePose(real) : this.eyePose(now, real));
     const t = this.flyFrom ? Math.min(1, (real - this.flyAt) / FLY_S) : 1;
     if (t >= 1) this.flyFrom = null;
     const f = this.flyFrom, e = ease(t);

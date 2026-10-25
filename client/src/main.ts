@@ -12,6 +12,7 @@ import { isCancel, Transcript } from './input/speech';
 import { spokenLetters } from './input/spell';
 import { LocalMatch } from './local';
 import { OnlineMatch, type MatchSource } from './match';
+import type { InputView } from './input/draw';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
 import { Recorder } from './recorder';
@@ -72,7 +73,9 @@ function dial() {
     netMsg
   );
 }
-dial();
+// Film mode (dev only): a scripted match for the demo video (film.ts), with no server.
+const FILM = import.meta.env.DEV && new URLSearchParams(location.search).has('film');
+if (!FILM) dial();
 runHealthCheck();
 
 // The connection dropped: "reconnecting…" while it redials every few seconds, and if that's
@@ -514,7 +517,7 @@ function byForfeit(m: MatchSource) {
 }
 
 function foeName(m: MatchSource) {
-  if (local) return `Bot (${local.level})`;
+  if (local) return local.foe || `Bot (${local.level})`;
   const r = myRoom(), id = m.side === 0 ? r?.guest : r?.host;
   return (id && net?.conn.db.player.identity.find(id)?.name) || 'Opponent';
 }
@@ -924,6 +927,21 @@ if (import.meta.env.DEV) {
   });
 }
 
+// The film script plays both sides through the same paths as a real match: your lines through
+// beginAt / designAt like a pinch and your voice, the other side's as the opponent's drops.
+let filmView: (() => InputView | undefined) | null = null;
+if (FILM) {
+  void import('./film').then(f => f.openFilm({
+    board, drops, beginAt, designAt,
+    start: m => {
+      lock = aim = null;
+      ravenOpen = false;
+      local = m;
+    },
+    setView: v => (filmView = v),
+  }));
+}
+
 // Lock first so the deploy delay overlaps generation, then design, then deploy.
 function beginAt(spot: [number, number], by: string): number | null {
   if (match()?.status !== 'playing') return null;
@@ -1183,7 +1201,7 @@ function frame() {
     spells: m.spells(),
     aim: m.status === 'playing' ? aim : null,
     lock: m.status === 'playing' ? lock : null,
-    input: input.view(),
+    input: filmView?.() ?? input.view(),
     drops: m.status === 'playing' ? drops.views(performance.now()) : [],
     time: m.time,
     status: m.status,

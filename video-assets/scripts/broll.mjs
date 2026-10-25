@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// B-roll: each troop's real game sprite (troops/<slug>.png, from troops.mjs) is placed into a frame
-// of the live arena (broll/plates/arena-match.png) by an image-edit model, then animated charging
-// the enemy tower by an image-to-video model. Both on fal. The clips run 5 s; cut 1–2 s from them.
+// B-roll: each troop's real game sprite (troops/<slug>.png, from troops.mjs) is placed into a
+// ground-level frame of the real arena (broll/plates/ground-*.png, from plates.mjs) by an image-edit
+// model, then animated charging straight at whoever is standing there by an image-to-video model,
+// both on fal: the view of someone in the arena watching it come. The clips run 5 s; cut 1–2 s.
 //
 //   node --env-file=../.env scripts/broll.mjs [--only taylor-swift,skibidi] [--force]
 //
@@ -19,17 +20,18 @@ const { values: args } = parseArgs({ options: { only: { type: 'string' }, force:
 const EDIT = 'fal-ai/nano-banana/edit';
 const VIDEO = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
 
-// What each troop does on screen. The sprite is the second image, the arena the first.
+// What each troop does on screen, and which ground it charges across: Isaac's troops come at
+// someone standing on Cindy's side (red towers behind them), Cindy's at someone on Isaac's.
 const SHOTS = {
-  'taylor-swift': 'She sprints across the board toward the red tower, revving the chainsaw over her head, sequins glittering, snow kicking up behind her',
-  skibidi: 'The toilet charges across the board toward the red tower on its little legs, swinging both knives, lid flapping',
-  titan: 'The giant stomps across the board toward the red tower, the ground cracking into ice under each step, lightning crackling from its crown',
-  cat: 'The tiny cat trots calmly across the board toward the red tower and sits down, blinking innocently',
+  'taylor-swift': { plate: 'ground-blue', move: 'She sprints straight at the camera revving the chainsaw over her head, sequins glittering, snow kicking up behind her' },
+  skibidi: { plate: 'ground-red', move: 'The toilet charges straight at the camera on its little legs, swinging both knives, lid flapping' },
+  titan: { plate: 'ground-blue', move: 'The giant stomps straight at the camera, the ground cracking into ice under each step, lightning crackling from its crown' },
+  cat: { plate: 'ground-red', move: 'The tiny cat trots calmly straight up to the camera and sits down right in front of it, blinking innocently' },
 };
 
 const LOOK = 'Keep the arena exactly as it is: the same low-poly snowy night, braziers, river, bridges, towers and camera angle. Keep the character exactly as drawn in its own chunky stylised 3D mobile-game style, but light it to match the scene (cold moonlight, warm brazier glow on one side), with a soft shadow on the ground. No text, no UI, no health bars.';
-const place = () => `Place the character from the second image into the first image, standing on the near half of the board just in front of the left bridge, large and clearly visible (about a third of the frame tall), facing the red tower across the river, mid-stride. ${LOOK}`;
-const move = (slug) => `${SHOTS[slug]}. The camera pushes in slowly and dramatically, cinematic slow motion, epic movie-trailer shot. The low-poly snowy arena stays the same; snow falls, the braziers flicker. Keep the character's look and art style exactly.`;
+const place = () => `Place the character from the second image into the first image, on the board in front of the camera, mid-charge straight toward the camera, large in the foreground (about half the frame tall), seen from a low ground-level angle looking slightly up at it, the towers behind it. ${LOOK}`;
+const move = (slug) => `${SHOTS[slug].move}. Low ground-level camera, as if standing in the arena as it rushes closer and fills the frame; the camera holds steady with a slight handheld sway, cinematic slow motion, epic movie-trailer shot. The low-poly snowy arena stays the same; snow falls, the braziers flicker. Keep the character's look and art style exactly.`;
 
 const falKeys = [process.env.FAL_KEY, process.env.FAL_KEY_FALLBACK].map((k) => (k ?? '').trim()).filter(Boolean);
 async function fetchOk(url, init) {
@@ -61,8 +63,11 @@ async function fal(model, body) {
 
 // Images go up as data URIs; the plate as a JPEG to keep the request small.
 const dataUri = (path, type) => `data:${type};base64,${readFileSync(path).toString('base64')}`;
-const plateJpg = join(root, 'broll/plates/arena-match.jpg');
-if (!existsSync(plateJpg)) execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(root, 'broll/plates/arena-match.png'), '-q:v', '3', plateJpg]);
+function plateJpg(name) {
+  const jpg = join(root, `broll/plates/${name}.jpg`);
+  if (!existsSync(jpg)) execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(root, `broll/plates/${name}.png`), '-q:v', '3', jpg]);
+  return jpg;
+}
 
 async function one(slug) {
   const still = join(root, 'broll', `${slug}.still.png`), clip = join(root, 'broll', `${slug}.mp4`);
@@ -70,7 +75,7 @@ async function one(slug) {
   if (args.force || !existsSync(still)) {
     const r = await fal(EDIT, {
       prompt: place(),
-      image_urls: [dataUri(plateJpg, 'image/jpeg'), dataUri(join(root, 'troops', `${slug}.png`), 'image/png')],
+      image_urls: [dataUri(plateJpg(SHOTS[slug].plate), 'image/jpeg'), dataUri(join(root, 'troops', `${slug}.png`), 'image/png')],
       num_images: 1,
       output_format: 'png',
       aspect_ratio: '16:9',

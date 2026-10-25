@@ -2,22 +2,24 @@
 
 Everything generated for the 3:00 demo video, in one place to cut from. It follows the story beats doc (cold open, duel, title card, montage, URL, end card). The look and sound come from the game itself (`meta/aesthetics.md`): frozen night, firelight gold, Cinzel type, faceted stone slabs, embers and ice.
 
-Footage we film or screen-record ourselves (faces, the duel from both laptops, the drone shot, the result screen) isn't here yet.
+The gameplay doesn't need screen-recording: the whole duel is rendered from the real game (film mode, below), from both players' screens, and cut into one clip per beat. What's left to film is people: see [FILMING.md](FILMING.md).
 
 ## Cue sheet
 
 | Beat | Time | Asset |
 |---|---|---|
-| 1.1 Cold open, drone shot | 0:00 | `music/cold_open.mp3` under it. Narrator `narrator/open_a.*.wav` ("Are you up for a battle of creativity?"), or `open_b` / `open_c` |
+| 1 Cold open, stitched | 0:00 | `film/out/cold-open.mp4` (13 s): drone, banners, face slates, countdown, with the line, its subtitle, music and swooshes. `node scripts/coldopen.mjs --isaac <clip> --cindy <clip>` swaps the slates for the filmed intros |
+| 1.1 Drone shot | 0:00 | `film/out/drone.mp4` (7 s). Narrator `narrator/1 cold open.m4a` + `graphics/out/subtitle-1-cold-open.mov` |
 | 1.2–1.3 Team banners | 0:04 | `graphics/out/banner-sun.mp4` (Isaac, red) and `banner-raven.mp4` (Cindy, blue). Alpha versions: `banner-*-alpha.mov`. Swoosh into each face: `sfx/swoosh_1..3.mp3`, `sfx/banner_flap.mp3` |
-| 1.4 Countdown | 0:08 | The game's own 3-2-1-FIGHT!, or `narrator/countdown.*.wav` with `graphics/out/callout-start.mov` |
+| 1.4 Countdown | 0:08 | `film/out/clips/<view>/01-countdown.mp4`, the game's own 3-2-1-FIGHT! |
+| 2.x The duel | 0:10 | `film/out/clips/cindy/` and `clips/isaac/`: one clip per beat, 02-match-start to 20-result, each with the game's sound. Full renders: `film/out/duel-<view>.mp4` + `.wav` |
 | 2.1 Match starts | 0:10 | `game-audio/music/battle.mp3` under the callouts; `game-audio/announcer/match_start.mp3` |
-| 2.2 Aim | 0:14 | `callout-aim.mov` + `narrator/aim.*.wav` + `sfx/callout_stamp_*.mp3` |
-| 2.3 Imagine it | 0:20 | `callout-imagine.mov` + `narrator/imagine_a.*.wav` (alternates `imagine_b`, `imagine_c`) + `credit-cartesia.mov` |
-| 2.4 Deploy | 0:26 | `callout-deploy.mov` + `narrator/deploy_a.*.wav` (alt `deploy_b`); `game-audio/sfx/deploy_pending.mp3` |
-| 2.5 Troop generated | 0:30 | `stats-knight.mov` (sprite, stats and quirks pop in, then "designed by Claude") + `credit-claude.mov` if you want it separate. `sfx/slowmo_boom.mp3` |
-| 2.6 Cost | 0:38 | `callout-cost.mov` + `narrator/cost.*.wav` + `sfx/cost_reel.mp3` |
-| 2.7 The reply | 0:42 | Optional `callout-live.mov` + `narrator/live.*.wav` + `credit-spacetimedb.mov` |
+| 2.2 Aim | 0:14 | `callout-aim.mov` + `narrator/2 aim.m4a` + `subtitle-2-aim.mov` + `sfx/callout_stamp_*.mp3` |
+| 2.3 Imagine it | 0:20 | `callout-imagine.mov` + `narrator/3 imagine it.m4a` + `subtitle-3-imagine-it.mov` + `credit-cartesia.mov` |
+| 2.4 Deploy | 0:26 | `callout-deploy.mov` + `narrator/4 deploy.m4a` + `subtitle-4-deploy.mov`; `game-audio/sfx/deploy_pending.mp3` |
+| 2.5 Troop generated | 0:30 | `callout-stats.mov` + `narrator/5 troop generated.m4a` + `subtitle-5-troop-generated.mov`; `stats-knight.mov` (sprite, stats and quirks pop in, then "designed by Claude") + `credit-claude.mov` if you want it separate. `sfx/slowmo_boom.mp3` |
+| 2.6 Cost | 0:38 | `callout-cost.mov` + `narrator/6 cost.m4a` + `subtitle-6-cost.mov` + `sfx/cost_reel.mp3` |
+| 2.7 The reply | 0:42 | Optional `callout-live.mov` + `narrator/7 play live.m4a` + `subtitle-7-play-live.mov` + `credit-spacetimedb.mov` |
 | 2.8 The turn | 0:52 | `music/turn_drone.mp3`, `sfx/heartbeat.mp3` |
 | 2.9 Escalation | 1:00 | `music/escalation_build_1.mp3` or `_2` (46 s, builds to a climax at its end; trim its start so the climax hits 1:42). Captions: `graphics/out/stills/caption-*.png`. B-roll: `broll/taylor-swift.mp4`, `broll/skibidi.mp4` |
 | 2.10 The peak | 1:38 | `broll/titan.mp4`, `stats-titan.mov` |
@@ -31,12 +33,13 @@ Footage we film or screen-record ourselves (faces, the duel from both laptops, t
 
 ## What's in each folder
 
-- **`narrator/`**: Cartesia sonic-3.6, every line in two voices: `sterling` (deep, commanding) and `damon` (deep, documentary gravitas). `narrator/audition/` has the opening line in four more voices (darius, mark, clint, harlan). WAV, normalised to -16 LUFS.
+- **`narrator/`**: our own recorded lines, 1 to 7: "Welcome to the battle of creativity.", "Aim with your finger.", "If you can imagine it, you can summon it.", "Open your hand and watch it come to life.", "Every troop gets fair stats.", "The more powerful the troop, the more embers it costs.", "Play your friends live." Each has a matching word-by-word subtitle in `graphics/out/subtitle-*.mov`.
 - **`music/`**: ElevenLabs music via fal. `cold_open` (14 s), `turn_drone` (12 s), `escalation_build_1/2` (46 s), `hype_track_1/2` (62 s). Two takes of the long ones; pick by ear.
 - **`sfx/`**: ElevenLabs sound effects via fal: swooshes, banner flap, callout stamps, risers, title slam, slow-mo boom, heartbeat, cost reel, URL shimmer and four meows.
 - **`game-audio/`**: copied untouched from `client/public/audio`: the menu, battle and overtime music, match sounds and announcer lines.
 - **`troops/`**: every troop in the duel script, designed and drawn by the live game's own API (`/api/troop`, `/api/sprite`): the design JSON (stats, quirks, cost, model) and the sprite PNG. The sprite API caches by the words said, so saying the same line in the game shows the same art.
-- **`broll/`**: 5 s clips of Taylor Swift, Skibidi Toilet, the titan and the cat charging the tower; cut 1–2 s from each. Each started from the troop's real sprite, placed into a frame of the live arena (`broll/plates/`) by nano-banana, then animated by Kling 2.5. `*.still.png` is the first frame. `plates/arena-home.png` is a clean, HUD-free still of the home camera.
+- **`broll/`**: 5 s clips of Taylor Swift, Skibidi Toilet, the titan and the cat charging straight at the camera, as seen by someone standing in the arena; cut 1–2 s from each. Each started from the troop's real sprite, placed into a ground-level frame of the real arena (`broll/plates/ground-*.png`, from `scripts/plates.mjs`) by nano-banana, then animated by Kling 2.5. `*.still.png` is the first frame.
+- **`film/`**: the duel as a script (`duel.mjs`) for the game's film mode, and its renders in `film/out/` (not in git; share them by drive).
 - **`graphics/out/`**: callouts, credits, stats cards, banners, title, URL (ProRes 4444 `.mov` with alpha) and the full-frame title and end card (`.mp4`). `stills/` has a PNG of every graphic, plus the duel captions. The `.mov` files aren't in git (they're large); run `npm run graphics` to make them.
 - **`grade/`**: the colour grade LUT.
 
@@ -57,8 +60,24 @@ npm run graphics         # every graphic; --only callout,stats  --stills for PNG
 - Graphics are HTML pages in `graphics/src/` that draw themselves as a function of time; the job list (text, which troop, names on the banners) is at the top of `scripts/render.mjs`. Open a page in a browser to preview it at its start; add `?text=...` and so on.
 - After the real duel is recorded, replace `troops/*.json` with the logged designs (`npm run logs -- --jsonl` in the repo root), so the stats cards match what was on screen, then `npm run graphics -- --only stats`.
 
+## The rendered duel (film mode)
+
+`client/src/film.ts` (dev only, `?film`) plays a scripted match in the real client: both players' lines, timed from FIGHT!, go through the game's own paths (the hand cursor, words at the cursor, the orb, the summoning circle, the cost reel, the opponent's bubbles), the match clock runs at 0.6× so the duel ends before overtime, towers are guarded until the scripted ending, and Isaac's side freezes when the cat lands. The titan is trimmed to 15 embers so the game accepts it.
+
+With the client's dev server running (`npx vite --config client/vite.config.ts --port 5178` in the repo root), from `video-assets/`:
+
+```bash
+../node_modules/.bin/tsx scripts/film.mjs --view cindy   # or isaac; ~18 min, frame by frame at 1080p30
+node scripts/film-audio.mjs                               # the game's sound for both renders
+node scripts/cuts.mjs                                     # one clip per beat, with sound
+node scripts/drone.mjs                                    # the cold open's drone shot
+node scripts/coldopen.mjs                                 # stitch the cold open
+```
+
+Change lines, spots, timing or slow motion in `film/duel.mjs` and render again; every render of the script is the same match. Don't edit client code while a render runs: the dev server reloads the page.
+
 ## Before filming
 
-- **The titan costs 17 embers.** The game refuses anything over 15 (`MAX_COST`, `shared/troop.ts`), so as written the climax gets refused. Options: test the line in the game until it prices at 15 or below, shorten it, or lean into it (it's refused, and the cat wins).
+- **The titan costs 17–18 embers live**, whatever the wording (tried four phrasings, four times each). The game refuses anything over 15, so the film render trims it to 15; in a live game the line would be refused.
 - **The primary `FAL_KEY` is out of balance.** Everything here ran on `FAL_KEY_FALLBACK`; the live game falls back the same way, a little slower. Top up the first account before filming.
 - Team names on the banners are just "Cindy" and "Isaac" with Blue side / Red side, since the brainstorm's team names are still open. Change them in `scripts/render.mjs`.

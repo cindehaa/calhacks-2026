@@ -26,8 +26,9 @@ export class LocalMatch implements MatchSource {
   status: MatchStatus = 'playing';
   winner: Side | -1 | null = null;
   paused = false; // the pause menu: the clock, the bot and your deploys all wait
+  foe = ''; // the opponent's name when it isn't the bot (film.ts)
 
-  private s!: SimState;
+  protected s!: SimState;
   private locks: Lock[] = [];
   private troopRows = new Map<bigint, DrawTroop>();
   private unitTroop = new Map<number, bigint>();
@@ -157,7 +158,7 @@ export class LocalMatch implements MatchSource {
   }
 
   // The bot goes through the same lock → deploy path as you, so its drop is telegraphed.
-  private runBot() {
+  protected runBot() {
     if (this.s.time < 0 || this.s.time >= TIEBREAK_AT) return;
     const cfg = BOT_LEVELS[this.level];
     if (this.botMove) {
@@ -188,7 +189,7 @@ export class LocalMatch implements MatchSource {
     if (this.s.time >= TIEBREAK_AT) throw new Error('tiebreaker');
   }
 
-  private lock(side: Side, nonce: number, x: number, y: number) {
+  protected lock(side: Side, nonce: number, x: number, y: number) {
     this.mustPlay();
     if (!onBoard(x, y)) throw new Error('off the board');
     if (this.findLock(side, nonce)) return;
@@ -205,7 +206,7 @@ export class LocalMatch implements MatchSource {
     return this.locks.find(l => l.side === side && l.nonce === nonce);
   }
 
-  private deploy(side: Side, nonce: number, x: number, y: number, description: string, raw: TroopDesign, spriteUrl: string) {
+  protected deploy(side: Side, nonce: number, x: number, y: number, description: string, raw: TroopDesign, spriteUrl: string) {
     this.mustPlay();
     const { design, cost, error } = priceDeploy(raw, this.s.elixir[side]);
     if (error) throw new Error(error);
