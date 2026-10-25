@@ -1,9 +1,9 @@
-// Pinch-move-let-go practice, the last part of setup: three targets across the screen, one at a
-// time; pinch, move onto each and let go to hit it. The defaults work for most hands, so fitting
-// the pinch to this player's hand (a second pointing as they would to aim, then a pinch held; the
-// thresholds go between the two, pose.ts fitPinch) only runs when the pinch isn't registering:
-// near misses (nearmiss.ts), or the "Pinch not working?" button. The ⋯ menu's "Fit pinch to my
-// hand" runs it alone. Only a real pinch counts (not the mouse or Space), so
+// Pinch-move-let-go practice, the last part of setup. It starts by fitting the pinch to this
+// player's hand (a second pointing as they would to aim, then a pinch held; the thresholds go
+// between the two, pose.ts fitPinch), which can be skipped: the defaults work for most hands.
+// Then three targets across the screen, one at a time; pinch, move onto each and let go to hit
+// it. If the pinch keeps nearly closing (nearmiss.ts) the fit runs again, and "Pinch not
+// working?" starts it by hand. The ⋯ menu's "Fit pinch to my hand" runs it alone. Only a real pinch counts (not the mouse or Space), so
 // finishing shows the camera can see you aim and pinch. A meter shows how close thumb and finger
 // are, and pinches that almost close (nearmiss.ts) get told to close all the way. Skip any time.
 import type { InputController } from './input/controller';
@@ -70,7 +70,10 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
   function render() {
     const now = performance.now();
     title.textContent = phase === 'targets' ? 'Practice: pinch, move, let go' : 'Fit the pinch to your hand';
-    fitBtn.hidden = phase !== 'targets' || hits >= SPOTS.length;
+    // During the fit it skips the fit; at the targets it starts one.
+    const fitting = phase === 'point' || phase === 'pinch';
+    fitBtn.hidden = fitOnly || phase === 'fitted' || hits >= SPOTS.length;
+    fitBtn.textContent = fitting ? 'Skip, use the default pinch' : 'Pinch not working? Fit it to my hand';
     if (phase === 'fitted') return void (msg.textContent = 'Pinch fitted to your hand.', count.textContent = '');
     msg.textContent = hits >= SPOTS.length ? 'All three hit. You’re set.'
       : now < sayUntil ? say
@@ -155,6 +158,13 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
     setTimeout(place, 600);
   }
 
+  // Straight to the targets on whatever pinch is set (the defaults, or this laptop's last fit).
+  function skipFit() {
+    logEvent('practice:fit-skipped');
+    enter('targets');
+    if (!target) setTimeout(place, 200);
+  }
+
   // The pinch isn't registering for this hand: fit it, then back to the targets.
   function startFit(why: string) {
     target?.remove();
@@ -219,9 +229,10 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
     if (b?.dataset.act === 'skip') {
       b.blur();
       end('skipped');
-    } else if (b?.dataset.act === 'fit' && phase === 'targets') {
+    } else if (b?.dataset.act === 'fit') {
       b.blur();
-      startFit('button');
+      if (phase === 'targets') startFit('button');
+      else if (phase === 'point' || phase === 'pinch') skipFit();
     }
   });
   addEventListener('keydown', e => {
@@ -244,8 +255,7 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
       field.replaceChildren();
       el.hidden = false;
       logEvent(fitOnly ? 'practice:fit-start' : 'practice:start');
-      enter(fitOnly ? 'point' : 'targets');
-      if (!fitOnly) place();
+      enter('point');
       return new Promise(res => (finish = res));
     },
   };

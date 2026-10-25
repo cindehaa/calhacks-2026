@@ -645,7 +645,12 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .handArt svg { display: block; width: 100%; height: 100%; }
 #setup [data-act="practice"]:not(.ghost) { color: #1a0e00 !important; border-bottom-color: var(--amberSide) !important; background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%) !important; }
 #setup [data-act="practice"][hidden] { display: none; }
-#setup .handsFoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; }
+/* which hand aims: three big buttons after a short label, the chosen one lit green */
+#setup .handPick { display: grid; grid-template-columns: auto repeat(3, 1fr); align-items: center; gap: 8px; margin: 2px 0 4px; }
+#setup .panel .handPick button { height: 46px; padding: 0 8px; font-size: 16px; color: #c9cfe4; }
+#setup [data-step="hands"] { align-items: flex-start; }
+#setup .stepHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#setup .panel .handPick button.on { color: #0b1a10; border-bottom-color: #1d5a3c; background: linear-gradient(160deg, #6fe3a0 0 56%, #4ac987 56% 100%); }
 
 /* point-and-pinch practice (practice.ts): targets across the screen under a stone header */
 #handPractice { position: fixed; inset: 0; z-index: 9; font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #0d1124f2, #020308 80%); }

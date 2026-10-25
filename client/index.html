@@ -224,12 +224,12 @@
       <ol class="steps">
         <li data-step="devices"><span class="stepDot"></span><div><b>Camera and mic</b><span class="sub" data-msg></span></div><button data-act="devices">Turn on</button></li>
         <li data-step="voice"><span class="stepDot"></span><div><b>Say hello</b><span class="sub" data-msg></span></div><span class="setupMeter"><i></i></span></li>
-        <li data-step="hands"><span class="stepDot"></span><div><b>Pinch, move, let go</b><span class="sub" data-msg></span>
+        <li data-step="hands"><span class="stepDot"></span><div><div class="stepHead"><b>Pinch, move, let go</b><button data-act="practice">Practice</button></div><span class="sub" data-msg></span>
           <div class="howHands">
             <figure><span class="handArt" data-art="pinch"></span><figcaption><b>Pinch</b> thumb to any finger and hold, then move your hand to aim</figcaption></figure>
             <figure><span class="handArt" data-art="point"></span><figcaption><b>Let go</b> to place the troop, or click a button</figcaption></figure>
           </div>
-          <div class="handsFoot"><label class="sub setupHand">Pointing hand <select data-hand-pref><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label><button data-act="practice">Practice</button></div></div></li>
+          <div class="handPick" role="radiogroup" aria-label="Which hand aims"><span class="sub">Aim with</span><button data-hand="left" role="radio">Left</button><button data-hand="auto" role="radio">Either</button><button data-hand="right" role="radio">Right</button></div></div></li>
       </ol>
       <div class="tutFoot"><button data-act="skip" class="ghost">Skip, use mouse and keys</button><button data-act="done" data-primary>Let’s play</button></div>
     </div>

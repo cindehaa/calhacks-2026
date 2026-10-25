@@ -141,6 +141,7 @@ export class InputController {
   private camStatus = '';
   private heard = '';
   private heardWords = false; // the recogniser has returned words at least once
+  private heardSound = false; // the mic has heard speech start at least once (VAD), words or not
   private lostAt = 0; // when the hand went out of view, 0 while it's in view
   private lostCursor: Pt | null = null; // where it was, for the fade
   private fellBack = false; // Cartesia gave up; say so once, in a match
@@ -282,7 +283,7 @@ export class InputController {
     this.picker.reset();
     save(KEYS.prefs, this.prefs);
     this.el.querySelectorAll<HTMLSelectElement>('[data-act="hand"]').forEach(s => (s.value = p));
-    document.querySelectorAll<HTMLSelectElement>('select[data-hand-pref]').forEach(s => (s.value = p));
+    document.querySelectorAll<HTMLElement>('#setup [data-hand]').forEach(b => b.classList.toggle('on', b.dataset.hand === p));
   }
 
   // When a pinch closes and opens again: fitted to this player's hand, or the defaults.
@@ -317,6 +318,11 @@ export class InputController {
     if (box) box.checked = on;
   }
 
+  // Setup opened again (the next player, usually): their voice check starts over.
+  resetVoiceCheck(): void {
+    this.heardWords = this.heardSound = false;
+  }
+
   // What the setup screen shows.
   setupState() {
     return {
@@ -329,6 +335,7 @@ export class InputController {
       level: this.vad.level,
       speaking: this.vad.speaking,
       heardWords: this.heardWords,
+      heardSound: this.heardSound,
     };
   }
 
@@ -376,7 +383,10 @@ export class InputController {
       const db = this.mic.levelDb();
       const ev = this.vad.push(now, db);
       this.publish({ kind: 'level', t: now, db, loud: db > this.vad.o.thresholdDb });
-      if (ev?.kind === 'start') this.speechAt = ev.t;
+      if (ev?.kind === 'start') {
+        this.speechAt = ev.t;
+        this.heardSound = true;
+      }
       if (ev) this.publish({ kind: 'voice', t: ev.t, phase: ev.kind });
       // Close each utterance when the talking stops, so its words are final before the next fire.
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
@@ -894,7 +904,7 @@ export class InputController {
     this.el.innerHTML = `
       <div class="inRow">
         <button data-act="cam" title="Say it, pinch and hold to aim, let go to place. Thumbs down to cancel.">Camera</button>
-        <button data-act="mic" title="Always listening while on: say the troop, then pinch, click or press Space to send it">Mic</button>
+        <button data-act="mic" title="Always listening while on: say the troop, then pinch, aim and let go, click, or press Space to send it">Mic</button>
         <button data-act="menu" class="ghost" title="Camera and mic settings">⋯</button>
       </div>
       <div class="inPreview"><canvas></canvas></div>
@@ -1044,7 +1054,8 @@ export class InputController {
     return !this.tracker?.ready ? 'Starting camera…'
       : !this.hand ? 'Show your hand'
       : state === 'cancel' ? 'Thumbs down · cancel'
-      : state === 'fire' ? (this.menus() ? 'Pinch · click' : 'Pinch · send')
+      : this.schemeState() === 'holding' ? (this.menus() ? 'Holding · let go to click' : 'Holding · let go to place')
+      : state === 'fire' ? (this.menus() ? 'Let go · click' : 'Let go · placed')
       : 'Aiming';
   }
 
