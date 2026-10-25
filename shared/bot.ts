@@ -15,14 +15,15 @@ export interface BotConfig {
   designTime: number; // seconds from lock to deploy, as if it were describing the troop
   saveChance: number; // chance, when it could push, to save up for a big troop instead
   minPush: number; // elixir it holds before attacking; defending spends whatever it has
+  maxCost: number; // the biggest troop it will ever drop
   jitter: number; // tiles of placement noise
   counters: boolean; // pick defenders that suit the threat (easy picks at random)
 }
 
 export const BOT_LEVELS: Record<BotLevel, BotConfig> = {
-  easy: { thinkEvery: 3, cooldown: 9, reaction: 2, designTime: 1.6, saveChance: 0.1, minPush: 3, jitter: 1.5, counters: false },
-  normal: { thinkEvery: 1.5, cooldown: 6, reaction: 0.8, designTime: 1.2, saveChance: 0.3, minPush: 5, jitter: 0.8, counters: true },
-  hard: { thinkEvery: 1, cooldown: 3, reaction: 0.4, designTime: 0.8, saveChance: 0.5, minPush: 7, jitter: 0.3, counters: true },
+  easy: { thinkEvery: 4, cooldown: 18, reaction: 4, designTime: 2.5, saveChance: 0, minPush: 3, maxCost: 5, jitter: 1.5, counters: false },
+  normal: { thinkEvery: 1.5, cooldown: 6, reaction: 0.8, designTime: 1.2, saveChance: 0.3, minPush: 5, maxCost: 15, jitter: 0.8, counters: true },
+  hard: { thinkEvery: 1, cooldown: 3, reaction: 0.4, designTime: 0.8, saveChance: 0.5, minPush: 7, maxCost: 15, jitter: 0.3, counters: true },
 };
 
 // What the bot remembers between decisions.
@@ -91,7 +92,7 @@ function defend(s: SimState, side: Side, all: SimUnit[], elixir: number, cfg: Bo
   if (threat < 2.5) return null;
 
   // Answer in proportion: a knight doesn't get a golem.
-  const budget = Math.min(elixir, Math.max(3, Math.ceil(threat) + 1));
+  const budget = Math.min(elixir, cfg.maxCost, Math.max(3, Math.ceil(threat) + 1));
   const choices = ANCHORS.map((a, i) => ({ a, i })).filter(c => c.a.cost <= budget);
   if (!choices.length) return null;
   const swarm = threats.length >= 4;
@@ -123,11 +124,12 @@ function push(s: SimState, side: Side, mem: BotMemory, elixir: number, cfg: BotC
   } else {
     if (elixir < cfg.minPush) return null;
     if (rand() < cfg.saveChance) {
-      const big = ANCHORS.map((a, i) => ({ a, i })).filter(c => c.a.cost >= 5);
+      const big = ANCHORS.map((a, i) => ({ a, i })).filter(c => c.a.cost >= 5 && c.a.cost <= cfg.maxCost);
+      if (!big.length) return null;
       mem.saveFor = big[Math.floor(rand() * big.length)].i;
       return null;
     }
-    const affordable = ANCHORS.map((a, i) => ({ a, i })).filter(c => c.a.cost <= elixir);
+    const affordable = ANCHORS.map((a, i) => ({ a, i })).filter(c => c.a.cost <= Math.min(elixir, cfg.maxCost));
     if (!affordable.length) return null;
     // Towers shrug off small troops, so smarter bots lean toward the bigger ones.
     pick = weighted(affordable, c => (cfg.counters ? c.a.cost : 1), rand).i;
