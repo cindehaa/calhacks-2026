@@ -259,6 +259,13 @@ renderLast();
 $('botBtn').onclick = () => openPractice(true);
 // No matchmaking yet: Play online opens a room, with code boxes to join a friend's instead.
 $('battleBtn').onclick = () => openRaven();
+// Home's camera button, where the virtual hand goes: asks for the camera, and if that fails opens
+// setup, which says how to allow it.
+$('handBtn').onclick = async e => {
+  (e.currentTarget as HTMLElement).blur();
+  await input.setCamera(true);
+  if (!input.setupState().camera) setup.open();
+};
 $('camBtn').onclick = e => {
   setup.open();
   (e.currentTarget as HTMLElement).blur();
