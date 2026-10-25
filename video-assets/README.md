@@ -39,8 +39,8 @@ The gameplay doesn't need screen-recording: the whole duel is rendered from the 
 - **`game-audio/`**: copied untouched from `client/public/audio`: the menu, battle and overtime music, match sounds and announcer lines.
 - **`troops/`**: every troop in the duel script, designed and drawn by the live game's own API (`/api/troop`, `/api/sprite`): the design JSON (stats, quirks, cost, model) and the sprite PNG. The sprite API caches by the words said, so saying the same line in the game shows the same art.
 - **`broll/`**: 5 s clips of Taylor Swift, Skibidi Toilet, the titan and the cat charging straight at the camera, as seen by someone standing in the arena; cut 1–2 s from each. Each started from the troop's real sprite, placed into a ground-level frame of the real arena (`broll/plates/ground-*.png`, from `scripts/plates.mjs`) by nano-banana, then animated by Kling 2.5. `*.still.png` is the first frame.
-- **`film/`**: the duel as a script (`duel.mjs`) for the game's film mode, and its renders in `film/out/` (not in git; share them by drive).
-- **`graphics/out/`**: callouts, credits, stats cards, banners, title, URL (ProRes 4444 `.mov` with alpha) and the full-frame title and end card (`.mp4`). `stills/` has a PNG of every graphic, plus the duel captions. The `.mov` files aren't in git (they're large); run `npm run graphics` to make them.
+- **`film/`**: the duel as a script (`duel.mjs`) for the game's film mode, and its renders in `film/out/`: both full matches with their sound, the beat clips, the drone shot, cold open, title sequence, montage and rough cut. `film/faces/` has the face photos for the cold open.
+- **`graphics/out/`**: callouts, credits, stats cards, banners, subtitles and URL as `.mov` with alpha (PNG frames inside: lossless, and read by Premiere, Resolve and Final Cut), the transparent title as a PNG sequence (`title-alpha/`), and the full-frame title and end card as `.mp4`. `stills/` has a PNG of every graphic, plus the duel captions.
 - **`grade/`**: the colour grade LUT.
 
 ## Making more

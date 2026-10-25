@@ -1,0 +1,2051 @@
+[
+ {
+  "at": 0,
+  "name": "versus"
+ },
+ {
+  "at": 0,
+  "name": "towerHit"
+ },
+ {
+  "at": 0,
+  "name": "towerHit"
+ },
+ {
+  "at": 2.6,
+  "name": "count"
+ },
+ {
+  "at": 3.567,
+  "name": "count"
+ },
+ {
+  "at": 4.567,
+  "name": "count"
+ },
+ {
+  "at": 5.567,
+  "name": "fight"
+ },
+ {
+  "at": 11.6,
+  "name": "incoming"
+ },
+ {
+  "at": 14.2,
+  "name": "stamp"
+ },
+ {
+  "at": 16.567,
+  "name": "land",
+  "kind": "magic"
+ },
+ {
+  "at": 16.567,
+  "name": "thud",
+  "pitch": 1.2751957090680808
+ },
+ {
+  "at": 16.567,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 16.633,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 16.733,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 16.867,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 17.067,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 17.3,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 17.567,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 17.9,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 18.267,
+  "name": "chime",
+  "pitch": 1
+ },
+ {
+  "at": 25.867,
+  "name": "deploy"
+ },
+ {
+  "at": 27.467,
+  "name": "stamp"
+ },
+ {
+  "at": 28.067,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.033,
+  "name": "land",
+  "kind": "beast"
+ },
+ {
+  "at": 29.033,
+  "name": "thud",
+  "pitch": 1.3834656209656209
+ },
+ {
+  "at": 29.033,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 29.067,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.067,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 29.133,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 29.2,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 29.3,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 29.433,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 29.533,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.533,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 29.533,
+  "name": "whoosh"
+ },
+ {
+  "at": 29.567,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.567,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 29.633,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.667,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.733,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.733,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 29.767,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.833,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.867,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.933,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 29.933,
+  "name": "chime",
+  "pitch": 0.8
+ },
+ {
+  "at": 29.967,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.033,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.067,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.133,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.167,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.233,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.333,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.433,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.467,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.533,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.567,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.633,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.667,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.733,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.767,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.767,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 30.767,
+  "name": "whoosh"
+ },
+ {
+  "at": 30.833,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.867,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.933,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 30.967,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.033,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.067,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.133,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.167,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.233,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.333,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.433,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.467,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.533,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.567,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.633,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.667,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.733,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.767,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.833,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.867,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.933,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 31.967,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.033,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.033,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 32.033,
+  "name": "whoosh"
+ },
+ {
+  "at": 32.067,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.133,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.167,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.233,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.333,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.433,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.467,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.533,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.567,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.633,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.667,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.733,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.767,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.833,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.867,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.933,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 32.967,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 33.033,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 33.067,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 33.133,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 33.167,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 33.233,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 33.267,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 33.267,
+  "name": "whoosh"
+ },
+ {
+  "at": 33.267,
+  "name": "death",
+  "kind": "magic"
+ },
+ {
+  "at": 40.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 41.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 42.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 43.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 43.867,
+  "name": "incoming"
+ },
+ {
+  "at": 44.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 44.933,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 44.933,
+  "name": "whoosh"
+ },
+ {
+  "at": 44.933,
+  "name": "towerHit"
+ },
+ {
+  "at": 45.233,
+  "name": "stamp"
+ },
+ {
+  "at": 45.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 46.167,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 46.167,
+  "name": "whoosh"
+ },
+ {
+  "at": 46.167,
+  "name": "towerHit"
+ },
+ {
+  "at": 46.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 46.933,
+  "name": "land",
+  "kind": "magic"
+ },
+ {
+  "at": 46.933,
+  "name": "thud",
+  "pitch": 1.585163844598653
+ },
+ {
+  "at": 46.933,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 46.967,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 47,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 47.067,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 47.167,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 47.267,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 47.4,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 47.433,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 47.433,
+  "name": "whoosh"
+ },
+ {
+  "at": 47.433,
+  "name": "towerHit"
+ },
+ {
+  "at": 47.533,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 47.7,
+  "name": "chime",
+  "pitch": 1.25
+ },
+ {
+  "at": 47.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 48.667,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 48.667,
+  "name": "whoosh"
+ },
+ {
+  "at": 48.667,
+  "name": "towerHit"
+ },
+ {
+  "at": 48.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 49.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 49.933,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 49.933,
+  "name": "whoosh"
+ },
+ {
+  "at": 49.933,
+  "name": "towerHit"
+ },
+ {
+  "at": 50.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 50.933,
+  "name": "deploy"
+ },
+ {
+  "at": 51.167,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 51.167,
+  "name": "whoosh"
+ },
+ {
+  "at": 51.167,
+  "name": "towerHit"
+ },
+ {
+  "at": 51.867,
+  "name": "hit",
+  "kind": "beast"
+ },
+ {
+  "at": 52.067,
+  "name": "stamp"
+ },
+ {
+  "at": 52.433,
+  "name": "attack",
+  "kind": "beast"
+ },
+ {
+  "at": 52.433,
+  "name": "whoosh"
+ },
+ {
+  "at": 52.433,
+  "name": "towerHit"
+ },
+ {
+  "at": 52.867,
+  "name": "death",
+  "kind": "beast"
+ },
+ {
+  "at": 53.933,
+  "name": "land",
+  "kind": "magic"
+ },
+ {
+  "at": 53.933,
+  "name": "thud",
+  "pitch": 0.9404541448334408
+ },
+ {
+  "at": 53.933,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 53.967,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 54,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 54.033,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 54.033,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 54.067,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 54.167,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 54.267,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 54.4,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 54.533,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 54.7,
+  "name": "chime",
+  "pitch": 1
+ },
+ {
+  "at": 55.267,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 55.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 56.533,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 56.533,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 57.433,
+  "name": "incoming"
+ },
+ {
+  "at": 57.767,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 57.767,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 59.033,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 59.033,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 59.167,
+  "name": "stamp"
+ },
+ {
+  "at": 60.267,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 60.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 60.633,
+  "name": "land",
+  "kind": "magic"
+ },
+ {
+  "at": 60.633,
+  "name": "thud",
+  "pitch": 1.511893739083387
+ },
+ {
+  "at": 60.633,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 60.667,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 60.7,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 60.767,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 60.867,
+  "name": "double"
+ },
+ {
+  "at": 60.867,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 60.967,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 61.1,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 61.233,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 61.4,
+  "name": "chime",
+  "pitch": 1
+ },
+ {
+  "at": 61.533,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 61.533,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 62.767,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 62.767,
+  "name": "death",
+  "kind": "magic"
+ },
+ {
+  "at": 63.433,
+  "name": "deploy"
+ },
+ {
+  "at": 64.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 65.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 65.533,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 65.533,
+  "name": "towerHit"
+ },
+ {
+  "at": 66.067,
+  "name": "stamp"
+ },
+ {
+  "at": 66.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 66.767,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 66.767,
+  "name": "towerHit"
+ },
+ {
+  "at": 67.033,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 67.033,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 67.033,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 67.033,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 67.033,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 67.033,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 67.033,
+  "name": "thud",
+  "pitch": 1.5984507587741819
+ },
+ {
+  "at": 67.033,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 67.067,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 67.1,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 67.167,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 67.233,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 67.3,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 67.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 67.4,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 67.533,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 67.667,
+  "name": "chime",
+  "pitch": 1.25
+ },
+ {
+  "at": 67.933,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 67.933,
+  "name": "attack",
+  "kind": "swarm"
+ },
+ {
+  "at": 68.033,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 68.033,
+  "name": "death",
+  "kind": "swarm"
+ },
+ {
+  "at": 68.233,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 68.233,
+  "name": "attack",
+  "kind": "swarm"
+ },
+ {
+  "at": 68.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 68.367,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 68.467,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 68.467,
+  "name": "attack",
+  "kind": "swarm"
+ },
+ {
+  "at": 68.933,
+  "name": "incoming"
+ },
+ {
+  "at": 69.067,
+  "name": "attack",
+  "kind": "swarm"
+ },
+ {
+  "at": 69.067,
+  "name": "death",
+  "kind": "magic"
+ },
+ {
+  "at": 69.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 69.867,
+  "name": "stamp"
+ },
+ {
+  "at": 70.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 71.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 71.633,
+  "name": "death",
+  "kind": "swarm"
+ },
+ {
+  "at": 71.833,
+  "name": "land",
+  "kind": "blade"
+ },
+ {
+  "at": 71.833,
+  "name": "thud",
+  "pitch": 1.2751957090680808
+ },
+ {
+  "at": 71.833,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 71.867,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 71.9,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 71.967,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 72.033,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 72.133,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 72.233,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 72.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 72.333,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 72.333,
+  "name": "whoosh"
+ },
+ {
+  "at": 72.333,
+  "name": "towerHit"
+ },
+ {
+  "at": 72.367,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 72.533,
+  "name": "chime",
+  "pitch": 1
+ },
+ {
+  "at": 72.633,
+  "name": "death",
+  "kind": "swarm"
+ },
+ {
+  "at": 73.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 73.433,
+  "name": "deploy"
+ },
+ {
+  "at": 73.567,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 73.567,
+  "name": "whoosh"
+ },
+ {
+  "at": 73.567,
+  "name": "towerHit"
+ },
+ {
+  "at": 73.633,
+  "name": "death",
+  "kind": "swarm"
+ },
+ {
+  "at": 74.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 74.633,
+  "name": "death",
+  "kind": "swarm"
+ },
+ {
+  "at": 74.833,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 74.833,
+  "name": "whoosh"
+ },
+ {
+  "at": 74.833,
+  "name": "towerHit"
+ },
+ {
+  "at": 74.867,
+  "name": "stamp"
+ },
+ {
+  "at": 75.267,
+  "name": "hit",
+  "kind": "magic"
+ },
+ {
+  "at": 75.633,
+  "name": "death",
+  "kind": "swarm"
+ },
+ {
+  "at": 76.067,
+  "name": "attack",
+  "kind": "magic"
+ },
+ {
+  "at": 76.067,
+  "name": "whoosh"
+ },
+ {
+  "at": 76.067,
+  "name": "towerHit"
+ },
+ {
+  "at": 76.267,
+  "name": "death",
+  "kind": "magic"
+ },
+ {
+  "at": 76.533,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 76.533,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 76.533,
+  "name": "land",
+  "kind": "blade"
+ },
+ {
+  "at": 76.533,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 76.533,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 76.533,
+  "name": "whoosh"
+ },
+ {
+  "at": 76.533,
+  "name": "thud",
+  "pitch": 1.5596002941842873
+ },
+ {
+  "at": 76.533,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 76.567,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 76.6,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 76.667,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 76.733,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 76.8,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 76.9,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 77.033,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 77.167,
+  "name": "chime",
+  "pitch": 1.25
+ },
+ {
+  "at": 77.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 77.467,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 77.467,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 77.467,
+  "name": "whoosh"
+ },
+ {
+  "at": 77.933,
+  "name": "incoming"
+ },
+ {
+  "at": 77.967,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 77.967,
+  "name": "death",
+  "kind": "blade"
+ },
+ {
+  "at": 78.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 79.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 79.367,
+  "name": "stamp"
+ },
+ {
+  "at": 80.167,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 80.167,
+  "name": "towerHit"
+ },
+ {
+  "at": 80.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 81.033,
+  "name": "land",
+  "kind": "blade"
+ },
+ {
+  "at": 81.033,
+  "name": "thud",
+  "pitch": 1.5596002941842873
+ },
+ {
+  "at": 81.033,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 81.067,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 81.1,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 81.167,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 81.233,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 81.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 81.3,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 81.4,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 81.533,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 81.633,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 81.633,
+  "name": "towerHit"
+ },
+ {
+  "at": 81.667,
+  "name": "chime",
+  "pitch": 1.25
+ },
+ {
+  "at": 82.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 82.433,
+  "name": "deploy"
+ },
+ {
+  "at": 83.067,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 83.067,
+  "name": "towerHit"
+ },
+ {
+  "at": 83.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 84.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 84.533,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 84.533,
+  "name": "towerHit"
+ },
+ {
+  "at": 85.533,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 85.8,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 86.8,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 87.367,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 87.633,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 89.167,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 89.433,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 89.433,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 91,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 91.267,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 91.367,
+  "name": "stamp"
+ },
+ {
+  "at": 92,
+  "name": "land",
+  "kind": "swarm"
+ },
+ {
+  "at": 92,
+  "name": "thud",
+  "pitch": 0.8518843223439758
+ },
+ {
+  "at": 92,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 92.067,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 92.167,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 92.333,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 92.533,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 92.8,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 92.8,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 92.8,
+  "name": "towerHit"
+ },
+ {
+  "at": 92.8,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 93.067,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 93.1,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 93.433,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 93.833,
+  "name": "chime",
+  "pitch": 1
+ },
+ {
+  "at": 94.533,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 94.533,
+  "name": "towerHit"
+ },
+ {
+  "at": 94.633,
+  "name": "death",
+  "kind": "blade"
+ },
+ {
+  "at": 94.9,
+  "name": "hit",
+  "kind": "blade"
+ },
+ {
+  "at": 96.267,
+  "name": "attack",
+  "kind": "blade"
+ },
+ {
+  "at": 96.267,
+  "name": "towerHit"
+ },
+ {
+  "at": 96.7,
+  "name": "death",
+  "kind": "blade"
+ },
+ {
+  "at": 99.3,
+  "name": "incoming"
+ },
+ {
+  "at": 99.6,
+  "name": "lastTen"
+ },
+ {
+  "at": 100.367,
+  "name": "stamp"
+ },
+ {
+  "at": 102.267,
+  "name": "land",
+  "kind": "beast"
+ },
+ {
+  "at": 102.267,
+  "name": "thud",
+  "pitch": 1.6712623817536296
+ },
+ {
+  "at": 102.267,
+  "name": "tick",
+  "pitch": 0.9
+ },
+ {
+  "at": 102.3,
+  "name": "tick",
+  "pitch": 0.9400000000000001
+ },
+ {
+  "at": 102.333,
+  "name": "tick",
+  "pitch": 0.98
+ },
+ {
+  "at": 102.367,
+  "name": "tick",
+  "pitch": 1.02
+ },
+ {
+  "at": 102.433,
+  "name": "tick",
+  "pitch": 1.06
+ },
+ {
+  "at": 102.533,
+  "name": "tick",
+  "pitch": 1.1
+ },
+ {
+  "at": 102.633,
+  "name": "tick",
+  "pitch": 1.1400000000000001
+ },
+ {
+  "at": 102.733,
+  "name": "tick",
+  "pitch": 1.1800000000000002
+ },
+ {
+  "at": 102.867,
+  "name": "chime",
+  "pitch": 1.25
+ },
+ {
+  "at": 103.167,
+  "name": "stun"
+ },
+ {
+  "at": 104.367,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.4,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.467,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.5,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.567,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.6,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.667,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.7,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.767,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.8,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.867,
+  "name": "towerHit"
+ },
+ {
+  "at": 104.9,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.367,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.4,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.467,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.5,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.567,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.6,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.667,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.7,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.767,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.8,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.867,
+  "name": "towerHit"
+ },
+ {
+  "at": 106.9,
+  "name": "towerHit"
+ },
+ {
+  "at": 108.767,
+  "name": "towerHit"
+ },
+ {
+  "at": 108.8,
+  "name": "towerHit"
+ },
+ {
+  "at": 108.867,
+  "name": "towerHit"
+ },
+ {
+  "at": 108.9,
+  "name": "towerHit"
+ },
+ {
+  "at": 108.967,
+  "name": "towerHit"
+ },
+ {
+  "at": 109,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.067,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.1,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.167,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.2,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.267,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.3,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.367,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.4,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.467,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.5,
+  "name": "towerHit"
+ },
+ {
+  "at": 109.6,
+  "name": "lose"
+ },
+ {
+  "at": 112.8,
+  "name": "tick",
+  "pitch": 0.925
+ },
+ {
+  "at": 112.867,
+  "name": "tick",
+  "pitch": 1.05
+ },
+ {
+  "at": 112.967,
+  "name": "tick",
+  "pitch": 1.175
+ },
+ {
+  "at": 113.1,
+  "name": "tick",
+  "pitch": 1.3
+ },
+ {
+  "at": 113.3,
+  "name": "chime"
+ }
+]

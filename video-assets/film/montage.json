@@ -1,0 +1,111 @@
+{
+  "about": "The 'friends having fun' montage (story beat 1:55-2:40). Phone footage from Cal Hacks, no faces on screen: backs of heads, hands, arms and laptops only; profile shots are cropped to the hand and the laptop. Times are seconds in the source file; crop is {x, y, w} in the source's displayed pixels (after rotation), height w*9/16; no crop means centre-crop to 16:9. 'said' is when the line is spoken in the source, for captions. Built by scripts/montage.mjs.",
+  "shots": [
+    {
+      "src": "PXL_20261024_233803948.mp4",
+      "in": 3.7,
+      "out": 6.2,
+      "crop": { "x": 200, "y": 820, "w": 880 },
+      "why": "Wide from behind: a player sat on the stairs, arm straight out aiming at the laptop. Sets the scene.",
+      "line": "Sigma Brawler.",
+      "said": [4.4, 5.1]
+    },
+    {
+      "src": "PXL_20261025_013307955.mp4",
+      "in": 0.1,
+      "out": 2.7,
+      "crop": { "x": 0, "y": 200, "w": 1000 },
+      "why": "Pinching at the screen while calling the troop. Cropped to the hand and the laptop; the player's profile is right of frame.",
+      "line": "Taylor Swift with Swifties…",
+      "said": [0.4, 2.5]
+    },
+    {
+      "src": "PXL_20261024_233339588.LS.mp4",
+      "in": 22.4,
+      "out": 25.9,
+      "crop": { "x": 0, "y": 340, "w": 1080 },
+      "why": "Big pinch close to the lens, then aimed down at the laptop. Cropped below the railing so the passers-by upstairs are out of frame.",
+      "line": "Cybertruck!",
+      "said": [24.9, 25.4]
+    },
+    {
+      "src": "PXL_20261024_232622530.LS.mp4",
+      "in": 2.6,
+      "out": 6.2,
+      "crop": { "x": 220, "y": 640, "w": 860 },
+      "why": "Over the shoulder (back of the head only), finger pointing the troop onto the board.",
+      "line": "Elon Musk. Tesla.",
+      "said": [3.2, 5.5]
+    },
+    {
+      "src": "PXL_20261025_013158455.mp4",
+      "in": 2.3,
+      "out": 4.8,
+      "crop": { "x": 0, "y": 310, "w": 940 },
+      "why": "Pinch-aiming while saying the funniest troop of the day. Cropped to the hand and the laptop; the face is right of frame.",
+      "line": "Skibidi toilet with sharp teeth.",
+      "said": [2.5, 4.5]
+    },
+    {
+      "src": "PXL_20261024_233816651.mp4",
+      "in": 49.3,
+      "out": 52.6,
+      "crop": { "x": 0, "y": 460, "w": 1080 },
+      "why": "The game on the laptop while a ridiculous troop is described out loud.",
+      "line": "It's gonna be toilet that can shoot water balls.",
+      "said": [49.6, 52.2]
+    },
+    {
+      "src": "20261024_161405.mp4",
+      "noautorotate": true,
+      "in": 45.7,
+      "out": 49.0,
+      "why": "Two laptops facing each other on the floor, arm out pointing; a laugh and a dev aside mid-match. (This file's rotation tag is wrong; it is landscape as recorded.)",
+      "line": "Oh my god. We gotta calibrate the pinch.",
+      "said": [45.9, 48.9]
+    },
+    {
+      "src": "PXL_20261024_233409838.mp4",
+      "in": 13.9,
+      "out": 16.7,
+      "crop": { "x": 0, "y": 520, "w": 1080 },
+      "why": "A fist pushes in over the screen to place the troop.",
+      "line": "Skeleton army.",
+      "said": [15.2, 16.2]
+    },
+    {
+      "src": "PXL_20261025_013307955.mp4",
+      "in": 20.6,
+      "out": 25.1,
+      "crop": { "x": 0, "y": 200, "w": 980 },
+      "why": "The excited one: pinching while describing a troop in one breath, then 'oh my god' as the phone swings to the screen. Cropped to the hand and the laptop.",
+      "line": "Flying car with missiles, like the Tesla Roadster. Oh my god!",
+      "said": [20.8, 25.1]
+    },
+    {
+      "src": "PXL_20261025_013307955.mp4",
+      "in": 34.9,
+      "out": 38.4,
+      "why": "Close on the screen: troops piling up on the bridge.",
+      "line": "Minecraft Creeper.",
+      "said": [35.1, 36.2]
+    },
+    {
+      "src": "20261024_161405.mp4",
+      "noautorotate": true,
+      "in": 54.9,
+      "out": 59.6,
+      "why": "Pointing hard at the laptop, escalating to an atomic bomb spawner, then the groan.",
+      "line": "Meteor! Atomic bomb spawner! Nooo…",
+      "said": [55.1, 59.3]
+    },
+    {
+      "src": "PXL_20261025_013307955.mp4",
+      "in": 46.9,
+      "out": 53.0,
+      "why": "The ending: lost for words as the skeletons pour in, the board freezes over and it's DEFEAT, with a laugh.",
+      "line": "Oh my god, I'm at a loss for words. Skeleton army! Oh…",
+      "said": [47.5, 51.1]
+    }
+  ]
+}

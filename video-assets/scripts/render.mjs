@@ -4,9 +4,10 @@
 //
 //   node scripts/render.mjs [--only callout,stats] [--stills] [--fps 30]
 //
-// Overlays come out as ProRes 4444 .mov with alpha (graphics/out/*.mov, not in git: re-render them),
-// full-frame cards as H.264 .mp4, and every graphic also as a PNG still (graphics/out/stills/).
-// --stills skips the videos.
+// Overlays come out as .mov with alpha (PNG frames inside: lossless, small when mostly transparent,
+// and read by every editor), full-frame cards as H.264 .mp4, and every graphic also as a PNG still
+// (graphics/out/stills/). The transparent title is too dense for one file under GitHub's 100 MB, so it
+// comes out as a numbered PNG sequence (graphics/out/title-alpha/). --stills skips the videos.
 
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
@@ -86,6 +87,9 @@ const only = args.only?.split(',').map((s) => s.trim());
 const jobs = JOBS.filter((j) => !only || only.some((o) => j.name.startsWith(o)));
 mkdirSync(join(out, 'stills'), { recursive: true });
 
+// Overlays written as image sequences rather than one file (see the header).
+const SEQUENCES = new Set(['title-alpha']);
+
 const browser = await chromium.launch({ channel: 'chrome', args: ['--force-color-profile=srgb', '--font-render-hinting=none'] });
 
 async function render(job) {
@@ -111,8 +115,11 @@ async function render(job) {
       await shot(join(frames, `${String(i).padStart(5, '0')}.png`));
     }
     const input = ['-v', 'error', '-y', '-framerate', String(FPS), '-i', join(frames, '%05d.png')];
-    const enc = job.alpha
-      ? ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-vendor', 'apl0', join(out, `${job.name}.mov`)]
+    if (SEQUENCES.has(job.name)) mkdirSync(join(out, job.name), { recursive: true });
+    const enc = SEQUENCES.has(job.name)
+      ? ['-pix_fmt', 'rgba', join(out, job.name, '%04d.png')]
+      : job.alpha
+      ? ['-c:v', 'png', '-pix_fmt', 'rgba', join(out, `${job.name}.mov`)]
       : ['-c:v', 'libx264', '-crf', '14', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(out, `${job.name}.mp4`)];
     execFileSync('ffmpeg', [...input, ...enc]);
     execFileSync('cp', [join(frames, `${String(stillFrame).padStart(5, '0')}.png`), join(out, 'stills', `${job.name}.png`)]);
