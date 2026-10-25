@@ -102,3 +102,16 @@ test('pointer: halfway between the index and thumb tips, mirrored', async () => 
   const [u, v] = pointerOf(lm);
   assert.ok(Math.abs(u - 0.7) < 1e-9 && Math.abs(v - 0.4) < 1e-9);
 });
+
+test('pinch: fitted to a hand, between pointing and pinched', async () => {
+  const { fitPinch, PinchDetector } = await import('./pose');
+  assert.deepEqual(fitPinch(1.0, 0.15), { on: 0.49, off: 0.7 }, 'a typical hand lands near the defaults');
+  const loose = fitPinch(1.1, 0.5)!; // thumb and pad read far apart even touching
+  assert.ok(loose.on > 0.5 && loose.off < 1.1 && loose.off - loose.on >= 0.08);
+  const rested = fitPinch(0.5, 0.05)!; // thumb resting near the curled fingers while pointing
+  assert.ok(rested.off < 0.5, 'opens again before the resting pose');
+  assert.equal(fitPinch(0.6, 0.5), null, 'too alike to tell apart');
+  const d = new PinchDetector();
+  d.setThresholds(loose);
+  assert.ok(d.push(0.6, 0), 'a pinch the defaults would miss');
+});

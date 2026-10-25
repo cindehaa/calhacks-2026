@@ -94,3 +94,11 @@ test('rate limited: a cooldown between hints and a cap per page load', () => {
   }
   assert.equal(shows, NEAR_MISS.maxShows);
 });
+
+test('fits around a player\'s thresholds', () => {
+  const n = new NearMiss();
+  n.fit({ on: 0.45, off: 0.65 });
+  assert.ok(Math.abs(n.o.near - NEAR_MISS.near) < 1e-9 && Math.abs(n.o.open - NEAR_MISS.open) < 1e-9, 'the defaults map to themselves');
+  n.fit({ on: 0.6, off: 0.8 });
+  assert.ok(n.o.on === 0.6 && n.o.near > 0.6 && n.o.near < 0.8 && n.o.open > 0.8);
+});

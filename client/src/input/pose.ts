@@ -55,7 +55,8 @@ export function thumbDownScore(lm: Landmark[], world: Landmark[], vw: number, vh
 // Thumb tip against a finger's last segment, in hand sizes (the measure and thresholds from the
 // earlier pinch controls). Any of the four fingers counts, whichever closes first: thumb to middle
 // alone was hard for some hands, and the aim no longer needs the index held still (pointerOf).
-export const PINCH_DEFAULTS = { on: 0.45, off: 0.65 };
+export interface PinchThresholds { on: number; off: number }
+export const PINCH_DEFAULTS: PinchThresholds = { on: 0.45, off: 0.65 };
 const THUMB_TIP = 4;
 const PADS: [number, number][] = [[7, 8], [11, 12], [15, 16], [19, 20]]; // DIP → TIP, index to pinky
 
@@ -72,6 +73,26 @@ export function pinchMetric(lm: Landmark[], vw: number, vh: number): number {
   const s = handSize(lm, vw, vh);
   const d = ([a, b]: [number, number]) => segDist(P(THUMB_TIP), P(a), P(b)) / s;
   return Math.min(...PADS.map(d));
+}
+
+// Fitting the thresholds to one player's hand (practice.ts): the measure with the hand pointing
+// as it would to aim, and with it pinched and held. Hands differ in how far thumb and pad sit
+// apart when touching, and some rest the thumb on the curled middle finger while pointing, so
+// the pinch closes 40% of the way from pinched to pointing and opens again at 65%. Null when the
+// two are too alike to tell apart.
+export const PINCH_RANGE = { minGap: 0.2, closeAt: 0.4, openAt: 0.65, onMin: 0.15, onMax: 0.7, offMax: 0.9, minSpread: 0.08 };
+export function fitPinch(pointing: number, pinched: number): PinchThresholds | null {
+  const r = PINCH_RANGE, gap = pointing - pinched;
+  if (!(gap >= r.minGap)) return null;
+  const on = Math.min(r.onMax, Math.max(r.onMin, pinched + r.closeAt * gap));
+  const off = Math.min(r.offMax, Math.max(on + r.minSpread, pinched + r.openAt * gap));
+  return { on: round2(on), off: round2(off) };
+}
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+export function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
 // Where the hand aims: halfway between the index and thumb tips, in the camera's 0..1 frame,
@@ -97,6 +118,10 @@ export class PinchDetector {
   private held = 0; // closes swallowed by the cooldown since the last fire
   constructor(readonly o = { ...PINCH_DEFAULTS, cooldownMs: PINCH_COOLDOWN_MS }) {
     this.hyst = new Hysteresis(o.on, o.off);
+  }
+  setThresholds(t: PinchThresholds): void {
+    this.o.on = this.hyst.onBelow = t.on;
+    this.o.off = this.hyst.offAbove = t.off;
   }
   get closed(): boolean {
     return this.hyst.on;

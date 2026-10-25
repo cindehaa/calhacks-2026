@@ -119,7 +119,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     step('hands', practiced,
       !s.cameraReady ? 'No camera? Click or press Space instead of pinching.'
       : practiced ? 'Practice done. Thumbs down cancels a troop.'
-      : 'Point at three targets and pinch each one. About 15 seconds.');
+      : 'Fit the pinch to your hand, then hit three targets. About 20 seconds.');
     const prac = q<HTMLButtonElement>('[data-act="practice"]');
     prac.hidden = !s.cameraReady;
     prac.textContent = practiced ? 'Again' : 'Practice';
@@ -130,5 +130,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   }
 
   input.onSetup = () => open();
+  // The ⋯ menu's "Fit pinch to my hand": just the fitting, over whatever is showing.
+  input.onCalibrate = () => void practice.run({ fitOnly: true });
   return { open: () => open(true) };
 }
