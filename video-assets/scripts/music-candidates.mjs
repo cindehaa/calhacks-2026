@@ -50,7 +50,7 @@ const plan = (globalPos, sections) => ({
 // ---- Candidates ------------------------------------------------------------
 // Each: cue, model tag (file name), fal endpoint, intent (one line), prompt (as human text), body.
 const C = [];
-const add = (cue, tag, model, intent, prompt, body) => C.push({ cue, tag, model, intent, prompt, body });
+const add = (cue, tag, model, intent, prompt, body, n = 1) => C.push({ cue, tag, n, model, intent, prompt, body });
 
 // 1. cold_open (~14 s): sports-broadcast / trailer cold open before kickoff.
 {
@@ -73,9 +73,14 @@ const add = (cue, tag, model, intent, prompt, body) => C.push({ cue, tag, model,
 
 // 2. turn_drone (~12 s): the tension drop, a breath before the storm.
 {
-  const p = `Dark minimal cinematic tension bed, almost silent, the held breath before a storm. A deep low sub-bass drone at low volume, a slow muffled heartbeat-like low pulse at 60 BPM, faint reversed metallic textures and a barely audible high string harmonic. A low string cluster swells very slightly toward the end. No melody, no drums besides the pulse, lots of space and silence. Clean modern trailer sound design. ${NO_VOX}.`;
-  add('turn_drone', 'elevenlabs', 'fal-ai/elevenlabs/music', 'Near-silent sub drone + 60 BPM heartbeat pulse, slight swell at the end',
-    p, { prompt: p, music_length_ms: 12000, force_instrumental: true });
+  // A free-text prompt came back as a loud swell that died by 8 s (twice); a plan holds the whole 12 s.
+  add('turn_drone', 'elevenlabs', 'fal-ai/elevenlabs/music',
+    'Near-silent sub drone + soft 60 BPM heartbeat pulse, held for 12 s via a section plan, no swell or hits',
+    'composition plan (see body)',
+    plan(['dark minimal cinematic tension bed', 'almost silent', 'the held breath before a storm', 'modern trailer sound design', 'instrumental'], [
+      section('Held breath', 6, ['soft deep sub-bass drone', 'slow muffled heartbeat pulse at 60 BPM', 'faint reversed metallic texture', 'very quiet, lots of space'], ['melody', 'drums', 'impacts', 'crescendo', 'brass']),
+      section('Tension', 6, ['same soft sub drone and heartbeat pulse continue', 'barely audible high string harmonic', 'very slight tension', 'sustains to the very end'], ['melody', 'drums', 'impacts', 'crescendo', 'fade out', 'silence']),
+    ]));
 
   const l = 'Dark minimalist cinematic tension underscore, a deep sub bass drone, a slow low pulse like a heartbeat, sparse and quiet, eerie suspense, distant metallic textures, very slow, minimal, modern trailer sound design, instrumental.';
   add('turn_drone', 'lyria2', 'fal-ai/lyria2', 'Sparse heartbeat-pulse suspense bed (~30 s, use any 12 s)',
@@ -85,9 +90,10 @@ const add = (cue, tag, model, intent, prompt, body) => C.push({ cue, tag, model,
   add('turn_drone', 'stable-audio', 'fal-ai/stable-audio-25/text-to-audio', 'Tag-style sub rumble + heartbeat pulse, 12 s',
     s, { prompt: s, seconds_total: 12 });
 
-  const b = 'Dark minimal cinematic suspense drone, deep sub bass, slow heartbeat pulse, sparse and nearly silent, tense, no melody';
-  add('turn_drone', 'beatoven', 'beatoven/music-generation', 'Beatoven take on the minimal suspense drone, 12 s',
-    b, { prompt: b, duration: 12, negative_prompt: 'melody, drums, vocals, upbeat, bright' });
+  // Beatoven (beatoven/music-generation) was down on fal ("Application is not available"); CassetteAI instead.
+  const b = 'Dark minimal cinematic suspense drone, deep sub bass, slow soft heartbeat pulse at 60 BPM, sparse and nearly silent, tense, no melody, no drums, instrumental';
+  add('turn_drone', 'cassetteai', 'cassetteai/music-generator', 'CassetteAI take on the minimal suspense drone, 12 s',
+    b, { prompt: b, duration: 12 });
 }
 
 // 3. escalation_build (~45 s): nonstop escalation under the duel, climax at the very end.
@@ -112,23 +118,11 @@ const add = (cue, tag, model, intent, prompt, body) => C.push({ cue, tag, model,
   add('escalation_build', 'stable-audio', 'fal-ai/stable-audio-25/text-to-audio', 'Tag-style continuous crescendo, sparse tick to full-orchestra climax, 45 s',
     s, { prompt: s, seconds_total: 45 });
 
-  const b = 'Epic hybrid orchestral trailer build that escalates nonstop, sparse ticking pulse at first, then strings ostinato, trailer drums, brass stabs, faster and bigger, huge climax at the end, 120 BPM, intense';
-  add('escalation_build', 'beatoven', 'beatoven/music-generation', 'Beatoven take on the escalating trailer build, 45 s',
-    b, { prompt: b, duration: 45, negative_prompt: 'vocals, sleigh bells, celesta, calm, fade out' });
+  // CassetteAI was tried here twice; both takes peaked mid-track and sagged at the end, so it's out.
 }
 
 // 4. hype_track (~60 s): montage, opens on a big beat drop, catchy, sits under dialogue.
 {
-  add('hype_track', 'elevenlabs-trap-orch', 'fal-ai/elevenlabs/music',
-    'Trap-orchestral hybrid, 140 BPM, opens at full drop: 808s, hi-hat rolls, catchy brass hook (timed sections)',
-    'composition plan (see body)',
-    plan(['trap orchestral hybrid', 'hype game launch trailer', '140 BPM half-time groove', 'hard 808 bass', 'crisp trap hi-hats with rolls', 'big catchy brass riff hook', 'string stabs', 'fun, confident, triumphant', 'mix leaves midrange room for dialogue', 'punchy wide modern mastering', 'instrumental'], [
-      section('Drop', 15, ['starts instantly at full energy on a huge beat drop', 'hard 808s', 'brass hook', 'hand claps'], ['intro', 'build-up', 'quiet start']),
-      section('Groove', 15, ['steady bouncing groove', 'brass hook variation', 'pizzicato strings', 'hi-hat rolls']),
-      section('Lift', 15, ['bigger', 'added synth lead doubling the brass hook', 'orchestral hits', 'energetic']),
-      section('Final drop', 15, ['final big drop', 'everything in', 'ends on a strong final hit'], ['fade out']),
-    ]));
-
   const p = `Energetic modern hype edit track, phonk-meets-big-room electronic, 130 BPM. Starts instantly on a huge beat drop at 0:00, no intro: hard punchy kick, distorted 808 bass, cowbell phonk melody, big supersaw synth stabs and a catchy synth hook. Fun, cocky and catchy like a viral gaming highlights montage. Keeps the energy high the whole time with short fills and a second drop at 30 s, ends on a hit. Mix leaves room in the midrange for people talking. ${MIX}. ${NO_VOX}.`;
   add('hype_track', 'elevenlabs-phonk', 'fal-ai/elevenlabs/music', 'Phonk/big-room hype edit, 130 BPM, cowbell + supersaw hook, drop at 0:00',
     p, { prompt: p, music_length_ms: 60000, force_instrumental: true });
@@ -137,9 +131,14 @@ const add = (cue, tag, model, intent, prompt, body) => C.push({ cue, tag, model,
   add('hype_track', 'stable-audio', 'fal-ai/stable-audio-25/text-to-audio', 'Pop-rock launch trailer: stomp-clap, big drums, guitars, brass hook, 60 s',
     s, { prompt: s, seconds_total: 60 });
 
-  const b = 'Energetic big room electronic hype track for a gaming montage, starts on a huge drop, punchy drums, big synths, catchy hook, brass stabs, fun and upbeat, 128 BPM';
-  add('hype_track', 'beatoven', 'beatoven/music-generation', 'Beatoven big-room electronic hype, 60 s',
-    b, { prompt: b, duration: 60, negative_prompt: 'vocals, slow intro, calm, sleigh bells, ambient' });
+  const b = 'Energetic big room electronic hype track for a gaming montage, starts immediately on a huge drop with no intro, punchy four-on-the-floor drums, big supersaw synths, catchy synth hook, brass stabs, fun and upbeat, 128 BPM, modern polished mastering, instrumental';
+  add('hype_track', 'cassetteai', 'cassetteai/music-generator', 'CassetteAI big-room electronic hype, 60 s',
+    b, { prompt: b, duration: 60 });
+
+  // Take 1 (a section plan) opened on a 3 s fade-in and was dropped; take 2 pins the drop to 0:00.
+  const t = `Trap-orchestral hybrid hype track for a game launch trailer and a montage of friends having fun. The very first beat at 0.0 s is the full drop, no intro, no riser, no fade-in: hard 808 bass, crisp trap hi-hats with rolls, claps, and a big catchy brass riff hook over string stabs, 140 BPM half-time bounce. 15-30 s: groove with brass hook variations and pizzicato strings. 30-45 s: a synth lead doubles the hook, orchestral hits, bigger. 45-60 s: final drop with everything in, ends on a strong final hit. Fun, confident, triumphant. Mix leaves midrange room for dialogue. ${MIX}. ${NO_VOX}.`;
+  add('hype_track', 'elevenlabs-trap-orch', 'fal-ai/elevenlabs/music', 'Trap-orchestral hybrid as a written prompt, drop pinned to 0.0 s',
+    t, { prompt: t, music_length_ms: 60000, force_instrumental: true }, 2);
 
   const l3 = 'Instrumental only. A fun, high-energy modern hype track for a game launch trailer and a montage of friends laughing. It starts immediately on a huge beat drop with no intro: punchy trap drums, hard 808 bass, a catchy bold brass riff, bright synth stabs and claps, a strong bouncing groove at 140 BPM. Confident, playful, triumphant, polished modern mix with space for dialogue, no vocals.';
   add('hype_track', 'lyria3', 'fal-ai/lyria3', 'Lyria 3 trap/brass hype (length set by the model)',
@@ -229,7 +228,7 @@ function measure(path) {
 // ---- Run -------------------------------------------------------------------
 const indexPath = join(outDir, 'index.json');
 const index = existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, 'utf8')) : {};
-const rel = (j) => `${j.cue}/${j.tag}-1.mp3`;
+const rel = (j) => `${j.cue}/${j.tag}-${j.n}.mp3`;
 const only = args.only?.split(',').map((s) => s.trim()).filter(Boolean);
 const list = only ? C.filter((j) => only.some((p) => rel(j).startsWith(p))) : C;
 

@@ -239,6 +239,25 @@
       "build_db": -0.8
     }
   },
+  "hype_track/cassetteai-1.mp3": {
+    "cue": "hype_track",
+    "model": "cassetteai/music-generator",
+    "intent": "CassetteAI big-room electronic hype, 60 s",
+    "prompt": "Energetic big room electronic hype track for a gaming montage, starts immediately on a huge drop with no intro, punchy four-on-the-floor drums, big supersaw synths, catchy synth hook, brass stabs, fun and upbeat, 128 BPM, modern polished mastering, instrumental",
+    "request": {
+      "prompt": "Energetic big room electronic hype track for a gaming montage, starts immediately on a huge drop with no intro, punchy four-on-the-floor drums, big supersaw synths, catchy synth hook, brass stabs, fun and upbeat, 128 BPM, modern polished mastering, instrumental",
+      "duration": 60
+    },
+    "measure": {
+      "duration": 59.91,
+      "mean_db": -19.8,
+      "peak_db": -3.1,
+      "first2_mean_db": -16.8,
+      "first5_mean_db": -19.7,
+      "last5_mean_db": -19,
+      "build_db": 0.7
+    }
+  },
   "hype_track/elevenlabs-phonk-1.mp3": {
     "cue": "hype_track",
     "model": "fal-ai/elevenlabs/music",
@@ -259,104 +278,24 @@
       "build_db": -3.1
     }
   },
-  "hype_track/elevenlabs-trap-orch-1.mp3": {
+  "hype_track/elevenlabs-trap-orch-2.mp3": {
     "cue": "hype_track",
     "model": "fal-ai/elevenlabs/music",
-    "intent": "Trap-orchestral hybrid, 140 BPM, opens at full drop: 808s, hi-hat rolls, catchy brass hook (timed sections)",
-    "prompt": "composition plan (see body)",
+    "intent": "Trap-orchestral hybrid as a written prompt, drop pinned to 0.0 s",
+    "prompt": "Trap-orchestral hybrid hype track for a game launch trailer and a montage of friends having fun. The very first beat at 0.0 s is the full drop, no intro, no riser, no fade-in: hard 808 bass, crisp trap hi-hats with rolls, claps, and a big catchy brass riff hook over string stabs, 140 BPM half-time bounce. 15-30 s: groove with brass hook variations and pizzicato strings. 30-45 s: a synth lead doubles the hook, orchestral hits, bigger. 45-60 s: final drop with everything in, ends on a strong final hit. Fun, confident, triumphant. Mix leaves midrange room for dialogue. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
     "request": {
-      "composition_plan": {
-        "positive_global_styles": [
-          "trap orchestral hybrid",
-          "hype game launch trailer",
-          "140 BPM half-time groove",
-          "hard 808 bass",
-          "crisp trap hi-hats with rolls",
-          "big catchy brass riff hook",
-          "string stabs",
-          "fun, confident, triumphant",
-          "mix leaves midrange room for dialogue",
-          "punchy wide modern mastering",
-          "instrumental"
-        ],
-        "negative_global_styles": [
-          "vocals",
-          "singing",
-          "lyrics",
-          "choir words",
-          "sleigh bells",
-          "celesta",
-          "fireplace crackle",
-          "christmas",
-          "lo-fi",
-          "muddy"
-        ],
-        "sections": [
-          {
-            "section_name": "Drop",
-            "duration_ms": 15000,
-            "positive_local_styles": [
-              "starts instantly at full energy on a huge beat drop",
-              "hard 808s",
-              "brass hook",
-              "hand claps"
-            ],
-            "negative_local_styles": [
-              "intro",
-              "build-up",
-              "quiet start"
-            ],
-            "lines": []
-          },
-          {
-            "section_name": "Groove",
-            "duration_ms": 15000,
-            "positive_local_styles": [
-              "steady bouncing groove",
-              "brass hook variation",
-              "pizzicato strings",
-              "hi-hat rolls"
-            ],
-            "negative_local_styles": [],
-            "lines": []
-          },
-          {
-            "section_name": "Lift",
-            "duration_ms": 15000,
-            "positive_local_styles": [
-              "bigger",
-              "added synth lead doubling the brass hook",
-              "orchestral hits",
-              "energetic"
-            ],
-            "negative_local_styles": [],
-            "lines": []
-          },
-          {
-            "section_name": "Final drop",
-            "duration_ms": 15000,
-            "positive_local_styles": [
-              "final big drop",
-              "everything in",
-              "ends on a strong final hit"
-            ],
-            "negative_local_styles": [
-              "fade out"
-            ],
-            "lines": []
-          }
-        ]
-      },
-      "respect_sections_durations": true
+      "prompt": "Trap-orchestral hybrid hype track for a game launch trailer and a montage of friends having fun. The very first beat at 0.0 s is the full drop, no intro, no riser, no fade-in: hard 808 bass, crisp trap hi-hats with rolls, claps, and a big catchy brass riff hook over string stabs, 140 BPM half-time bounce. 15-30 s: groove with brass hook variations and pizzicato strings. 30-45 s: a synth lead doubles the hook, orchestral hits, bigger. 45-60 s: final drop with everything in, ends on a strong final hit. Fun, confident, triumphant. Mix leaves midrange room for dialogue. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+      "music_length_ms": 60000,
+      "force_instrumental": true
     },
     "measure": {
-      "duration": 60.03,
-      "mean_db": -14.1,
+      "duration": 60.08,
+      "mean_db": -13.6,
       "peak_db": 0,
-      "first2_mean_db": -37.4,
-      "first5_mean_db": -18.4,
-      "last5_mean_db": -25.5,
-      "build_db": -7.1
+      "first2_mean_db": -13.7,
+      "first5_mean_db": -13.2,
+      "last5_mean_db": -21.5,
+      "build_db": -8.3
     }
   },
   "hype_track/lyria3-1.mp3": {
@@ -396,24 +335,101 @@
       "build_db": -24.2
     }
   },
+  "turn_drone/cassetteai-1.mp3": {
+    "cue": "turn_drone",
+    "model": "cassetteai/music-generator",
+    "intent": "CassetteAI take on the minimal suspense drone, 12 s",
+    "prompt": "Dark minimal cinematic suspense drone, deep sub bass, slow soft heartbeat pulse at 60 BPM, sparse and nearly silent, tense, no melody, no drums, instrumental",
+    "request": {
+      "prompt": "Dark minimal cinematic suspense drone, deep sub bass, slow soft heartbeat pulse at 60 BPM, sparse and nearly silent, tense, no melody, no drums, instrumental",
+      "duration": 12
+    },
+    "measure": {
+      "duration": 12,
+      "mean_db": -19.3,
+      "peak_db": -6.9,
+      "first2_mean_db": -19.9,
+      "first5_mean_db": -19.1,
+      "last5_mean_db": -19.7,
+      "build_db": -0.6
+    }
+  },
   "turn_drone/elevenlabs-1.mp3": {
     "cue": "turn_drone",
     "model": "fal-ai/elevenlabs/music",
-    "intent": "Near-silent sub drone + 60 BPM heartbeat pulse, slight swell at the end",
-    "prompt": "Dark minimal cinematic tension bed, almost silent, the held breath before a storm. A deep low sub-bass drone at low volume, a slow muffled heartbeat-like low pulse at 60 BPM, faint reversed metallic textures and a barely audible high string harmonic. A low string cluster swells very slightly toward the end. No melody, no drums besides the pulse, lots of space and silence. Clean modern trailer sound design. instrumental, no vocals, no singing, no choir words.",
+    "intent": "Near-silent sub drone + soft 60 BPM heartbeat pulse, held for 12 s via a section plan, no swell or hits",
+    "prompt": "composition plan (see body)",
     "request": {
-      "prompt": "Dark minimal cinematic tension bed, almost silent, the held breath before a storm. A deep low sub-bass drone at low volume, a slow muffled heartbeat-like low pulse at 60 BPM, faint reversed metallic textures and a barely audible high string harmonic. A low string cluster swells very slightly toward the end. No melody, no drums besides the pulse, lots of space and silence. Clean modern trailer sound design. instrumental, no vocals, no singing, no choir words.",
-      "music_length_ms": 12000,
-      "force_instrumental": true
+      "composition_plan": {
+        "positive_global_styles": [
+          "dark minimal cinematic tension bed",
+          "almost silent",
+          "the held breath before a storm",
+          "modern trailer sound design",
+          "instrumental"
+        ],
+        "negative_global_styles": [
+          "vocals",
+          "singing",
+          "lyrics",
+          "choir words",
+          "sleigh bells",
+          "celesta",
+          "fireplace crackle",
+          "christmas",
+          "lo-fi",
+          "muddy"
+        ],
+        "sections": [
+          {
+            "section_name": "Held breath",
+            "duration_ms": 6000,
+            "positive_local_styles": [
+              "soft deep sub-bass drone",
+              "slow muffled heartbeat pulse at 60 BPM",
+              "faint reversed metallic texture",
+              "very quiet, lots of space"
+            ],
+            "negative_local_styles": [
+              "melody",
+              "drums",
+              "impacts",
+              "crescendo",
+              "brass"
+            ],
+            "lines": []
+          },
+          {
+            "section_name": "Tension",
+            "duration_ms": 6000,
+            "positive_local_styles": [
+              "same soft sub drone and heartbeat pulse continue",
+              "barely audible high string harmonic",
+              "very slight tension",
+              "sustains to the very end"
+            ],
+            "negative_local_styles": [
+              "melody",
+              "drums",
+              "impacts",
+              "crescendo",
+              "fade out",
+              "silence"
+            ],
+            "lines": []
+          }
+        ]
+      },
+      "respect_sections_durations": true
     },
     "measure": {
       "duration": 12.02,
-      "mean_db": -13.6,
-      "peak_db": -1.5,
-      "first2_mean_db": -45.2,
-      "first5_mean_db": -22.3,
-      "last5_mean_db": -12.5,
-      "build_db": 9.8
+      "mean_db": -24.6,
+      "peak_db": -2.5,
+      "first2_mean_db": -35.1,
+      "first5_mean_db": -26.1,
+      "last5_mean_db": -25.9,
+      "build_db": 0.2
     }
   },
   "turn_drone/lyria2-1.mp3": {
