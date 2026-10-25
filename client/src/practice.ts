@@ -2,7 +2,7 @@
 // player's hand: a second pointing as they would to aim, then a pinch held, and the thresholds go
 // between the two (pose.ts fitPinch), since a pinch tuned to one hand misses on others. The ⋯
 // menu's "Fit pinch to my hand" runs that part alone. Then three targets across the screen, one at a
-// time; point at each and pinch to hit it. Only a real pinch counts (not the mouse or Space), so
+// time; pinch, move onto each and let go to hit it. Only a real pinch counts (not the mouse or Space), so
 // finishing shows the camera can see you aim and pinch. A meter shows how close thumb and finger
 // are, and pinches that almost close (nearmiss.ts) get told to close all the way. Skip any time.
 import type { InputController } from './input/controller';
@@ -74,7 +74,7 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
       : !seen ? 'Show your hand to the camera.'
       : phase === 'point' ? 'Point at the screen the way you’ll aim, and hold still.'
       : phase === 'pinch' ? 'Now pinch: thumb to any finger, and hold it.'
-      : 'Point at the target, then touch your thumb to any finger.';
+      : 'Pinch, move onto the target, then let go.';
     count.textContent = phase === 'point' ? '1 of 2' : phase === 'pinch' ? '2 of 2' : `${Math.min(hits + 1, SPOTS.length)} of ${SPOTS.length}`;
   }
 
@@ -191,11 +191,11 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
         art.classList.add('nudge');
       }
       render();
-    } else if (s.kind === 'pinch' && phase === 'targets') {
+    } else if (s.kind === 'release' && phase === 'targets') {
       if (target && on(target, s.aim)) hit(target);
       else if (target) {
         sfx.play('miss');
-        tell('Pinch while the cursor is on the target.', 2000);
+        tell('Let go while the cursor is on the target.', 2000);
       }
     }
   });
