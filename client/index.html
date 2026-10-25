@@ -92,8 +92,8 @@
         <button id="botBtn" data-primary class="slab stone small"><span class="face"><i class="ico" data-icon="target" data-tone="gold" data-size="38"></i><b>Practice</b><small>Play against the bot</small></span></button>
       </div>
       <button id="battleBtn" class="slab amber battle"><span class="face"><i class="ico" data-icon="swords" data-tone="carved" data-size="54"></i><span class="bLabel"><b>Play online</b><small>Start a room and invite a friend</small></span></span></button>
-      <div class="orderSide">
-        <button id="ravenBtn" class="slab stone small"><span class="face"><i class="ico" data-icon="raven" data-tone="gold" data-size="44"></i><b>Join a room</b><small>Enter a friend’s code</small></span></button>
+      <div class="orderSide handSide">
+        <div id="handSlot" class="handSlot"></div>
       </div>
     </div>
     <p id="lobbyError" class="error homeError"></p>
@@ -105,7 +105,7 @@
       <div class="ravenHead">
         <div><span class="gLabel"><i class="ico" data-icon="raven" data-tone="gold" data-size="18"></i> Online match</span>
           <h2 id="ravenTitle">Play a friend</h2>
-          <p class="sub" id="ravenSub">Send this code to a friend. They enter it under Join a room.</p></div>
+          <p class="sub" id="ravenSub">Send this code to a friend. They enter it under Play online.</p></div>
         <button id="ravenClose" class="slab stone icon" aria-label="Close"><span class="face"><i class="ico" data-icon="close" data-tone="light" data-size="18"></i></span></button>
       </div>
       <div class="ravenSection">
@@ -250,9 +250,9 @@
     <div class="panel tut">
       <div class="tutHead"><h1 id="tutTitle">How to play</h1><span class="sub">about 10 seconds</span></div>
       <ol>
-        <li><span><b>Say</b> a troop, like “wizard with fire”. The mic is always on.</span></li>
-        <li><span><b>Aim</b> with your index finger or the mouse.</span></li>
-        <li><span><b>Pinch</b> to send it, or click. It costs <b>embers</b>.</span></li>
+        <li><span class="handArt" data-art="say"></span><span><b>Say</b> a troop, like “wizard with fire”.</span></li>
+        <li><span class="handArt" data-art="point"></span><span><b>Aim</b> with your index finger or the mouse.</span></li>
+        <li><span class="handArt" data-art="pinch"></span><span><b>Pinch</b> to send it, or click. It costs <b>embers</b>.</span></li>
       </ol>
       <p class="sub">Cancel: thumbs down or <kbd>Esc</kbd> · Wrong troop: <kbd>X</kbd></p>
       <div class="tutFoot"><button id="tutClose" data-primary>Got it</button><span class="sub">Reopen with <kbd>?</kbd> · mute with <kbd>M</kbd></span></div>

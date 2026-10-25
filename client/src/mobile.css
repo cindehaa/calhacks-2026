@@ -26,6 +26,7 @@ html { touch-action: manipulation; } /* no double-tap zoom on the board or the b
   #setup .panel, #tutorial .panel { padding: 22px 20px 20px; gap: 12px; }
   #setup .panel h1, #tutorial .panel h1 { font-size: 24px; }
   #tutorial li, #setup .sub { font-size: 15px; }
+  #tutorial ol { gap: 8px; } #tutorial li { font-size: 13px; } #tutorial li .handArt { height: 88px; padding: 8px 0; }
   .menuPanel .gFace { padding: 24px 20px; }
 }
 

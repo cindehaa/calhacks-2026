@@ -78,3 +78,18 @@ export function pinchArt(animate = !reduced()): string {
     'Touch your thumb to your middle finger',
   );
 }
+
+// Say a troop: a frost speech bubble with an amber voice level bouncing inside, the same look as
+// the hands. Holds still under reduced motion.
+export function sayArt(animate = !reduced()): string {
+  const H = [14, 26, 36, 22, 30, 16]; // resting bar heights
+  const bars = H.map((h, i) => {
+    const x = 26 + i * 9.6, lo = Math.max(6, h * 0.35);
+    const anim = animate
+      ? `<animate attributeName="height" values="${lo};${h};${lo + 4};${h * 0.8};${lo}" dur="${1.1 + (i % 3) * 0.17}s" begin="${-i * 0.23}s" repeatCount="indefinite"/><animate attributeName="y" values="${56 - lo / 2};${56 - h / 2};${56 - (lo + 4) / 2};${56 - h * 0.4};${56 - lo / 2}" dur="${1.1 + (i % 3) * 0.17}s" begin="${-i * 0.23}s" repeatCount="indefinite"/>`
+      : '';
+    return `<rect x="${x - 2.5}" y="${56 - h / 2}" width="5" height="${h}" rx="2.5" fill="${AIM}">${anim}</rect>`;
+  }).join('');
+  const bubble = `<path d="M22,24 H78 Q90,24 90,36 V76 Q90,88 78,88 H40 L24,104 L27,88 H22 Q10,88 10,76 V36 Q10,24 22,24 Z" fill="${BONE}" fill-opacity=".16" stroke="${BONE}" stroke-opacity=".85" stroke-width="4" stroke-linejoin="round"/>`;
+  return svg(bubble + bars, 'Say the troop out loud');
+}
