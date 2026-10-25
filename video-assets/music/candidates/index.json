@@ -1,0 +1,457 @@
+{
+  "cold_open/elevenlabs-1.mp3": {
+    "cue": "cold_open",
+    "model": "fal-ai/elevenlabs/music",
+    "intent": "Broadcast-meets-trailer intro: sub boom, hybrid drums, brass statement, braam ending (prompt timeline)",
+    "prompt": "Modern cinematic sports-broadcast pre-game cold open crossed with a AAA video game trailer, ominous and grand, building anticipation. 90 BPM. 0-4 s: a deep sub-bass boom and a low sustained synth-brass drone with a quiet ticking pulse. 4-9 s: tight hybrid trailer percussion enters (taiko, processed toms, pulsing synth bass), a staccato low-string ostinato and a rising reverse swell. 9-14 s: a grand heroic brass statement over driving drums, swelling to a held peak and a final massive braam hit. Serious, epic, high stakes. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+    "request": {
+      "prompt": "Modern cinematic sports-broadcast pre-game cold open crossed with a AAA video game trailer, ominous and grand, building anticipation. 90 BPM. 0-4 s: a deep sub-bass boom and a low sustained synth-brass drone with a quiet ticking pulse. 4-9 s: tight hybrid trailer percussion enters (taiko, processed toms, pulsing synth bass), a staccato low-string ostinato and a rising reverse swell. 9-14 s: a grand heroic brass statement over driving drums, swelling to a held peak and a final massive braam hit. Serious, epic, high stakes. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+      "music_length_ms": 14000,
+      "force_instrumental": true
+    },
+    "measure": {
+      "duration": 14.05,
+      "mean_db": -17.4,
+      "peak_db": 0,
+      "first2_mean_db": -17.7,
+      "first5_mean_db": -18.7,
+      "last5_mean_db": -18.1,
+      "build_db": 0.6
+    }
+  },
+  "cold_open/lyria2-1.mp3": {
+    "cue": "cold_open",
+    "model": "fal-ai/lyria2",
+    "intent": "Championship-final broadcast theme: low brass, hybrid drums, horn fanfare (~30 s, use the front)",
+    "prompt": "Epic modern sports broadcast intro theme, like a championship final pre-game show. Ominous low brass swells and a deep synth drone, then pounding hybrid trailer drums, staccato strings and a heroic French horn and trombone fanfare building to a huge climax. Dark, grand, anticipation, cinematic, 95 BPM, polished Hollywood trailer production, wide stereo, instrumental.",
+    "request": {
+      "prompt": "Epic modern sports broadcast intro theme, like a championship final pre-game show. Ominous low brass swells and a deep synth drone, then pounding hybrid trailer drums, staccato strings and a heroic French horn and trombone fanfare building to a huge climax. Dark, grand, anticipation, cinematic, 95 BPM, polished Hollywood trailer production, wide stereo, instrumental.",
+      "negative_prompt": "vocals, singing, lyrics, sleigh bells, celesta, fireplace crackle, christmas, lo-fi, muddy mix, cheesy, amateur, soft, ambient, piano ballad"
+    },
+    "measure": {
+      "duration": 32.77,
+      "mean_db": -25,
+      "peak_db": -1.7,
+      "first2_mean_db": -25.3,
+      "first5_mean_db": -25.1,
+      "last5_mean_db": -24.7,
+      "build_db": 0.4
+    }
+  },
+  "cold_open/lyria3-1.mp3": {
+    "cue": "cold_open",
+    "model": "fal-ai/lyria3",
+    "intent": "Same brief on Lyria 3: drone to drums to brass theme, braam ending",
+    "prompt": "Instrumental only. A grand, ominous cinematic cold open for a championship broadcast and a blockbuster video game trailer. Starts with a deep sub boom and dark synth drone, a ticking pulse builds, hybrid trailer drums and staccato low strings enter, then a massive heroic brass theme rises to a peak and ends on a huge braam hit. 90 BPM, serious and epic, modern polished Hollywood trailer mix, no vocals.",
+    "request": {
+      "prompt": "Instrumental only. A grand, ominous cinematic cold open for a championship broadcast and a blockbuster video game trailer. Starts with a deep sub boom and dark synth drone, a ticking pulse builds, hybrid trailer drums and staccato low strings enter, then a massive heroic brass theme rises to a peak and ends on a huge braam hit. 90 BPM, serious and epic, modern polished Hollywood trailer mix, no vocals."
+    },
+    "measure": {
+      "duration": 30.77,
+      "mean_db": -14.3,
+      "peak_db": 0,
+      "first2_mean_db": -23.5,
+      "first5_mean_db": -24.2,
+      "last5_mean_db": -13.5,
+      "build_db": 10.7
+    }
+  },
+  "cold_open/stable-audio-1.mp3": {
+    "cue": "cold_open",
+    "model": "fal-ai/stable-audio-25/text-to-audio",
+    "intent": "Tag-style hybrid trailer intro: sub booms to heroic brass hit, 14 s",
+    "prompt": "Cinematic hybrid trailer intro, ominous and grand, sports broadcast opening, deep sub booms, low synth brass drone, taiko and tom percussion building, staccato string ostinato, rising swell into a huge heroic brass hit, 90 BPM, D minor, epic, modern Hollywood trailer, wide stereo, high quality mastering, instrumental",
+    "request": {
+      "prompt": "Cinematic hybrid trailer intro, ominous and grand, sports broadcast opening, deep sub booms, low synth brass drone, taiko and tom percussion building, staccato string ostinato, rising swell into a huge heroic brass hit, 90 BPM, D minor, epic, modern Hollywood trailer, wide stereo, high quality mastering, instrumental",
+      "seconds_total": 14
+    },
+    "measure": {
+      "duration": 14,
+      "mean_db": -17,
+      "peak_db": -0.2,
+      "first2_mean_db": -16.9,
+      "first5_mean_db": -16.7,
+      "last5_mean_db": -23.7,
+      "build_db": -7
+    }
+  },
+  "escalation_build/elevenlabs-1.mp3": {
+    "cue": "escalation_build",
+    "model": "fal-ai/elevenlabs/music",
+    "intent": "Same arc as one written prompt timeline, no fade, ends on the hit",
+    "prompt": "Nonstop escalating hybrid orchestral trailer build for a high-stakes duel, getting faster and bigger every few seconds. 0-7 s: sparse ticking synth pulse and a low string drone. 7-15 s: staccato low strings and a soft kick. 15-23 s: hybrid trailer drums, taiko, synth arpeggios, strings in sixteenths. 23-31 s: low brass stabs and risers, the tempo feel doubles. 31-39 s: racing strings, pounding drums and a heroic brass theme. 39-45 s: everything at maximum with a shepard-tone riser, climaxing on one huge final hit right at the end, no fade out. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+    "request": {
+      "prompt": "Nonstop escalating hybrid orchestral trailer build for a high-stakes duel, getting faster and bigger every few seconds. 0-7 s: sparse ticking synth pulse and a low string drone. 7-15 s: staccato low strings and a soft kick. 15-23 s: hybrid trailer drums, taiko, synth arpeggios, strings in sixteenths. 23-31 s: low brass stabs and risers, the tempo feel doubles. 31-39 s: racing strings, pounding drums and a heroic brass theme. 39-45 s: everything at maximum with a shepard-tone riser, climaxing on one huge final hit right at the end, no fade out. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+      "music_length_ms": 45000,
+      "force_instrumental": true
+    },
+    "measure": {
+      "duration": 45.04,
+      "mean_db": -16.3,
+      "peak_db": -0.7,
+      "first2_mean_db": -25.8,
+      "first5_mean_db": -26.9,
+      "last5_mean_db": -21.8,
+      "build_db": 5.1
+    }
+  },
+  "escalation_build/elevenlabs-plan-1.mp3": {
+    "cue": "escalation_build",
+    "model": "fal-ai/elevenlabs/music",
+    "intent": "Six timed sections: ticking pulse -> ostinato -> hybrid drums -> brass -> double-time -> climax hit at 45 s",
+    "prompt": "composition plan (see body)",
+    "request": {
+      "composition_plan": {
+        "positive_global_styles": [
+          "epic hybrid orchestral trailer build",
+          "modern AAA game trailer",
+          "nonstop escalation",
+          "D minor",
+          "punchy wide modern mastering",
+          "instrumental"
+        ],
+        "negative_global_styles": [
+          "vocals",
+          "singing",
+          "lyrics",
+          "choir words",
+          "sleigh bells",
+          "celesta",
+          "fireplace crackle",
+          "christmas",
+          "lo-fi",
+          "muddy"
+        ],
+        "sections": [
+          {
+            "section_name": "Sparse pulse",
+            "duration_ms": 7000,
+            "positive_local_styles": [
+              "sparse ticking synth pulse at 120 BPM",
+              "low sustained string drone",
+              "quiet",
+              "tense"
+            ],
+            "negative_local_styles": [
+              "drums",
+              "brass"
+            ],
+            "lines": []
+          },
+          {
+            "section_name": "Ostinato",
+            "duration_ms": 7000,
+            "positive_local_styles": [
+              "staccato low string ostinato in eighth notes",
+              "soft kick on each bar",
+              "pulsing synth bass",
+              "growing"
+            ],
+            "negative_local_styles": [
+              "brass melody"
+            ],
+            "lines": []
+          },
+          {
+            "section_name": "Drums enter",
+            "duration_ms": 8000,
+            "positive_local_styles": [
+              "hybrid trailer drums enter",
+              "taiko and toms",
+              "strings in sixteenths",
+              "synth arpeggio",
+              "louder"
+            ],
+            "negative_local_styles": [],
+            "lines": []
+          },
+          {
+            "section_name": "Brass",
+            "duration_ms": 8000,
+            "positive_local_styles": [
+              "big low brass stabs",
+              "full trailer percussion",
+              "rising risers",
+              "intense",
+              "faster feel"
+            ],
+            "negative_local_styles": [],
+            "lines": []
+          },
+          {
+            "section_name": "Double time",
+            "duration_ms": 8000,
+            "positive_local_styles": [
+              "double-time drums",
+              "racing sixteenth strings",
+              "heroic brass melody",
+              "massive and relentless"
+            ],
+            "negative_local_styles": [],
+            "lines": []
+          },
+          {
+            "section_name": "Climax",
+            "duration_ms": 7000,
+            "positive_local_styles": [
+              "everything at maximum",
+              "shepard tone riser",
+              "pounding drums",
+              "full orchestra and synths",
+              "peaks at the very end on one huge final hit"
+            ],
+            "negative_local_styles": [
+              "fade out",
+              "quiet ending"
+            ],
+            "lines": []
+          }
+        ]
+      },
+      "respect_sections_durations": true
+    },
+    "measure": {
+      "duration": 45.04,
+      "mean_db": -18.1,
+      "peak_db": -0.9,
+      "first2_mean_db": -33.6,
+      "first5_mean_db": -31.6,
+      "last5_mean_db": -20.3,
+      "build_db": 11.3
+    }
+  },
+  "escalation_build/stable-audio-1.mp3": {
+    "cue": "escalation_build",
+    "model": "fal-ai/stable-audio-25/text-to-audio",
+    "intent": "Tag-style continuous crescendo, sparse tick to full-orchestra climax, 45 s",
+    "prompt": "Epic hybrid orchestral trailer build, nonstop crescendo, starts sparse with a ticking pulse and low strings, adds taiko and hybrid drums, staccato string ostinato, synth arpeggios, brass stabs, gets faster and louder continuously, racing strings, huge climax at the end, 120 BPM, D minor, modern AAA game trailer, punchy wide mastering, instrumental",
+    "request": {
+      "prompt": "Epic hybrid orchestral trailer build, nonstop crescendo, starts sparse with a ticking pulse and low strings, adds taiko and hybrid drums, staccato string ostinato, synth arpeggios, brass stabs, gets faster and louder continuously, racing strings, huge climax at the end, 120 BPM, D minor, modern AAA game trailer, punchy wide mastering, instrumental",
+      "seconds_total": 45
+    },
+    "measure": {
+      "duration": 45,
+      "mean_db": -16.4,
+      "peak_db": -0.1,
+      "first2_mean_db": -22.6,
+      "first5_mean_db": -20.7,
+      "last5_mean_db": -21.5,
+      "build_db": -0.8
+    }
+  },
+  "hype_track/elevenlabs-phonk-1.mp3": {
+    "cue": "hype_track",
+    "model": "fal-ai/elevenlabs/music",
+    "intent": "Phonk/big-room hype edit, 130 BPM, cowbell + supersaw hook, drop at 0:00",
+    "prompt": "Energetic modern hype edit track, phonk-meets-big-room electronic, 130 BPM. Starts instantly on a huge beat drop at 0:00, no intro: hard punchy kick, distorted 808 bass, cowbell phonk melody, big supersaw synth stabs and a catchy synth hook. Fun, cocky and catchy like a viral gaming highlights montage. Keeps the energy high the whole time with short fills and a second drop at 30 s, ends on a hit. Mix leaves room in the midrange for people talking. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+    "request": {
+      "prompt": "Energetic modern hype edit track, phonk-meets-big-room electronic, 130 BPM. Starts instantly on a huge beat drop at 0:00, no intro: hard punchy kick, distorted 808 bass, cowbell phonk melody, big supersaw synth stabs and a catchy synth hook. Fun, cocky and catchy like a viral gaming highlights montage. Keeps the energy high the whole time with short fills and a second drop at 30 s, ends on a hit. Mix leaves room in the midrange for people talking. punchy, wide, modern trailer mastering, clean tight low end, professional AAA game trailer production. instrumental, no vocals, no singing, no choir words.",
+      "music_length_ms": 60000,
+      "force_instrumental": true
+    },
+    "measure": {
+      "duration": 60.08,
+      "mean_db": -12,
+      "peak_db": 0,
+      "first2_mean_db": -11.1,
+      "first5_mean_db": -11.1,
+      "last5_mean_db": -14.2,
+      "build_db": -3.1
+    }
+  },
+  "hype_track/elevenlabs-trap-orch-1.mp3": {
+    "cue": "hype_track",
+    "model": "fal-ai/elevenlabs/music",
+    "intent": "Trap-orchestral hybrid, 140 BPM, opens at full drop: 808s, hi-hat rolls, catchy brass hook (timed sections)",
+    "prompt": "composition plan (see body)",
+    "request": {
+      "composition_plan": {
+        "positive_global_styles": [
+          "trap orchestral hybrid",
+          "hype game launch trailer",
+          "140 BPM half-time groove",
+          "hard 808 bass",
+          "crisp trap hi-hats with rolls",
+          "big catchy brass riff hook",
+          "string stabs",
+          "fun, confident, triumphant",
+          "mix leaves midrange room for dialogue",
+          "punchy wide modern mastering",
+          "instrumental"
+        ],
+        "negative_global_styles": [
+          "vocals",
+          "singing",
+          "lyrics",
+          "choir words",
+          "sleigh bells",
+          "celesta",
+          "fireplace crackle",
+          "christmas",
+          "lo-fi",
+          "muddy"
+        ],
+        "sections": [
+          {
+            "section_name": "Drop",
+            "duration_ms": 15000,
+            "positive_local_styles": [
+              "starts instantly at full energy on a huge beat drop",
+              "hard 808s",
+              "brass hook",
+              "hand claps"
+            ],
+            "negative_local_styles": [
+              "intro",
+              "build-up",
+              "quiet start"
+            ],
+            "lines": []
+          },
+          {
+            "section_name": "Groove",
+            "duration_ms": 15000,
+            "positive_local_styles": [
+              "steady bouncing groove",
+              "brass hook variation",
+              "pizzicato strings",
+              "hi-hat rolls"
+            ],
+            "negative_local_styles": [],
+            "lines": []
+          },
+          {
+            "section_name": "Lift",
+            "duration_ms": 15000,
+            "positive_local_styles": [
+              "bigger",
+              "added synth lead doubling the brass hook",
+              "orchestral hits",
+              "energetic"
+            ],
+            "negative_local_styles": [],
+            "lines": []
+          },
+          {
+            "section_name": "Final drop",
+            "duration_ms": 15000,
+            "positive_local_styles": [
+              "final big drop",
+              "everything in",
+              "ends on a strong final hit"
+            ],
+            "negative_local_styles": [
+              "fade out"
+            ],
+            "lines": []
+          }
+        ]
+      },
+      "respect_sections_durations": true
+    },
+    "measure": {
+      "duration": 60.03,
+      "mean_db": -14.1,
+      "peak_db": 0,
+      "first2_mean_db": -37.4,
+      "first5_mean_db": -18.4,
+      "last5_mean_db": -25.5,
+      "build_db": -7.1
+    }
+  },
+  "hype_track/lyria3-1.mp3": {
+    "cue": "hype_track",
+    "model": "fal-ai/lyria3",
+    "intent": "Lyria 3 trap/brass hype (length set by the model)",
+    "prompt": "Instrumental only. A fun, high-energy modern hype track for a game launch trailer and a montage of friends laughing. It starts immediately on a huge beat drop with no intro: punchy trap drums, hard 808 bass, a catchy bold brass riff, bright synth stabs and claps, a strong bouncing groove at 140 BPM. Confident, playful, triumphant, polished modern mix with space for dialogue, no vocals.",
+    "request": {
+      "prompt": "Instrumental only. A fun, high-energy modern hype track for a game launch trailer and a montage of friends laughing. It starts immediately on a huge beat drop with no intro: punchy trap drums, hard 808 bass, a catchy bold brass riff, bright synth stabs and claps, a strong bouncing groove at 140 BPM. Confident, playful, triumphant, polished modern mix with space for dialogue, no vocals."
+    },
+    "measure": {
+      "duration": 30.77,
+      "mean_db": -14.3,
+      "peak_db": -0.1,
+      "first2_mean_db": -20,
+      "first5_mean_db": -18.6,
+      "last5_mean_db": -12.8,
+      "build_db": 5.8
+    }
+  },
+  "hype_track/stable-audio-1.mp3": {
+    "cue": "hype_track",
+    "model": "fal-ai/stable-audio-25/text-to-audio",
+    "intent": "Pop-rock launch trailer: stomp-clap, big drums, guitars, brass hook, 60 s",
+    "prompt": "Energetic pop rock game launch trailer, starts on a big drop, stomp clap groove, big punchy live drums, driving distorted guitars, bright brass riff hook, synth bass, fun, catchy, upbeat, triumphant, 128 BPM, modern polished mastering, instrumental",
+    "request": {
+      "prompt": "Energetic pop rock game launch trailer, starts on a big drop, stomp clap groove, big punchy live drums, driving distorted guitars, bright brass riff hook, synth bass, fun, catchy, upbeat, triumphant, 128 BPM, modern polished mastering, instrumental",
+      "seconds_total": 60
+    },
+    "measure": {
+      "duration": 60,
+      "mean_db": -16.1,
+      "peak_db": -0.1,
+      "first2_mean_db": -17.2,
+      "first5_mean_db": -17.8,
+      "last5_mean_db": -42,
+      "build_db": -24.2
+    }
+  },
+  "turn_drone/elevenlabs-1.mp3": {
+    "cue": "turn_drone",
+    "model": "fal-ai/elevenlabs/music",
+    "intent": "Near-silent sub drone + 60 BPM heartbeat pulse, slight swell at the end",
+    "prompt": "Dark minimal cinematic tension bed, almost silent, the held breath before a storm. A deep low sub-bass drone at low volume, a slow muffled heartbeat-like low pulse at 60 BPM, faint reversed metallic textures and a barely audible high string harmonic. A low string cluster swells very slightly toward the end. No melody, no drums besides the pulse, lots of space and silence. Clean modern trailer sound design. instrumental, no vocals, no singing, no choir words.",
+    "request": {
+      "prompt": "Dark minimal cinematic tension bed, almost silent, the held breath before a storm. A deep low sub-bass drone at low volume, a slow muffled heartbeat-like low pulse at 60 BPM, faint reversed metallic textures and a barely audible high string harmonic. A low string cluster swells very slightly toward the end. No melody, no drums besides the pulse, lots of space and silence. Clean modern trailer sound design. instrumental, no vocals, no singing, no choir words.",
+      "music_length_ms": 12000,
+      "force_instrumental": true
+    },
+    "measure": {
+      "duration": 12.02,
+      "mean_db": -13.6,
+      "peak_db": -1.5,
+      "first2_mean_db": -45.2,
+      "first5_mean_db": -22.3,
+      "last5_mean_db": -12.5,
+      "build_db": 9.8
+    }
+  },
+  "turn_drone/lyria2-1.mp3": {
+    "cue": "turn_drone",
+    "model": "fal-ai/lyria2",
+    "intent": "Sparse heartbeat-pulse suspense bed (~30 s, use any 12 s)",
+    "prompt": "Dark minimalist cinematic tension underscore, a deep sub bass drone, a slow low pulse like a heartbeat, sparse and quiet, eerie suspense, distant metallic textures, very slow, minimal, modern trailer sound design, instrumental.",
+    "request": {
+      "prompt": "Dark minimalist cinematic tension underscore, a deep sub bass drone, a slow low pulse like a heartbeat, sparse and quiet, eerie suspense, distant metallic textures, very slow, minimal, modern trailer sound design, instrumental.",
+      "negative_prompt": "vocals, singing, lyrics, sleigh bells, celesta, fireplace crackle, christmas, lo-fi, muddy mix, cheesy, amateur, melody, loud drums, upbeat"
+    },
+    "measure": {
+      "duration": 32.77,
+      "mean_db": -25,
+      "peak_db": -1.7,
+      "first2_mean_db": -24.8,
+      "first5_mean_db": -25.1,
+      "last5_mean_db": -25.1,
+      "build_db": 0
+    }
+  },
+  "turn_drone/stable-audio-1.mp3": {
+    "cue": "turn_drone",
+    "model": "fal-ai/stable-audio-25/text-to-audio",
+    "intent": "Tag-style sub rumble + heartbeat pulse, 12 s",
+    "prompt": "Dark cinematic tension drone, deep sub bass rumble, slow heartbeat pulse at 60 BPM, sparse, quiet, suspense, minimal sound design, faint reversed metallic texture, low string cluster swell, no melody, modern trailer, high quality, instrumental",
+    "request": {
+      "prompt": "Dark cinematic tension drone, deep sub bass rumble, slow heartbeat pulse at 60 BPM, sparse, quiet, suspense, minimal sound design, faint reversed metallic texture, low string cluster swell, no melody, modern trailer, high quality, instrumental",
+      "seconds_total": 12
+    },
+    "measure": {
+      "duration": 12,
+      "mean_db": -14,
+      "peak_db": 0,
+      "first2_mean_db": -12.1,
+      "first5_mean_db": -10.9,
+      "last5_mean_db": -22.7,
+      "build_db": -11.8
+    }
+  }
+}

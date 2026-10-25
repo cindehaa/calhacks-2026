@@ -2,8 +2,8 @@
 <meta charset="utf-8">
 <title>Troop stats</title>
 <!-- The stats-and-attributes highlight while a troop is generated (beat 2.5): its sprite, name, stats
-     and quirks pop in one by one, then "designed by Claude". Built from troops/<slug>.json, the
-     design the game's API returned. ?troop=knight&x=1180 -->
+     and quirks pop in one by one. Built from troops/<slug>.json, the design the game's API returned;
+     the "Designed by Claude" note is its own overlay (credit.html). ?troop=knight&x=1180 -->
 <link rel="stylesheet" href="kit.css">
 <style>
   #card { position: absolute; top: 90px; width: 620px; }
@@ -23,9 +23,6 @@
   .bar i { display: block; height: 100%; background: linear-gradient(180deg, var(--gold) 0 50%, var(--amber) 50%); transform-origin: 0 50%; }
   #chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
   .chip { padding: 7px 16px 8px; font: 800 22px var(--ui); letter-spacing: .06em; color: #10131f; clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%); }
-  #credit { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 22px; }
-  #credit .by { font: 600 22px var(--ui); color: var(--muted); letter-spacing: .05em; }
-  #credit .who { font: 700 28px var(--cinzel); color: var(--text); }
 </style>
 <div id="stage">
   <div id="card" class="slabWrap"><div class="slab"></div><i id="edge"></i>
@@ -35,7 +32,6 @@
       <div id="said"></div>
       <div id="rows"></div>
       <div id="chips"></div>
-      <div id="credit"><span class="by">designed by</span><i class="diamond"></i><span class="who">Claude</span></div>
     </div>
   </div>
 </div>
@@ -90,11 +86,10 @@
     document.getElementById('chips').append(el);
     return el;
   });
-  const credit = document.getElementById('credit');
 
-  // Timeline: card in, sprite pops, name stamps, then each stat, each chip, and the credit.
+  // Timeline: card in, sprite pops, name stamps, then each stat and each chip.
   const T_SPRITE = 0.35, T_NAME = 0.9, T_ROWS = 1.45, ROW = 0.42;
-  const T_CHIPS = T_ROWS + rows.length * ROW + 0.15, CHIP = 0.3, T_CREDIT = T_CHIPS + chips.length * CHIP + 0.3;
+  const T_CHIPS = T_ROWS + rows.length * ROW + 0.15, CHIP = 0.3;
   const g = canvas();
   const pop = (el, t0, from = 0.6) => {
     const k = prog(clockT, t0, 0.32, ease.outBack);
@@ -122,7 +117,6 @@
       r.bar.style.transform = `scaleX(${Math.max(0.03, r.value / CLAMPS[r.key]) * k})`;
     });
     chips.forEach((c, i) => pop(c, T_CHIPS + i * CHIP, 0.4));
-    credit.style.opacity = prog(time, T_CREDIT, 0.4);
     g.clearRect(0, 0, 1920, 1080);
     const box = name.getBoundingClientRect();
     burst(g, time, T_NAME + 0.2, { x: box.left + box.width / 2, y: box.bottom - 6, spread: box.width / 2, n: 40, seed: 5, power: 0.7, life: 1.1 });

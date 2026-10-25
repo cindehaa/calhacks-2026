@@ -50,6 +50,8 @@ const SFX = {
   callout_stamp: { prompt: 'heavy trailer title impact hit, deep boom with a short metallic ring, like a title card stamping onto the screen', duration: 1.5, variants: 3 },
   riser: { prompt: 'cinematic tension riser, a rising whoosh and swelling noise climbing to a peak, ends abruptly', duration: 6, variants: 2 },
   title_slam: { prompt: 'massive cinematic trailer boom, ice shattering and a burst of roaring fire, deep sub drop', duration: 3 },
+  // The title card's slam: bright and punchy so it lifts into the hype track, not a muddy sub boom.
+  title_hit: { prompt: 'huge punchy cinematic trailer hit, a bright metallic crash and snare-like crack layered on a tight deep thump, sharp reverse-whoosh into the hit, high energy, ends cleanly with a short shimmering tail, no long rumble', duration: 2, variants: 4 },
   slowmo_boom: { prompt: 'deep slow-motion impact, time slowing down, stretched whoosh into a huge low boom', duration: 2.5 },
   heartbeat: { prompt: 'single deep heavy heartbeat thump, close and dry', duration: 1.2 },
   cost_reel: { prompt: 'slot machine reel spinning fast with quick ticks, then stopping with a gold coin ding', duration: 1.5 },

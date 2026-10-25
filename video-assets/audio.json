@@ -109,6 +109,26 @@
     "prompt": "fast cinematic whoosh transition, icy wind swoosh passing by the camera",
     "duration": 1.2
   },
+  "sfx/title_hit_1.mp3": {
+    "kind": "sfx",
+    "prompt": "huge punchy cinematic trailer hit, a bright metallic crash and snare-like crack layered on a tight deep thump, sharp reverse-whoosh into the hit, high energy, ends cleanly with a short shimmering tail, no long rumble",
+    "duration": 2
+  },
+  "sfx/title_hit_2.mp3": {
+    "kind": "sfx",
+    "prompt": "huge punchy cinematic trailer hit, a bright metallic crash and snare-like crack layered on a tight deep thump, sharp reverse-whoosh into the hit, high energy, ends cleanly with a short shimmering tail, no long rumble",
+    "duration": 2
+  },
+  "sfx/title_hit_3.mp3": {
+    "kind": "sfx",
+    "prompt": "huge punchy cinematic trailer hit, a bright metallic crash and snare-like crack layered on a tight deep thump, sharp reverse-whoosh into the hit, high energy, ends cleanly with a short shimmering tail, no long rumble",
+    "duration": 2
+  },
+  "sfx/title_hit_4.mp3": {
+    "kind": "sfx",
+    "prompt": "huge punchy cinematic trailer hit, a bright metallic crash and snare-like crack layered on a tight deep thump, sharp reverse-whoosh into the hit, high energy, ends cleanly with a short shimmering tail, no long rumble",
+    "duration": 2
+  },
   "sfx/title_slam.mp3": {
     "kind": "sfx",
     "prompt": "massive cinematic trailer boom, ice shattering and a burst of roaring fire, deep sub drop",

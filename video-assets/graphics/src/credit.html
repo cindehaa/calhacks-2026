@@ -1,33 +1,20 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Credit</title>
-<!-- The small sponsor credit under a feature: "speech by Cartesia". ?by=speech by&name=Cartesia&pos=br -->
+<!-- A sponsor's part in a feature, as a quiet note in the bottom-left corner: "Designed by Claude".
+     Plain text, no panel. ?text=Speech by Cartesia&dur=3.5 -->
 <link rel="stylesheet" href="kit.css">
 <style>
-  #tag { position: absolute; display: flex; align-items: center; gap: 16px; padding: 14px 26px 16px; }
-  #tag .slab { position: absolute; inset: 0; --c: 10px; opacity: .82; }
-  #by { position: relative; font: 600 26px var(--ui); letter-spacing: .06em; color: var(--muted); }
-  #name { position: relative; font: 700 32px var(--cinzel); letter-spacing: .04em; color: var(--text); }
-  .diamond { position: relative; width: 8px; height: 8px; }
-  #rule { position: absolute; left: 26px; right: 26px; bottom: 6px; height: 2px; background: var(--amber); transform-origin: 0 50%; box-shadow: 0 0 10px var(--amber); }
+  #note { position: absolute; left: 64px; bottom: 56px; font: 600 30px var(--ui); letter-spacing: .02em; color: var(--text); text-shadow: 0 2px 4px #000c, 0 0 18px #000a; }
 </style>
-<div id="stage">
-  <div id="tag" class="slabWrap"><div class="slab"></div><span id="by"></span><i class="diamond"></i><span id="name"></span><i id="rule"></i></div>
-</div>
+<div id="stage"><div id="note"></div></div>
 <script type="module">
   import { P, num, prog, ease, mix, life, register } from './kit.js';
-  const D = num('dur', 3.5), pos = P.get('pos') ?? 'br';
-  const tag = document.getElementById('tag'), rule = document.getElementById('rule');
-  document.getElementById('by').textContent = P.get('by') ?? 'speech by';
-  document.getElementById('name').textContent = P.get('name') ?? 'Cartesia';
-  const M = 64;
-  if (pos.includes('b')) tag.style.bottom = `${M}px`; else tag.style.top = `${M}px`;
-  if (pos.includes('r')) tag.style.right = `${M}px`; else tag.style.left = `${M}px`;
-  const dir = pos.includes('r') ? 1 : -1;
+  const D = num('dur', 3.5);
+  const note = document.getElementById('note');
+  note.textContent = P.get('text') ?? 'Speech by Cartesia';
   register(D, (t) => {
-    const k = prog(t, 0, 0.45, ease.outExpo);
-    tag.style.opacity = life(t, D, 0.3, 0.4);
-    tag.style.transform = `translateX(${dir * mix(36, 0, k)}px)`;
-    rule.style.transform = `scaleX(${prog(t, 0.2, 0.5, ease.out)})`;
+    note.style.opacity = life(t, D, 0.35, 0.4);
+    note.style.transform = `translateY(${mix(8, 0, prog(t, 0, 0.5, ease.out))}px)`;
   });
 </script>

@@ -48,10 +48,10 @@ const JOBS = [
     ['6-cost', 3.93, 'The more powerful the troop, the more embers it costs.', [0.36, 0.5, 0.7, 1.12, 1.32, 1.7, 1.84, 2.1, 2.54, 2.72]],
     ['7-play-live', 2.56, 'Play your friends live.', [0.52, 0.76, 0.96, 1.38]],
   ].map(([n, len, text, words]) => [`subtitle-${n}`, 'subtitle', { text, words: words.join(','), dur: +(len + 0.4).toFixed(2) }, +(len - 0.2).toFixed(2), true]),
-  // Small sponsor credits under the features.
-  ['credit-cartesia', 'credit', { by: 'speech by', name: 'Cartesia' }, 1.5, true],
-  ['credit-claude', 'credit', { by: 'designed by', name: 'Claude' }, 1.5, true],
-  ['credit-spacetimedb', 'credit', { by: 'live multiplayer on', name: 'SpacetimeDB' }, 1.5, true],
+  // Sponsor credits: a plain note in the bottom-left corner while the feature plays.
+  ['credit-cartesia', 'credit', { text: 'Speech by Cartesia' }, 1.5, true],
+  ['credit-claude', 'credit', { text: 'Designed by Claude' }, 1.5, true],
+  ['credit-spacetimedb', 'credit', { text: 'Live multiplayer on SpacetimeDB' }, 1.5, true],
   // The stats-and-attributes highlight: animated for the knight (beat 2.5), stills for every troop.
   ...troops.map((t) => [`stats-${t.slug}`, 'stats', { troop: t.slug }, 7, true, ['knight', 'titan', 'cat'].includes(t.slug)]),
   // Duel captions, one still per line.
