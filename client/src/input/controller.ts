@@ -15,7 +15,7 @@ import { HAND_CONNECTIONS, HandTracker, pointerOf, type HandFrame } from './hand
 import { drawHandView, drawScreenInset } from './handview';
 import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
-import { PinchDetector, extension, thumbDownScore, type PinchShot } from './pose';
+import { PINCH_DEFAULTS, PinchDetector, extension, thumbDownScore, type PinchShot, type PinchThresholds } from './pose';
 import { NearMiss } from './nearmiss';
 import { hidePinchHint, showPinchHint } from './pinchhint';
 import { AutoSpeech } from './cartesia_stt';
@@ -64,7 +64,8 @@ export interface DeployHow {
   transcript: string;
 }
 
-interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref }
+// pinch: thresholds fitted to the player's hand (practice.ts) or set in the ⋯ menu, null for the defaults.
+interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref; pinch: PinchThresholds | null }
 
 // A fire waiting for the recogniser to finish its last words: those from audio up to cut. The cut
 // happens FIRE_GRACE_MS after the fire (cut is Infinity until then: every word is the troop's).
@@ -118,7 +119,7 @@ export class InputController {
   readonly listeners: { signal: ((s: Signal) => void)[]; intent: ((i: Intent, ok: boolean) => void)[] } = { signal: [], intent: [] };
   private pinchT = -Infinity;
   private prefs: Prefs = {
-    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, camera: false, mic: false, mouseKeys: true, hand: 'auto',
+    preview: true, vadDb: VAD_DEFAULTS.thresholdDb, camera: false, mic: false, mouseKeys: true, hand: 'auto', pinch: null,
     ...load<Partial<Prefs>>(KEYS.prefs),
   };
 
@@ -142,6 +143,7 @@ export class InputController {
   private setupPreview: HTMLCanvasElement | null = null;
   private setupSeen: { c: HTMLCanvasElement; label: HTMLElement } | null = null;
   onSetup?: () => void; // the ⋯ menu's "Run setup again"
+  onCalibrate?: () => void; // the ⋯ menu's "Fit pinch to my hand"
 
   // DOM
   private el = document.createElement('div');
@@ -153,6 +155,7 @@ export class InputController {
   constructor(canvas: HTMLCanvasElement, private host: InputHost) {
     this.vad.o.thresholdDb = this.prefs.vadDb;
     this.picker.pref = this.prefs.hand;
+    this.applyPinch();
     this.speech.setGated(false); // always listening
     this.speech.onPartial = (t, e) => this.words(t, false, e);
     this.speech.onFinal = (t, e) => this.words(t, true, e);
@@ -266,6 +269,26 @@ export class InputController {
     save(KEYS.prefs, this.prefs);
     this.el.querySelectorAll<HTMLSelectElement>('[data-act="hand"]').forEach(s => (s.value = p));
     document.querySelectorAll<HTMLSelectElement>('select[data-hand-pref]').forEach(s => (s.value = p));
+  }
+
+  // When a pinch closes and opens again: fitted to this player's hand, or the defaults.
+  get pinchThresholds(): PinchThresholds {
+    return this.prefs.pinch ?? PINCH_DEFAULTS;
+  }
+
+  // null goes back to the defaults. The next person at the laptop fits their own in setup.
+  setPinch(t: PinchThresholds | null): void {
+    this.prefs.pinch = t;
+    save(KEYS.prefs, this.prefs);
+    this.applyPinch();
+    this.syncPinchUi();
+    this.renderPanel();
+  }
+
+  private applyPinch(): void {
+    const t = this.pinchThresholds;
+    this.pinch.setThresholds(t);
+    this.nearMiss.fit(t);
   }
 
   // The mic is on and something turns it into words.
@@ -830,6 +853,11 @@ export class InputController {
         <label>Pointing hand <select data-act="hand"><option value="auto">Auto</option><option value="left">Left</option><option value="right">Right</option></select></label>
         <label>Speech above <input type="range" data-act="vadDb" min="-80" max="-10" step="1"><span class="inVal" data-val="vadDb"></span></label>
         <div class="inMeter"><div class="inLevel"></div><div class="inThresh"></div></div>
+        <button data-act="calibrate" class="ghost">Fit pinch to my hand</button>
+        <label title="Thumb to finger, in hand sizes: higher fires with a looser pinch">Pinch below <input type="range" data-act="pinchOn" min="0.15" max="0.8" step="0.01"><span class="inVal" data-val="pinchOn"></span></label>
+        <label title="How far the hand has to open before the next pinch">Let go above <input type="range" data-act="pinchOff" min="0.25" max="1" step="0.01"><span class="inVal" data-val="pinchOff"></span></label>
+        <div class="inMeter" title="Your thumb to finger now; pinch fires left of the green line"><div class="inLevel" data-level="pinch"></div><div class="inThresh" data-thresh="pinchOn"></div><div class="inThresh off" data-thresh="pinchOff"></div></div>
+        <button data-act="pinchReset" class="ghost">Default pinch</button>
       </div>`;
     document.body.appendChild(this.el);
     this.preview = this.el.querySelector('.inPreview canvas')!;
@@ -846,6 +874,7 @@ export class InputController {
     q<HTMLInputElement>('preview').checked = this.prefs.preview;
     q<HTMLSelectElement>('hand').value = this.prefs.hand;
     q<HTMLInputElement>('vadDb').value = String(this.prefs.vadDb);
+    this.syncPinchUi();
     this.el.addEventListener('click', e => {
       const b = (e.target as HTMLElement).closest('button');
       if (!b) return;
@@ -857,7 +886,10 @@ export class InputController {
       else if (act === 'setup') {
         menu.hidden = true;
         this.onSetup?.();
-      }
+      } else if (act === 'calibrate') {
+        menu.hidden = true;
+        this.onCalibrate?.();
+      } else if (act === 'pinchReset') this.setPinch(null);
       this.renderPanel();
     });
     this.el.addEventListener('input', e => {
@@ -866,10 +898,27 @@ export class InputController {
       if (t.dataset.act === 'preview') this.prefs.preview = t.checked;
       if (t.dataset.act === 'hand') return this.setHandPref(t.value as HandPref);
       if (t.dataset.act === 'vadDb') this.prefs.vadDb = this.vad.o.thresholdDb = Number(t.value);
+      // The two pinch lines can't cross: moving one past the other pushes it along.
+      if (t.dataset.act === 'pinchOn' || t.dataset.act === 'pinchOff') {
+        const { on, off } = this.pinchThresholds, v = Number(t.value), gap = 0.08;
+        return this.setPinch(t.dataset.act === 'pinchOn' ? { on: v, off: Math.max(off, v + gap) } : { on: Math.min(on, v - gap), off: v });
+      }
       save(KEYS.prefs, this.prefs);
       this.renderPanel();
     });
     this.renderPanel();
+  }
+
+  private syncPinchUi(): void {
+    const { on, off } = this.pinchThresholds;
+    const set = (act: string, v: number) => {
+      const i = this.el.querySelector<HTMLInputElement>(`[data-act="${act}"]`);
+      if (i) i.value = String(v);
+      const val = this.el.querySelector<HTMLElement>(`[data-val="${act}"]`);
+      if (val) val.textContent = v.toFixed(2) + (act === 'pinchOn' && !this.prefs.pinch ? ' (default)' : '');
+    };
+    set('pinchOn', on);
+    set('pinchOff', off);
   }
 
   private renderPanel(): void {
@@ -889,6 +938,13 @@ export class InputController {
     $('.inLevel').style.width = pct(this.mic.on ? this.vad.level : -90);
     $('.inLevel').classList.toggle('speaking', this.vad.speaking);
     $('.inThresh').style.left = pct(this.prefs.vadDb);
+    // The pinch meter runs 0 (touching) to 1.2 (wide open), so it fills as the hand opens.
+    const at = (r: number) => `${Math.max(0, Math.min(100, (r / 1.2) * 100))}%`;
+    const p = this.pinchThresholds;
+    $('[data-level="pinch"]').style.width = at(this.ratio ?? 0);
+    $('[data-level="pinch"]').classList.toggle('speaking', this.pinch.closed && this.ratio !== null);
+    $('[data-thresh="pinchOn"]').style.left = at(p.on);
+    $('[data-thresh="pinchOff"]').style.left = at(p.off);
     this.renderHint();
   }
 

@@ -5,7 +5,7 @@
 //
 // An attempt has to start from an open hand and end on one, quickly, so a hand resting half
 // closed (the thumb lying on a curled middle finger while pointing) never counts.
-import { PINCH_DEFAULTS } from './pose';
+import { PINCH_DEFAULTS, type PinchThresholds } from './pose';
 
 export const NEAR_MISS = {
   open: 0.75, // an attempt starts and ends with the ratio above this
@@ -30,6 +30,15 @@ export class NearMiss {
 
   constructor(o: Partial<NearMissOpts> = {}) {
     this.o = { ...NEAR_MISS, on: PINCH_DEFAULTS.on, ...o };
+  }
+
+  // Follow a player's own pinch thresholds: "near" and "open" keep where they sat around the
+  // defaults (0.62 and 0.75 for 0.45 and 0.65).
+  fit(t: PinchThresholds): void {
+    const span = t.off - t.on;
+    this.o.on = t.on;
+    this.o.near = t.on + 0.85 * span;
+    this.o.open = t.off + 0.5 * span;
   }
 
   // ratio: the pinch measure, null with no hand. active: the hand is somewhere a pinch would do
