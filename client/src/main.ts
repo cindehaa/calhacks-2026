@@ -4,6 +4,7 @@ import type { BotLevel } from '../../shared/bot';
 import { newTowers } from '../../shared/sim';
 import { MAX_COST, price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
+import { saysSpell } from '../../shared/offline_spell';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, TOUCH, type DeployHow } from './input/controller';
@@ -939,6 +940,15 @@ function cancelAt(nonce: number, msg: string, transcript = '') {
   status(msg, !!msg);
 }
 
+// The first drop past your own half each session says what's happening, so a troop that comes
+// back a spell doesn't read as the game mishearing you.
+let spellHinted = false;
+function spellHintOnce() {
+  if (spellHinted) return;
+  spellHinted = true;
+  notice('Over the river, whatever you say becomes a spell', { ms: 3200, key: 'spell' });
+}
+
 async function designAt(nonce: number, spot: [number, number], description: string, how?: DeployHow) {
   status(`designing “${description}”…`);
   attempts.get(nonce)?.released(description, how?.from ?? 'typed', how?.transcript, how?.by);
@@ -946,8 +956,9 @@ async function designAt(nonce: number, spot: [number, number], description: stri
   dropWords(nonce, description);
   dropStep(nonce, 'STT', `final words "${description}" (${how?.from ?? 'typed'}${how?.transcript && how.transcript !== description ? `, heard "${how.transcript}"` : ''})`);
   dropStep(nonce, 'DESIGN', 'design request → /api/troop');
-  // Aimed past your zone: a spell, which has no sprite to draw.
-  const spellOnly = spellSpot(spot);
+  // Aimed past your zone, or the words end on "spell": a spell, which has no sprite to draw.
+  const spellOnly = spellSpot(spot) || saysSpell(description);
+  if (spellSpot(spot)) spellHintOnce();
   if (!spellOnly) dropStep(nonce, 'ART', 'art request → /api/sprite');
   const art = spellOnly ? Promise.resolve(null) : requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
@@ -990,7 +1001,7 @@ const input = new InputController(board.canvas, {
   prefetch: words => {
     dropStep(null, 'STT', `partial "${words}"`);
     const at = input.cursorSpot();
-    const spellOnly = !!at && spellSpot(at);
+    const spellOnly = (!!at && spellSpot(at)) || saysSpell(words);
     prefetchDesign(words, spellOnly);
     if (!spellOnly) prefetchSprite(words);
   },
