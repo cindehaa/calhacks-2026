@@ -10,6 +10,7 @@ export type BotLevel = 'easy' | 'normal' | 'hard';
 
 export interface BotConfig {
   thinkEvery: number; // seconds between decisions
+  cooldown: number; // seconds after a drop lands before it thinks again
   reaction: number; // seconds a threat must be on its half before it defends
   designTime: number; // seconds from lock to deploy, as if it were describing the troop
   saveChance: number; // chance, when it could push, to save up for a big troop instead
@@ -19,9 +20,9 @@ export interface BotConfig {
 }
 
 export const BOT_LEVELS: Record<BotLevel, BotConfig> = {
-  easy: { thinkEvery: 3, reaction: 2, designTime: 1.6, saveChance: 0.1, minPush: 3, jitter: 1.5, counters: false },
-  normal: { thinkEvery: 1.5, reaction: 0.8, designTime: 1.2, saveChance: 0.3, minPush: 5, jitter: 0.8, counters: true },
-  hard: { thinkEvery: 1, reaction: 0.4, designTime: 0.8, saveChance: 0.5, minPush: 7, jitter: 0.3, counters: true },
+  easy: { thinkEvery: 3, cooldown: 9, reaction: 2, designTime: 1.6, saveChance: 0.1, minPush: 3, jitter: 1.5, counters: false },
+  normal: { thinkEvery: 1.5, cooldown: 6, reaction: 0.8, designTime: 1.2, saveChance: 0.3, minPush: 5, jitter: 0.8, counters: true },
+  hard: { thinkEvery: 1, cooldown: 3, reaction: 0.4, designTime: 0.8, saveChance: 0.5, minPush: 7, jitter: 0.3, counters: true },
 };
 
 // What the bot remembers between decisions.
@@ -58,7 +59,13 @@ export function botDecide(s: SimState, side: Side, mem: BotMemory, cfg: BotConfi
   if (s.time < mem.nextThink) return null;
   mem.nextThink = s.time + cfg.thinkEvery * (0.75 + rand() * 0.5);
   const elixir = s.elixir[side];
+  const move = decide(s, side, mem, elixir, cfg, rand);
+  // A drop buys a rest, counted from when it lands, so it can't chain one troop after another.
+  if (move) mem.nextThink = s.time + cfg.designTime + cfg.cooldown * (0.75 + rand() * 0.5);
+  return move;
+}
 
+function decide(s: SimState, side: Side, mem: BotMemory, elixir: number, cfg: BotConfig, rand: () => number): BotMove | null {
   // Enemy units on its half, or about to cross the river.
   const threats = s.units.filter(u => u.side !== side && depth(side, u.y) > -1.5);
   if (!threats.length) mem.threatSince = null;
