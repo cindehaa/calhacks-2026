@@ -13,7 +13,9 @@ export type SfxName =
   // shattering, the size-scaled landing thud and the shimmer when late art lands. Synth only.
   | 'tick' | 'chime' | 'stamp' | 'shatter' | 'thud' | 'shimmer'
   // Failure moments: a fire with no words ("huh?"), "that's wrong" noted, a soft heads-up.
-  | 'miss' | 'noted' | 'heads';
+  | 'miss' | 'noted' | 'heads'
+  // Pointing at a troop in the Pavilion (pavilion.ts).
+  | 'cardHover';
 
 // The pack's troop families; each has spawn, attack_1/2, hit_1/2 and death.
 export const SOUND_KINDS = ['beast', 'blade', 'heavy', 'magic', 'mech', 'ranged', 'swarm'] as const;
@@ -28,6 +30,7 @@ const SAMPLES = [
   ...GAME.map(n => `sfx/game/${n}`),
   ...VOICE.map(n => `voice/announcer/${n}`),
   ...SOUND_KINDS.flatMap(k => UNIT.map(n => `sfx/${k}/${n}`)),
+  'sfx/ui/card_hover',
 ];
 
 // What each event plays from the pack: one of `pick` (at random), plus an announcer line. Unit
@@ -53,6 +56,7 @@ function samplesFor(name: SfxName, kind?: SoundKind): { pick: string[]; voice?: 
     case 'versus': return { pick: ['sfx/game/deploy_land'], gain: 1 };
     case 'joined': return { pick: ['sfx/game/double_elixir'], gain: 0.5 };
     case 'forfeit': return { pick: ['sfx/game/match_end'], gain: 0.9 };
+    case 'cardHover': return { pick: ['sfx/ui/card_hover'], gain: 0.22 + Math.random() * 0.08 };
     default: return { pick: [], gain: 1 };
   }
 }
@@ -88,7 +92,7 @@ const GAP: Partial<Record<SfxName, number>> = {
   click: 0.05, hit: 0.07, attack: 0.08, death: 0.08, land: 0.09, towerHit: 0.12, incoming: 0.3, deploy: 0.15, buzz: 0.3, tooExpensive: 1.5,
   slam: 0.1, zap: 0.1, whoosh: 0.08, boom: 0.12, puff: 0.15, stun: 0.12,
   tick: 0.035, chime: 0.08, stamp: 0.08, shatter: 0.2, thud: 0.06, shimmer: 0.15,
-  miss: 0.4, noted: 0.5, heads: 1,
+  miss: 0.4, noted: 0.5, heads: 1, cardHover: 0.09,
 };
 
 function readMuted(): boolean {
@@ -243,7 +247,7 @@ class Sfx {
     try {
       const s = samplesFor(name, kind);
       const ready = s.pick.filter(k => this.buffers.has(k));
-      if (ready.length) this.sample(ready[Math.floor(Math.random() * ready.length)], s.gain, name === 'hit' || name === 'attack');
+      if (ready.length) this.sample(ready[Math.floor(Math.random() * ready.length)], s.gain, name === 'hit' || name === 'attack' || name === 'cardHover');
       else this.synth(name, ac, out, now, pitch);
       if (s.voice) this.sample(`voice/announcer/${s.voice}`, VOICE_GAIN, false);
     } catch { /* ignore */ }
@@ -306,6 +310,9 @@ class Sfx {
         break;
       case 'shimmer': // art lands on a troop: rising sparkle
         for (const [i, f] of [1568, 2093, 2637, 3136].entries()) this.tone(ac, out, t + i * 0.04, 'sine', f, f, 0.18, 0.07);
+        break;
+      case 'cardHover': // until the file loads: one soft high sparkle
+        this.tone(ac, out, t, 'sine', 2093 * (0.96 + Math.random() * 0.08), 2349, 0.12, 0.035);
         break;
       case 'miss': // a fire with nothing heard: a soft questioning two-note "hm?"
         this.tone(ac, out, t, 'sine', 392, 370, 0.12, 0.16);
