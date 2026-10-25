@@ -223,6 +223,7 @@ Clamps don't bound cost: all-max stats price at about 477 elixir and all-min at 
 | 2026-10-24 | Element is a soft default for on_hit, in the prompt only: a named element sets the effect unless the description states another, and never changes stats. The engine still treats element as colour. |
 | 2026-10-24 | The designer logs a `wish` (what it would have picked if a list had it) as the input for learnable attributes; it is read from the design JSON on the server, so no reducer or client change. |
 | 2026-10-24 | The resource is "embers" in everything players see (HUD, costs, refusals, banner, result stats, how-to card, README); `elixir` stays in code, schema, `step()`, logs and server error strings. Branch `isaac/embers`; amber `#ff8a3d` awaits Cindy's call. |
+| 2026-10-24 | Sprites are drawn from a subject line Claude writes from the words (`api/_lib/art_prompt.ts`, Haiku, 4 s timeout, the raw words if it fails): one character with a body, places and objects turned into creatures made of them. "Great Wall of China" drew a shield before; now a stone-brick golem with banners. Style says isolated, no scenery; one quick retry on a fal error. `STYLE_VERSION` 2 redraws all cached art once. Branch `isaac/sprite-prompts`. |
 
 ## Open questions
 
