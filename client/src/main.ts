@@ -35,6 +35,7 @@ import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
 import { clearNotice, notice } from './notice';
 import { boardReactions, homeReactions, menuReactions } from './react';
+import { closePavilion, mountPavilion, openPavilion } from './pavilion';
 import { inject as injectAnalytics } from '@vercel/analytics';
 import './mobile.css';
 
@@ -231,8 +232,13 @@ initDevSettings();
 $('practiceBack').onclick = () => openPractice(false);
 $('practice').onclick = e => { if (e.target === e.currentTarget) openPractice(false) };
 
+// The Pavilion: every troop anyone has summoned, from home or after a match (pavilion.ts).
+mountPavilion();
+$('pavilionBtn').onclick = () => openPavilion();
+$('resPavilionBtn').onclick = () => openPavilion();
+
 // Every menu button ticks.
-for (const id of ['lobby', 'practice', 'raven', 'pause', 'forfeitAsk', 'result']) {
+for (const id of ['lobby', 'practice', 'raven', 'pause', 'forfeitAsk', 'result', 'pavilion']) {
   $(id).addEventListener('click', e => { if ((e.target as HTMLElement).closest('button')) sfx.play('click') });
 }
 
@@ -324,6 +330,7 @@ function renderLobby() {
   if (hv && hv.parentElement !== home) home.appendChild(hv);
   if (p && document.activeElement !== $('nameInput')) $<HTMLInputElement>('nameInput').value = p.name;
   if (r?.status === 'playing') ravenOpen = false;
+  if (r?.status === 'playing' || local?.status === 'playing') closePavilion(); // a rematch the other side started
   renderRaven();
 }
 
