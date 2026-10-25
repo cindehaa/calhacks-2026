@@ -6,7 +6,8 @@
 //
 //   node scripts/montage.mjs [--src <folder with the .mp4s>] [--list film/montage.json]
 //
-// Writes film/out/montage.mp4 (1920x1080, 30 fps, H.264 crf 22, AAC).
+// Writes film/out/montage.mp4 (1920x1080, 30 fps, H.264 crf 22, AAC), and each shot on its own in
+// film/out/montage/.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -92,3 +93,18 @@ execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', [...v
   '-pix_fmt', 'yuv420p',
   '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', args.out], { stdio: 'inherit' });
 console.log(`ok  ${args.out}  ${total.toFixed(2)} s, ${shots.length} shots`);
+
+// Each shot on its own too (film/out/montage/NN-<line>.mp4), cut from the montage at its hard cuts, so
+// it keeps the crop and the levelling; the audio crossfades leave 0.06 s of the neighbours at each end.
+const dir = join(dirname(args.out), 'montage');
+mkdirSync(dir, { recursive: true });
+let at = 0;
+shots.forEach((s, i) => {
+  const len = Math.round((s.out - s.in) * FPS) / FPS;
+  const slug = (s.line || s.src).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', at.toFixed(4), '-t', len.toFixed(4), '-i', args.out,
+    '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart',
+    join(dir, `${String(i + 1).padStart(2, '0')}-${slug}.mp4`)]);
+  at += len;
+});
+console.log(`ok  ${dir}/: ${shots.length} shots`);
