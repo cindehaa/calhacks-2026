@@ -127,6 +127,19 @@ export function warmHandTracker(): Promise<HandLandmarker> {
   return landmarker;
 }
 
+// Frees the warm tracker's GPU memory, for a round that started without the camera. The
+// downloaded bytes are kept, so turning the camera on later only rebuilds.
+export function releaseHandTracker(): void {
+  const lmk = landmarker;
+  if (!lmk) return;
+  landmarker = null;
+  landmarkerReady = false;
+  void lmk.then(l => {
+    l.close();
+    diag.info('HAND', 'round started without the camera: hand tracker released');
+  }, () => {});
+}
+
 export interface HandFrame {
   lm: Landmark[]; // 0..1 of the (unmirrored) frame
   world: Landmark[]; // metres, hand-centred
