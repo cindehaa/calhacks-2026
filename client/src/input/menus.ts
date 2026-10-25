@@ -153,6 +153,7 @@ export function menuBack(): boolean {
     press(b, null);
     return true;
   };
+  if (shown('pavilion')) return click('#pavilionClose'); // over home or the result screen
   if (shown('setup')) return click('#setup [data-act="skip"]');
   if (shown('forfeitAsk')) return click('#keepBtn');
   if (shown('raven')) return click('#ravenClose');

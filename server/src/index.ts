@@ -334,9 +334,32 @@ const troopLog = table(
   }
 );
 
+// Every troop and spell anyone has summoned, for the Pavilion screen. Troop and spell rows go when
+// their room is cleared, and generation is private, so this keeps a public copy of the deployed
+// ones: what was said, what it became and its art. Plain columns (the owner as hex, the time as
+// ms) so the page can read it over the HTTP SQL endpoint without a subscription. One row per
+// generation row, which is what lets seed_pavilion run any number of times.
+const pavilion = table(
+  { name: 'pavilion', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    generationId: t.u64().unique(),
+    at: t.f64(), // ms since the epoch
+    owner: t.string(), // identity hex
+    kind: t.string(), // 'troop' | 'spell'
+    name: t.string(),
+    description: t.string(),
+    element: t.string(),
+    flavor: t.string(),
+    cost: t.u8(),
+    spriteUrl: t.string(), // '' for spells and for art that failed
+  }
+);
+
 const spacetimedb = schema({
   player, room, troop, unit, tower, spell, pending, matchTimer,
   matchLog, roomMatch, playerMatch, playerScheme, generation, utterance, event, troopLog,
+  pavilion,
 });
 export default spacetimedb;
 
@@ -766,7 +789,7 @@ export const logGeneration = spacetimedb.reducer(
   },
   (ctx, a) => {
     const cut = (s: string, n = 300) => s.slice(0, n);
-    ctx.db.generation.insert({
+    const g = ctx.db.generation.insert({
       ...a,
       id: 0n,
       matchId: currentMatch(ctx),
@@ -787,8 +810,44 @@ export const logGeneration = spacetimedb.reducer(
       wish: wishOf(a.design, a.raw),
       scheme: schemeOf(ctx, ctx.sender),
     });
+    addToPavilion(ctx, g);
   }
 );
+
+type GenerationRow = NonNullable<ReturnType<Ctx['db']['generation']['id']['find']>>;
+
+// A deployed generation row, copied into the Pavilion. Never throws: a log must not be lost (or a
+// reducer fail) over the showcase.
+function addToPavilion(ctx: Ctx, g: GenerationRow) {
+  if (g.outcome !== 'deployed') return;
+  try {
+    if (ctx.db.pavilion.generationId.find(g.id)) return;
+    let d: { kind?: string; name?: string; element?: string; flavor?: string } = {};
+    try { d = JSON.parse(g.design) ?? {}; } catch { /* empty or cut off: fall back to the description */ }
+    const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+    ctx.db.pavilion.insert({
+      id: 0n,
+      generationId: g.id,
+      at: Number(g.loggedAt.microsSinceUnixEpoch / 1000n),
+      owner: g.player.toHexString(),
+      kind: d.kind === 'spell' ? 'spell' : 'troop',
+      name: str(d.name, 40) || g.description.slice(0, 40),
+      description: g.description.slice(0, 300),
+      element: str(d.element, 20),
+      flavor: str(d.flavor, 200),
+      cost: g.cost,
+      spriteUrl: g.spriteUrl.slice(0, 2048),
+    });
+  } catch (e) {
+    console.error(`pavilion: generation ${g.id} not added: ${e}`);
+  }
+}
+
+// Fills the Pavilion from the troops deployed before it existed. Safe to call again: rows already
+// in it are skipped. `spacetime call <db> seed_pavilion` once after the publish that adds it.
+export const seedPavilion = spacetimedb.reducer(ctx => {
+  for (const g of ctx.db.generation.iter()) addToPavilion(ctx, g);
+});
 
 // The control scheme this player is on, for A/B. Stamped on their side of the round they're in (if
 // it's still running) and on their later generation rows.

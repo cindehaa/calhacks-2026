@@ -2,12 +2,10 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection } from './module_bindings';
 import { healthSet } from './diag';
 import { checkModule } from './health';
+import { HOST, DB_NAME } from './dbhost';
+import { rememberIdentity } from './pavilion_data';
 
-// Dev talks to a local SpacetimeDB, the deployed site (Vercel) to Maincloud.
-// ?host=...&db=... override the defaults, so one build can point at either.
-const params = new URLSearchParams(location.search);
-export const HOST = params.get('host') ?? (import.meta.env.DEV ? `ws://${location.hostname}:3000` : 'https://maincloud.spacetimedb.com');
-export const DB_NAME = params.get('db') ?? (import.meta.env.DEV ? 'arena' : 'calhacks-arena');
+export { HOST, DB_NAME };
 // sessionStorage, not localStorage: each tab is its own player, so two tabs can play.
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
 
@@ -24,6 +22,7 @@ export function connect(onReady: (net: Net) => void, onStatus: (s: string) => vo
     .withToken(sessionStorage.getItem(TOKEN_KEY) || undefined)
     .onConnect((conn, identity, token) => {
       sessionStorage.setItem(TOKEN_KEY, token);
+      rememberIdentity(identity.toHexString()); // the Pavilion's "by you" covers every tab this browser played in
       connected = true;
       healthSet('spacetimedb', `connected to ${HOST} db ${DB_NAME}`, 'info', 'DB');
       void checkModule(HOST, DB_NAME);
