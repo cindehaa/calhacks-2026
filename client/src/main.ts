@@ -7,6 +7,7 @@ import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, TOUCH, type DeployHow } from './input/controller';
+import { preloadHandModel } from './input/hand';
 import { isCancel, Transcript } from './input/speech';
 import { spokenLetters } from './input/spell';
 import { LocalMatch } from './local';
@@ -890,6 +891,9 @@ function flagMismatch() {
 
 // First visit (after the title screen): camera and mic, then the how-to card.
 const setup = initSetup(input, showTutorialOnce);
+// The hand model is ~17 MB: fetch it while the title and menu are up, once the page itself has
+// loaded, so the camera starts quickly. Touch-only devices type instead, so they skip it.
+if (!TOUCH) addEventListener('load', () => setTimeout(() => void preloadHandModel().catch(() => {}), 500), { once: true });
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('lab')) void import('./lab').then(m => m.openLab(input));
 
 $<HTMLFormElement>('describe').onsubmit = e => {
