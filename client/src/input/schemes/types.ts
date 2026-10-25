@@ -19,7 +19,8 @@ export type Signal =
       pinched: boolean; // the pinch measure says closed (thumb on the index or middle finger)
     }
   // Gestures the hub reads off the hand.
-  | { kind: 'pinch'; t: number; aim: Pt } // thumb to index or middle finger, once per pinch; aim: the fingertip ~100 ms before
+  | { kind: 'pinch'; t: number; aim: Pt } // thumb to any finger, once per pinch; aim: the cursor ~100 ms before
+  | { kind: 'release'; t: number; aim: Pt } // that pinch let go; aim: the cursor just before the hand began to open
   // Mic voice activity: t is when the sound started or stopped.
   | { kind: 'voice'; t: number; phase: 'start' | 'end' }
   | { kind: 'level'; t: number; db: number; loud: boolean } // every frame while the mic is on

@@ -45,3 +45,4 @@ html { touch-action: manipulation; } /* no double-tap zoom on the board or the b
 body.touch #setup .setupViews, body.touch #setup [data-step="hands"] { display: none; }
 body.touch #tutorial ol { grid-template-columns: repeat(2, 1fr); }
 body.touch #tutorial li:nth-child(3) { display: none; } /* the pinch: a tap does it here */
+canvas#board { touch-action: none; } /* a finger drags the aim instead of scrolling or zooming */

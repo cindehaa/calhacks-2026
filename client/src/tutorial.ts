@@ -45,7 +45,7 @@ function close() {
 if (el && TOUCH) {
   const steps = el.querySelectorAll('ol li span:last-child');
   steps[0].innerHTML = '<b>Say</b> a troop with the mic, or <b>type</b> one, like “wizard with fire”.';
-  steps[1].innerHTML = '<b>Tap</b> your half where it goes. It costs <b>embers</b>.';
+  steps[1].innerHTML = '<b>Hold</b> your half, drag to aim, <b>let go</b> to place. It costs <b>embers</b>.';
   el.querySelector('p.sub')!.textContent = 'Wrong troop? Say “cancel” before it lands.';
   el.querySelector('.tutFoot .sub')!.textContent = 'Reopen with ?';
 }

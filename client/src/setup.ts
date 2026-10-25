@@ -1,4 +1,4 @@
-// First-visit setup: camera and mic on, a quick voice check, then how to point and pinch, with a
+// First-visit setup: camera and mic on, a quick voice check, then how to pinch, move and let go, with a
 // short practice (practice.ts). Done or skipped once (remembered in localStorage); after that the
 // controller turns the camera and mic back on by itself. "Run setup again" in the camera panel's
 // ⋯ menu reopens it.
@@ -20,12 +20,17 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   const el = document.getElementById('setup')!;
   const q = <T extends HTMLElement = HTMLElement>(sel: string) => el.querySelector<T>(sel)!;
   input.attachPreview(q<HTMLCanvasElement>('.setupCam canvas'), { c: q<HTMLCanvasElement>('.setupSeen canvas'), label: q('[data-seen]') });
-  // Which hand points (the other may be holding the mic): remembered with the input prefs.
-  const handSel = q<HTMLSelectElement>('select[data-hand-pref]');
-  handSel.value = input.handPref;
-  handSel.addEventListener('change', () => input.setHandPref(handSel.value as 'auto' | 'left' | 'right'));
+  // Which hand aims (the other may be holding the mic), as three big buttons: remembered with the
+  // input prefs. Either: the game picks (handpick.ts).
+  const markHand = () => el.querySelectorAll<HTMLButtonElement>('[data-hand]').forEach(b => {
+    const on = b.dataset.hand === input.handPref;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', String(on));
+  });
+  markHand();
   let raf = 0;
   let asking = false; // waiting on the browser's permission prompt
+  let movedOn = false; // the voice check passed and practice opened by itself, this time setup is open
   const practice = initPractice(input);
 
   // Practice, then back to setup; from "Let's play" (then: true), on into the game after it.
@@ -38,6 +43,8 @@ export function initSetup(input: InputController, onClose: () => void): { open()
 
   function open(first = false) {
     el.hidden = false;
+    input.resetVoiceCheck();
+    movedOn = false;
     q('[data-art="point"]').innerHTML = pointArt();
     q('[data-art="pinch"]').innerHTML = pinchArt();
     q('[data-act="skip"]').textContent = !first ? 'Close' : TOUCH ? 'Skip, I’ll type' : 'Skip, use mouse and keys';
@@ -70,7 +77,10 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     if (!b) return;
     b.blur();
     const act = b.dataset.act;
-    if (act === 'devices') void turnOn();
+    if (b.dataset.hand) {
+      input.setHandPref(b.dataset.hand as 'auto' | 'left' | 'right');
+      markHand();
+    } else if (act === 'devices') void turnOn();
     else if (act === 'skip') {
       input.setMouseKeys(true);
       close(act);
@@ -100,7 +110,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
       asking ? 'allow the camera and mic when the browser asks'
       : starting ? s.camStatus
       : devicesOk ? 'camera and mic are on'
-      : TOUCH ? (s.mic ? 'mic is on: say a troop, then tap where it goes' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'say your troop out loud, then tap where it goes')
+      : TOUCH ? (s.mic ? 'mic is on: say a troop, then hold where it goes and let go' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'say your troop out loud, then hold where it goes and let go')
       : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: say a troop, then click or press Space to send it`
       : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
       : 'aim with your hand, say your troop out loud');
@@ -109,9 +119,13 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     dev.disabled = asking || starting;
     dev.textContent = s.mic ? 'Try camera' : errors.length ? 'Try again' : 'Turn on';
 
-    step('voice', s.heardWords,
+    // Any speech passes: the mic works, which is all this checks. Words follow if the recogniser
+    // catches them.
+    const heard = s.heardWords || s.heardSound;
+    step('voice', heard,
       !s.mic ? 'checks the mic hears you'
-      : s.heardWords || s.micStatus.startsWith('no speech') ? s.micStatus
+      : s.heardWords ? s.micStatus
+      : heard ? 'heard you'
       : s.speaking ? 'hearing you…'
       : 'say “hello”');
     const lvl = q('.setupMeter i');
@@ -122,11 +136,17 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     step('hands', practiced,
       !s.cameraReady ? 'No camera? Click or press Space instead of pinching.'
       : practiced ? 'Practice done. Thumbs down cancels a troop.'
-      : 'Fit the pinch to your hand, then hit three targets. About 20 seconds.');
+      : 'Fit the pinch to your hand (or skip it), then grab three targets. About 20 seconds.');
     const prac = q<HTMLButtonElement>('[data-act="practice"]');
     prac.hidden = !s.cameraReady;
     prac.textContent = practiced ? 'Again' : 'Practice';
     prac.classList.toggle('ghost', practiced);
+
+    // Heard them and the camera's on: straight on to the hand practice.
+    if (heard && s.cameraReady && !movedOn) {
+      movedOn = true;
+      setTimeout(() => { if (!el.hidden) void runPractice(false) }, 700);
+    }
 
     q('.setupHint').textContent = !s.camera ? 'camera off' : starting ? s.camStatus : s.hand ? '' : 'show your hand';
     q<HTMLButtonElement>('[data-act="done"]').disabled = !s.mic || starting;
