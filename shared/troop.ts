@@ -73,7 +73,9 @@ export const CLAMPS: Record<keyof TroopStats, [number, number]> = {
 };
 
 export const K = 95;
-export const MAX_COST = 10;
+// The most a troop may cost: the whole elixir bar (ELIXIR.max in arena.ts), so a legendary troop
+// that costs 11-15 is a deliberate save-up. Above this the game refuses it.
+export const MAX_COST = 15;
 
 // Pricing knobs, a parameter of power()/price() so the balance sim can try other values.
 export interface Pricing {

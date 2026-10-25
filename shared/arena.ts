@@ -24,7 +24,8 @@ export const OVERTIME_SECONDS = 30;
 export const TIEBREAK_AT = MATCH_SECONDS + OVERTIME_SECONDS;
 export const DRAIN_PER_SEC = 1200; // a full king tower drains in 3 s
 // Elixir: where each side starts, the cap, and the base refill per second (doubled from
-// DOUBLE_ELIXIR_AT, tripled in overtime). Troop costs don't scale with the cap: MAX_COST stays 10.
+// DOUBLE_ELIXIR_AT, tripled in overtime). MAX_COST in troop.ts matches the cap (15), so
+// a full bar buys the most expensive troop.
 // A parameter of the match, so Practice can try other numbers (the dev settings in client/src/dev.ts).
 export interface ElixirRules { max: number; start: number; perSec: number }
 export const ELIXIR: ElixirRules = { max: 15, start: 5, perSec: 1.5 };
