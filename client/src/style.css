@@ -510,7 +510,7 @@ body:not(.devMode) .devSettings { display: none; }
 .handSlot #handView[data-state="none"] .hvState { color: #fff; }
 .handSlot:has(#handView:not([hidden])) #handBtn { display: none; } /* camera off: a button to turn it on instead */
 #handView canvas { width: 128px; height: 120px; }
-#handView .hvState { font: 700 12px var(--chakra); letter-spacing: .08em; white-space: nowrap; text-transform: uppercase; color: var(--muted); text-align: center; }
+#handView .hvState { font: 700 12px var(--chakra); letter-spacing: .08em; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; color: var(--muted); text-align: center; }
 #handView[data-state="open"] .hvState { color: var(--amber); }
 #handView[data-state="fire"] .hvState { color: #fff1c4; }
 #handView[data-state="cancel"] .hvState { color: #ff9aa4; }
