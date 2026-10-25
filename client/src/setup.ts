@@ -110,7 +110,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
       asking ? 'allow the camera and mic when the browser asks'
       : starting ? s.camStatus
       : devicesOk ? 'camera and mic are on'
-      : TOUCH ? (s.mic ? 'mic is on: say a troop, then tap where it goes' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'say your troop out loud, then tap where it goes')
+      : TOUCH ? (s.mic ? 'mic is on: say a troop, then hold where it goes and let go' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'say your troop out loud, then hold where it goes and let go')
       : s.mic ? `mic is on${errors.length ? ` (${errors.join(' · ')})` : ', no camera'}: say a troop, then click or press Space to send it`
       : errors.length ? `${errors.join(' · ')}. Allow them from the address bar, then try again.`
       : 'aim with your hand, say your troop out loud');

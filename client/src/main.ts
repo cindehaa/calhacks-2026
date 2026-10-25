@@ -1094,14 +1094,22 @@ addEventListener('keydown', e => {
   }
 });
 
-board.canvas.addEventListener('mousemove', e => {
+// pointermove, not mousemove, so a finger dragging on a phone moves the aim too.
+board.canvas.addEventListener('pointermove', e => {
   if (!input.mouseKeys) return void (aim = lock = null);
   const [x, y] = board.toWorld(e.clientX, e.clientY);
   aim = onBoard(x, y) ? [x, y] : null;
 });
 board.canvas.addEventListener('mouseleave', () => (aim = null));
+board.canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' || !input.mouseKeys) return;
+  const [x, y] = board.toWorld(e.clientX, e.clientY);
+  aim = onBoard(x, y) ? [x, y] : null;
+});
 board.canvas.addEventListener('click', () => {
-  if (input.tookClick() || !aim) return; // a hold-to-talk press already deployed or cancelled
+  const taken = input.tookClick();
+  if (TOUCH) setTimeout(() => (aim = null)); // no hover on a phone: the ring goes with the finger
+  if (taken || !aim) return; // a hold-to-talk press already deployed or cancelled
   lock = aim;
   $('descInput').focus();
 });

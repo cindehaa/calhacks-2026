@@ -149,6 +149,7 @@ export class InputController {
   private flaggedAt = 0; // last mismatch flag: interim words flag it, then the final repeats them
   private lastPanel = 0;
   private clickTaken = false; // the last mouse press fired, so it isn't also a click-to-type
+  private touchId: number | null = null; // the finger on the board, between down and lift
   private setupPreview: HTMLCanvasElement | null = null;
   private setupSeen: { c: HTMLCanvasElement; label: HTMLElement } | null = null;
   onSetup?: () => void; // the ⋯ menu's "Run setup again"
@@ -181,14 +182,39 @@ export class InputController {
     });
     canvas.addEventListener('mouseleave', () => (this.mouse = null));
     // Clicking the board with words waiting fires them there. With nothing said it's an ordinary
-    // click, which picks the spot for typing. On a phone, typed words fire at the tap too: the
-    // keyboard covers the board, so typing first and then tapping where is the natural order.
+    // click, which picks the spot for typing.
     canvas.addEventListener('mousedown', e => {
       this.clickTaken = false;
-      const typed = TOUCH && !!this.host.typedText().trim();
-      if (e.button !== 0 || !this.prefs.mouseKeys || !(this.prompt.text || typed) || this.firing) return;
-      this.clickTaken = typed ? this.fire({ x: e.clientX, y: e.clientY }, 'mouse') : this.publish({ kind: 'mouse', t: performance.now(), at: { x: e.clientX, y: e.clientY }, phase: 'down' });
-      if (typed && this.clickTaken) (document.activeElement as HTMLElement | null)?.blur();
+      if (e.button !== 0 || !this.prefs.mouseKeys || !this.prompt.text || this.firing) return;
+      this.clickTaken = this.publish({ kind: 'mouse', t: performance.now(), at: { x: e.clientX, y: e.clientY }, phase: 'down' });
+    });
+    // A finger is the pinch: put it down on the board, drag to aim, lift to place what was said or
+    // typed there, like the camera's pinch, hold and let go. Lifting off the board places nothing.
+    // A tap with nothing said or typed stays a click, which picks the spot for typing.
+    canvas.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return;
+      e.preventDefault(); // no compatibility mouse events: the lift decides, not the press
+      canvas.setPointerCapture(e.pointerId);
+      this.touchId = e.pointerId;
+      this.mouse = { x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (e.pointerType === 'mouse' || e.pointerId !== this.touchId) return;
+      this.mouse = { x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('pointerup', e => {
+      if (e.pointerId !== this.touchId) return;
+      this.touchId = null;
+      this.clickTaken = false;
+      const at = { x: e.clientX, y: e.clientY };
+      const typed = !!this.host.typedText().trim();
+      const spoke = this.mic.on && this.speechAt > this.firedAt;
+      if (!this.prompt.text && !typed && !spoke) return; // a plain tap
+      this.clickTaken = this.fire(at, 'touch');
+      if (this.clickTaken) (document.activeElement as HTMLElement | null)?.blur(); // the keyboard, if typing
+    });
+    canvas.addEventListener('pointercancel', e => {
+      if (e.pointerId === this.touchId) this.touchId = null;
     });
     // Space fires at the cursor (hand or mouse); Esc throws the words away. An empty text box
     // doesn't count as typing during a match: clicking the board focuses it.
@@ -793,7 +819,7 @@ export class InputController {
     sfx.play('miss');
     if (this.hinted) return;
     this.hinted = true;
-    const send = this.tracker ? 'pinch, aim, let go' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? 'pinch, aim, let go' : TOUCH ? 'hold your half, drag to aim, let go' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const how = !this.mic.on ? `Turn on the Mic or type a troop, then ${send}` : this.speech.available ? `Say what it is, then ${send}` : `Type what it is, then ${send}`;
     notice(how, { tone: 'info', ms: 3200, key: 'missHint' });
   }
@@ -1025,9 +1051,9 @@ export class InputController {
   }
 
   private hintText(): string {
-    if (!this.mic.on && TOUCH) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it in the browser’s site settings, or type a troop` : 'Type a troop and tap your half, or tap the mic (top right) to say it';
+    if (!this.mic.on && TOUCH) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it in the browser’s site settings, or type a troop` : 'Type a troop or tap the mic, then hold your half, drag, let go';
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
-    const send = this.tracker ? 'pinch, aim, let go' : TOUCH ? 'tap your half' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
+    const send = this.tracker ? 'pinch, aim, let go' : TOUCH ? 'hold your half, drag to aim, let go' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'thumbs down' : TOUCH ? 'say “cancel”' : 'press Esc';
     if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;
     if (this.tracker) return this.scheme.howTo;
