@@ -32,6 +32,19 @@ test('waits for its next think', () => {
   assert.notEqual(botDecide(s, 1, { ...newBotMemory(), saveFor: 0 }, normal, seeded()), null);
 });
 
+test('rests after a drop instead of chaining troops', () => {
+  for (const level of Object.values(BOT_LEVELS)) {
+    const s = newMatch();
+    s.time = 10;
+    s.elixir = [10, 15];
+    const mem = { ...ready(), saveFor: 0 };
+    assert.notEqual(botDecide(s, 1, mem, level, seeded()), null);
+    assert.ok(mem.nextThink >= s.time + level.designTime + level.cooldown * 0.75);
+    s.time = mem.nextThink - 0.05;
+    assert.equal(botDecide(s, 1, mem, level, seeded()), null);
+  }
+});
+
 test('defends a golem on its half after the reaction delay, with high dps near the tower', () => {
   const s = newMatch();
   s.time = 10;
