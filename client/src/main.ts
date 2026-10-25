@@ -255,13 +255,8 @@ function renderLast() {
 renderLast();
 
 $('botBtn').onclick = () => openPractice(true);
-// No matchmaking yet: Play online and Join a room open the same room pop-up; Join starts at the code boxes.
+// No matchmaking yet: Play online opens a room, with code boxes to join a friend's instead.
 $('battleBtn').onclick = () => openRaven();
-$('ravenBtn').onclick = () => {
-  openRaven();
-  renderRaven();
-  codeIns[0].focus();
-};
 $('camBtn').onclick = e => {
   setup.open();
   (e.currentTarget as HTMLElement).blur();
@@ -302,6 +297,9 @@ function renderLobby() {
   const inMatch = !!local || restarting || r?.status === 'playing' || r?.status === 'done';
   $('lobby').hidden = !entered || inMatch;
   document.body.classList.toggle('inHub', !inMatch);
+  // On home the virtual hand sits in the button row, beside Play online; in a match, bottom right.
+  const hv = document.getElementById('handView'), home = $('lobby').hidden ? document.body : $('handSlot');
+  if (hv && hv.parentElement !== home) home.appendChild(hv);
   if (p && document.activeElement !== $('nameInput')) $<HTMLInputElement>('nameInput').value = p.name;
   if (r?.status === 'playing') ravenOpen = false;
   renderRaven();
@@ -423,7 +421,7 @@ function renderRaven() {
   $('ravenSub').textContent = !net
     ? 'Can’t reach the server right now. Practice against the bot still works.'
     : r && !hosting ? 'You joined their room. Either of you can start the match.'
-    : 'Send this code to a friend. They enter it under Join a room.';
+    : 'Send this code to a friend. They enter it under Play online.';
   setHtml('codeSlabs', (r?.code ?? '····').split('').map(c => `<span class="code">${escapeHtml(c)}</span>`).join(''));
   // The host plays the blue side and the guest the red one: blue's slot is on the left.
   const meName = myName(), mine: Side = r && !hosting ? 1 : 0;
