@@ -45,6 +45,20 @@ test('rests after a drop instead of chaining troops', () => {
   }
 });
 
+test('fumbles only as often as its level says', () => {
+  const rand = seeded(3);
+  for (const level of Object.values(BOT_LEVELS)) {
+    let fumbles = 0;
+    for (let i = 0; i < 400; i++) {
+      const s = newMatch();
+      s.time = 10;
+      s.elixir = [10, 15];
+      fumbles += botDecide(s, 1, { ...ready(), saveFor: 0 }, level, rand)!.fumble ? 1 : 0;
+    }
+    assert.ok(Math.abs(fumbles / 400 - level.fumble) < 0.07, `${fumbles}/400 against ${level.fumble}`);
+  }
+});
+
 test('defends a golem on its half after the reaction delay, with high dps near the tower', () => {
   const s = newMatch();
   s.time = 10;
