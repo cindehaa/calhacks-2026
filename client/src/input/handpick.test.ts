@@ -29,8 +29,8 @@ test('synthetic poses read as intended', () => {
 });
 
 test('MediaPipe labels are mirrored', () => {
-  assert.equal(sideFromLabel('Left'), 'right');
-  assert.equal(sideFromLabel('Right'), 'left');
+  assert.equal(sideFromLabel('Left'), 'left');
+  assert.equal(sideFromLabel('Right'), 'right');
   assert.equal(sideFromLabel(undefined), null);
 });
 

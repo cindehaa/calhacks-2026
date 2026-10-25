@@ -24,10 +24,11 @@ export interface HandIn {
   side: Side | null; // the player's own hand (see sideFromLabel)
 }
 
-// MediaPipe labels handedness as if the image were mirrored (a selfie). We pass it the raw,
-// unmirrored camera frame, so its "Left" is the player's right hand, and the other way round.
+// MediaPipe's docs say it labels handedness as if the image were mirrored, which would make its
+// "Left" the player's right in our raw camera frame. On a real camera it's the other way: with
+// Right chosen, only the left hand aimed. So its label is taken as the player's own hand.
 export const sideFromLabel = (label: string | undefined): Side | null =>
-  label === 'Left' ? 'right' : label === 'Right' ? 'left' : null;
+  label === 'Left' ? 'left' : label === 'Right' ? 'right' : null;
 
 export const LOSE_MS = 400;
 export const STILL_MS = 1000;

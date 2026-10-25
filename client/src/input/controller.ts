@@ -1114,9 +1114,9 @@ export class InputController {
   private handLabel(state: CursorState): string {
     return !this.tracker?.ready ? 'Starting camera…'
       : !this.hand ? 'Show your hand'
-      : state === 'cancel' ? 'Thumbs down · cancel'
-      : this.schemeState() === 'holding' ? (this.menus() ? 'Holding · let go to click' : 'Holding · let go to place')
-      : state === 'fire' ? (this.menus() ? 'Let go · click' : 'Let go · placed')
+      : state === 'cancel' ? 'Thumbs down'
+      : this.schemeState() === 'holding' ? (this.menus() ? 'Let go to click' : 'Let go to place')
+      : state === 'fire' ? (this.menus() ? 'Clicked' : 'Placed')
       : 'Aiming';
   }
 
