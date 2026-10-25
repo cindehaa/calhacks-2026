@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEPLOY_DELAY, KING_LANE, TICK_HZ, type Side } from './arena.js';
-import { designOfflineAny, designOfflineSpell, soundsLikeSpell } from './offline_spell.js';
+import { designOfflineAny, designOfflineSpell, saysSpell, soundsLikeSpell } from './offline_spell.js';
 import { SPELL_REFS, SYSTEM_PROMPT } from './prompt.js';
 import { CURSE_MULT, KNOCKBACK, SPELL_TOWER_SHARE, newMatch, newSpell, newUnit, step, type SimState, type SimUnit } from './sim.js';
 import { INSTANT, SPELL_EFFECTS, priceSpell, sanitizeSpell, type SpellSpec } from './spell.js';
@@ -200,4 +200,13 @@ test('offline spells: words pick the effect, junk fizzles, troops stay troops', 
     assert.ok(price(sp) >= 1 && price(sp) <= MAX_COST, d);
     assert.deepEqual(designOfflineAny(d, true), sp, 'deterministic');
   }
+});
+
+test('offline spell words: calling it a spell makes one, a spell caster stays a troop', () => {
+  for (const d of ['a dragon spell', 'healing spell', 'Lightning Spell!', 'fireball spell with extra large radius']) assert.ok(saysSpell(d), d);
+  for (const d of ['a spell caster', 'spellcaster', 'a wizard with a spellbook', 'a spell sword knight', 'a wizard who casts spells']) assert.ok(!saysSpell(d), d);
+  for (const d of ['fire', 'lightning', 'a storm', 'poison', 'ice', 'magic', 'sleep', 'explosion', 'a bomb', 'rain of arrows', 'a black hole', 'a huge fireball', 'a dragon spell'])
+    assert.equal(designOfflineAny(d).kind, 'spell', d);
+  for (const d of ['a spell caster', 'a lightning wizard', 'a storm giant', 'an ice golem', 'a poison frog', 'a shield knight', 'a bomber', 'a healer', 'archers', 'a black knight'])
+    assert.equal(designOfflineAny(d).kind, undefined, d);
 });

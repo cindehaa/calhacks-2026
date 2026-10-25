@@ -7,7 +7,7 @@ import { sanitizeDesign, type Element, type TroopDesign } from './troop.js';
 
 // First match wins, so specific words come before broad ones.
 const EFFECT_WORDS: [SpellEffect, string][] = [
-  ['vortex', 'tornado twister vortex whirlpool whirlwind cyclone hurricane hole gravity'],
+  ['vortex', 'tornado twister vortex whirlpool whirlwind cyclone hurricane black hole gravity'],
   ['shockwave', 'shockwave quake earthquake tremor gust wind push shove knockback explosion boom thunderclap'],
   ['freeze', 'freeze frozen ice icy frost blizzard snow cold'],
   ['heal', 'heal healing cure mend regenerate regeneration restore medic potion life'],
@@ -18,12 +18,14 @@ const EFFECT_WORDS: [SpellEffect, string][] = [
   ['weaken', 'weaken weakness sap drain tired sleep sleepy lullaby'],
   ['slow', 'slow mud tar glue web sticky swamp quicksand molasses'],
   ['storm', 'storm rain cloud poison acid gas toxic plague swarm arrows volley'],
-  ['blast', 'fireball fire meteor bolt lightning strike bomb nuke explode blast missile comet smite'],
+  ['blast', 'fireball fire meteor bolt lightning strike bomb nuke explode blast missile comet smite magic arcane'],
 ];
 // Words that only ever mean a spell, so the words alone can make one on your own half.
 const SPELL_ONLY = new Set(
-  'spell fireball meteor comet nuke smite earthquake quake tornado twister vortex blizzard hex curse heal healing rage haste freeze shockwave potion lullaby'.split(' ')
+  'fireball meteor comet nuke smite earthquake quake tornado twister vortex blizzard hex curse heal healing rage haste freeze shockwave potion lullaby'.split(' ')
 );
+// Words that say nothing about what it is, skipped when deciding if a description is all effect.
+const FILLER = new Set('a an the of on my our their them all some big huge small tiny little great mighty'.split(' '));
 const ELEMENT_WORDS: [Element, string][] = [
   ['fire', 'fire fireball flame flaming burn burning lava meteor comet inferno'],
   ['ice', 'ice icy frost frozen freeze snow blizzard cold'],
@@ -32,6 +34,7 @@ const ELEMENT_WORDS: [Element, string][] = [
   ['holy', 'holy heal healing light divine smite angel bless blessing'],
   ['shadow', 'shadow dark curse hex doom hole void'],
 ];
+const EFFECT_VOCAB = new Set([...EFFECT_WORDS, ...ELEMENT_WORDS].flatMap(([, list]) => list.split(' ')));
 const ON_HIT_OF: Partial<Record<Element, SpellOnHit>> = { fire: 'burn', ice: 'slow', lightning: 'stun', poison: 'burn' };
 // A middling version of each, about a fireball's price.
 const BASE: Record<SpellEffect, { radius: number; duration: number; amount: number; flavor: string }> = {
@@ -56,9 +59,18 @@ const NAME_OF: Record<SpellEffect, string> = {
 const words = (s: string) => String(s ?? '').slice(0, 300).toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ').filter(Boolean);
 const title = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
 
-// True if the words name a spell on their own ("a fireball", "heal"), not a creature with magic.
+// Offline only (the model judges this itself): the player calls it a spell ("a dragon spell",
+// "fireball spell with a huge radius"), not a caster of them ("a spell caster", "casts spells").
+export function saysSpell(description: string): boolean {
+  return /\bspell\b(?! ?(caster|casters|book|books|sword|slinger))/.test(words(description).join(' '));
+}
+
+// True if the words name a spell on their own ("a fireball", "heal", "lightning", "rain of
+// arrows"): a spell-only word, or nothing but effect and element words. "An ice golem" has a
+// creature in it, so it isn't.
 export function soundsLikeSpell(description: string): boolean {
-  return words(description).some(w => SPELL_ONLY.has(w));
+  const ws = words(description).filter(w => !FILLER.has(w));
+  return saysSpell(description) || ws.some(w => SPELL_ONLY.has(w)) || (ws.length > 0 && ws.every(w => EFFECT_VOCAB.has(w)));
 }
 
 // The offline designer for any drop: a spell when it has to be one or the words name one, else a troop.
