@@ -89,7 +89,7 @@ test('an empty match goes to overtime, then the tiebreaker, and draws', () => {
   assert.ok(s.time > TIEBREAK_AT);
 });
 
-test('a tower lead at 90 s wins on the clock', () => {
+test('a tower lead at the final whistle wins on the clock', () => {
   const s = newMatch();
   s.towers.find(t => t.side === 1 && t.lane === 0)!.hp = 0;
   const r = run(s, MATCH_SECONDS + 1);

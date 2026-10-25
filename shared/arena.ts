@@ -11,11 +11,11 @@ export const RIVER_HALF = 1; // the river runs from MID_Y − 1 to MID_Y + 1
 export const BRIDGE_X = [3.5, 14.5];
 export const BRIDGE_HALF = 1.25; // bridges are 2.5 tiles wide
 
-export const MATCH_SECONDS = 90;
+export const MATCH_SECONDS = 60;
 export const COUNTDOWN = 3; // "3-2-1, Fight!" runs from time −3, with no deploys or elixir until 0
 export const INTRO = 2.5; // the "you vs them" card before the countdown
 export const MATCH_START = -(INTRO + COUNTDOWN); // the clock a new match starts at
-export const DOUBLE_ELIXIR_AT = 60; // last 30 s
+export const DOUBLE_ELIXIR_AT = 30; // last 30 s
 // Level on towers at MATCH_SECONDS: overtime, sudden death at triple elixir, and the first tower
 // down wins. Still level when it runs out: the tiebreaker. Everything stops, every standing tower
 // loses health at DRAIN_PER_SEC, and the side whose tower falls first loses. Towers that fall
@@ -27,7 +27,7 @@ export const DRAIN_PER_SEC = 1200; // a full king tower drains in 3 s
 // DOUBLE_ELIXIR_AT, tripled in overtime). Troop costs don't scale with the cap: MAX_COST stays 10.
 // A parameter of the match, so Practice can try other numbers (the dev settings in client/src/dev.ts).
 export interface ElixirRules { max: number; start: number; perSec: number }
-export const ELIXIR: ElixirRules = { max: 15, start: 5, perSec: 0.75 };
+export const ELIXIR: ElixirRules = { max: 15, start: 5, perSec: 1.5 };
 export const ELIXIR_MAX = ELIXIR.max;
 export const ELIXIR_START = ELIXIR.start;
 export const elixirRate = (time: number, perSec = ELIXIR.perSec) => perSec * (time >= MATCH_SECONDS ? 3 : time >= DOUBLE_ELIXIR_AT ? 2 : 1);
