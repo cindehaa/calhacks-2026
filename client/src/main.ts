@@ -4,7 +4,6 @@ import type { BotLevel } from '../../shared/bot';
 import { newTowers } from '../../shared/sim';
 import { MAX_COST, price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
-import { saysSpell } from '../../shared/offline_spell';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
 import { InputController, TOUCH, type DeployHow } from './input/controller';
@@ -956,9 +955,9 @@ async function designAt(nonce: number, spot: [number, number], description: stri
   dropWords(nonce, description);
   dropStep(nonce, 'STT', `final words "${description}" (${how?.from ?? 'typed'}${how?.transcript && how.transcript !== description ? `, heard "${how.transcript}"` : ''})`);
   dropStep(nonce, 'DESIGN', 'design request → /api/troop');
-  // Aimed past your zone, or the words end on "spell": a spell, which has no sprite to draw.
-  const spellOnly = spellSpot(spot) || saysSpell(description);
-  if (spellSpot(spot)) spellHintOnce();
+  // Aimed past your zone: a spell, which has no sprite to draw. Anywhere else the designer decides.
+  const spellOnly = spellSpot(spot);
+  if (spellOnly) spellHintOnce();
   if (!spellOnly) dropStep(nonce, 'ART', 'art request → /api/sprite');
   const art = spellOnly ? Promise.resolve(null) : requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
@@ -1001,7 +1000,7 @@ const input = new InputController(board.canvas, {
   prefetch: words => {
     dropStep(null, 'STT', `partial "${words}"`);
     const at = input.cursorSpot();
-    const spellOnly = (!!at && spellSpot(at)) || saysSpell(words);
+    const spellOnly = !!at && spellSpot(at);
     prefetchDesign(words, spellOnly);
     if (!spellOnly) prefetchSprite(words);
   },

@@ -202,8 +202,8 @@ test('offline spells: words pick the effect, junk fizzles, troops stay troops', 
   }
 });
 
-test('spell words: a trailing "spell" forces one, a spell caster stays a troop', () => {
-  for (const d of ['a dragon spell', 'healing spell', 'Lightning Spell!']) assert.ok(saysSpell(d), d);
+test('offline spell words: calling it a spell makes one, a spell caster stays a troop', () => {
+  for (const d of ['a dragon spell', 'healing spell', 'Lightning Spell!', 'fireball spell with extra large radius']) assert.ok(saysSpell(d), d);
   for (const d of ['a spell caster', 'spellcaster', 'a wizard with a spellbook', 'a spell sword knight', 'a wizard who casts spells']) assert.ok(!saysSpell(d), d);
   for (const d of ['fire', 'lightning', 'a storm', 'poison', 'ice', 'magic', 'sleep', 'explosion', 'a bomb', 'rain of arrows', 'a black hole', 'a huge fireball', 'a dragon spell'])
     assert.equal(designOfflineAny(d).kind, 'spell', d);

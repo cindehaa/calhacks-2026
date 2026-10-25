@@ -59,10 +59,10 @@ const NAME_OF: Record<SpellEffect, string> = {
 const words = (s: string) => String(s ?? '').slice(0, 300).toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ').filter(Boolean);
 const title = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
 
-// Ending on "spell" makes it one whatever comes before ("a dragon spell"), but "a spell caster",
-// "a spellbook wizard" or "a wizard who casts spells" don't end on it. Deterministic, so the client forces it like an aim.
+// Offline only (the model judges this itself): the player calls it a spell ("a dragon spell",
+// "fireball spell with a huge radius"), not a caster of them ("a spell caster", "casts spells").
 export function saysSpell(description: string): boolean {
-  return /\bspell$/.test(words(description).join(' '));
+  return /\bspell\b(?! ?(caster|casters|book|books|sword|slinger))/.test(words(description).join(' '));
 }
 
 // True if the words name a spell on their own ("a fireball", "heal", "lightning", "rain of
