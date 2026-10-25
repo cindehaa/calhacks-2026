@@ -122,16 +122,31 @@ export async function artFile(store: ArtStore, name: string): Promise<Buffer | n
   return store.read(name);
 }
 
+// fal answers 429 past 10 requests in flight per key, and drawing every anchor at api start (or a
+// busy match with poses) went past it: sprites failed and cut-outs fell back to the browser keyer,
+// which then stayed cached. So calls queue here, at most FAL_SLOTS at once from this instance.
+// The timeout only starts once a call has a slot.
+const FAL_SLOTS = 8;
+let falBusy = 0;
+const falQueue: (() => void)[] = [];
+
 // fal's synchronous endpoint: one POST, the result in the response.
 export async function fal<T>(model: string, input: Record<string, unknown>, timeoutMs: number): Promise<T> {
-  const r = await fetch(`https://fal.run/${model}`, {
-    method: 'POST',
-    headers: { Authorization: `Key ${(process.env.FAL_KEY ?? '').trim()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!r.ok) throw new Error(`${model}: ${r.status} ${(await r.text()).slice(0, 160)}`);
-  return (await r.json()) as T;
+  if (falBusy >= FAL_SLOTS) await new Promise<void>(go => falQueue.push(go));
+  falBusy++;
+  try {
+    const r = await fetch(`https://fal.run/${model}`, {
+      method: 'POST',
+      headers: { Authorization: `Key ${(process.env.FAL_KEY ?? '').trim()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!r.ok) throw new Error(`${model}: ${r.status} ${(await r.text()).slice(0, 160)}`);
+    return (await r.json()) as T;
+  } finally {
+    falBusy--;
+    falQueue.shift()?.();
+  }
 }
 
 // A data URI (sync_mode) or, if fal ignored that, a hosted URL.
