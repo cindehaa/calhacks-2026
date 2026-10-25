@@ -24,6 +24,10 @@ export function initSetup(input: InputController, onClose: () => void): { open()
   const handSel = q<HTMLSelectElement>('select[data-hand-pref]');
   handSel.value = input.handPref;
   handSel.addEventListener('change', () => input.setHandPref(handSel.value as 'auto' | 'left' | 'right'));
+  // Place on the pinch, or hold it to aim and let go to place (schemes/grab.ts, being tried out).
+  const schemeSel = q<HTMLSelectElement>('select[data-scheme-pref]');
+  schemeSel.value = input.scheme.id;
+  schemeSel.addEventListener('change', () => input.setScheme(schemeSel.value as 'pinch' | 'grab'));
   let raf = 0;
   let asking = false; // waiting on the browser's permission prompt
   const practice = initPractice(input);

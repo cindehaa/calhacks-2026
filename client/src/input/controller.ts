@@ -36,7 +36,7 @@ export const TOUCH = matchMedia('(pointer: coarse)').matches && !matchMedia('(an
 type Spot = [number, number]; // world coords
 
 const SCHEMES = { pinch, grab };
-type SchemeId = keyof typeof SCHEMES;
+export type SchemeId = keyof typeof SCHEMES;
 
 // What the game provides. begin() starts the server-side deploy clock and returns its handle
 // (null refuses); deploy() and cancel() finish it.
@@ -509,6 +509,8 @@ export class InputController {
     this.prefs.scheme = id;
     save(KEYS.prefs, this.prefs);
     this.startScheme();
+    this.el.querySelectorAll<HTMLSelectElement>('[data-act="scheme"]').forEach(s => (s.value = id));
+    document.querySelectorAll<HTMLSelectElement>('select[data-scheme-pref]').forEach(s => (s.value = id));
     this.renderPanel();
   }
 
