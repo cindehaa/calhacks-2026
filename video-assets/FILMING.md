@@ -1,6 +1,27 @@
 # Filming plan
 
-The gameplay is already rendered from the game (`film/out/duel-cindy.mp4`, `film/out/duel-isaac.mp4`), the narrator is recorded (`narrator/`), and the B-roll is done. All that's left to film is people: faces, hands, reactions, the cold-open intros, the two laptops, and the montage.
+The gameplay is already rendered from the game (`film/out/duel-cindy.mp4`, `film/out/duel-isaac.mp4`), the narrator is recorded (`narrator/`), the B-roll is done, and so is the montage (`film/out/montage.mp4`, cut from hackathon phone footage by `scripts/montage.mjs`). The rough cut (`film/out/roughcut.mp4`) already plays end to end at 3:24. All that's left to film is the two of us: the cold-open intros, faces, hands and reactions, and the two laptops.
+
+## Schedule (Sun Oct 25)
+
+Submission is Devpost, 9:00 AM PT; we aim for 7:00 AM. Everything filmed replaces seconds in the rough cut rather than adding them: it is already 24 s over 3:00.
+
+| Time (PT) | Block | What | Done when |
+|---|---|---|---|
+| 2:00–2:20 | Set up | Room dim, warm practical, tripods on tape marks, renders on both laptops, notifications off, voice memos rolling. Shoot 10 s on each phone and check exposure, focus and audio. | Both test clips look and sound right |
+| 2:20–2:35 | **Cold-open intros** (must have) | Centred, straight on. Isaac ×4, then Cindy ×4 (beat 1.2–1.3). These replace the face photos in a 1.3 s slot each. | One clean take each |
+| 2:35–3:05 | **Duel runs** | Re-frame to the duel setup. Three full runs performing to the render (2 min each, plus count-in and reset). Gives 2.1, 2.7, 2.9 and 2.13 in one go. | One run with every line landing on time |
+| 3:05–3:20 | Close-up pickups | In order of payoff: Isaac frozen (2.12), Cindy "…innocent cat." (2.11), Cindy narrowing her eyes (2.8), Isaac smug (2.7). Play the render from about 10 s before each moment. | One keeper each |
+| 3:20–3:30 | Wide pickup | Isaac stands into frame for the titan line (2.10), low angle. | One keeper |
+| 3:30–3:40 | Hand inserts | Cindy's hand over the shoulder for the aim (2.2), then tight on the pinch and open (2.3–2.4). | One keeper each |
+| 3:40–3:45 | Laptops wide (optional) | Both renders in sync, the two of us facing off (play live). | Skip if behind |
+| 3:45–4:00 | Offload and log | Copy every take to `film/takes/` as `<beat>-<who>-<take>.mp4`; note the keeper and its timecode per beat. | Log written |
+| 4:00–5:30 | Edit | `node scripts/coldopen.mjs --isaac <clip> --cindy <clip>`, then cut the faces into the duel over the gameplay; trim to 3:00. | Watch-through at 3:00 or under |
+| 5:30–6:00 | Final render | Grade with `grade/artifice-frost-fire.cube`, one full watch with sound, export 1080p. | Final file |
+| 6:00–7:00 | Submit | Upload to Devpost (and YouTube if it needs a link), fill in the page. | Submitted |
+| 7:00–9:00 | Buffer | Re-upload a fixed cut if needed. | |
+
+**If we fall behind:** at 3:05, cut to one duel run; at 3:20, drop the rest of the pickups and go straight to offload. The cold-open intros plus one good duel run is the minimum worth keeping. If even that slips past 4:00, ship the rough cut as it is, trimmed to 3:00, with the photos in the cold open.
 
 ## How it works: perform to the render
 
@@ -68,10 +89,7 @@ A good duel run gives you most of these in one go. The inserts and close-ups are
 
 ## Montage (beat 4)
 
-- Other people playing the live game (artifice-game.vercel.app) at the hackathon: saying troops out loud, laughing, cheering, groaning when a tower falls, "wait, what?" at a weird troop.
-- Aim for 15–20 clips of 5–10 s. Get faces and the screen in the same shot where you can, and a few over-the-shoulder ones where the troop appears on screen.
-- Get clean audio: phone close or a lav, since every spoken line gets a caption.
-- Ask before filming, and get a quick yes on camera ("OK if this goes in our demo video?") or a written release. Note names for the captions.
+Done: `film/out/montage.mp4` (43 s), cut by `scripts/montage.mjs` from the shots in `film/montage.json`. No strangers' faces: backs of heads, hands, arms and laptops only. Any extra montage clip follows the same rule; add it to `montage.json` and run the script again.
 
 ## On-set checklist
 
@@ -85,4 +103,4 @@ A good duel run gives you most of these in one go. The inserts and close-ups are
 - [ ] Line sheet printed or on a second screen
 - [ ] Cold-open intros, duel runs ×3, then pickups: hands, smug, narrow, titan stand-up, "innocent cat", frozen, result
 - [ ] Laptops wide shot for "play live"
-- [ ] Montage clips with consent, and names noted
+- [ ] Every take offloaded to `film/takes/`, keepers logged
