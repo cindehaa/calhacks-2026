@@ -154,6 +154,7 @@ export class LocalMatch implements MatchSource {
       if (this.s.time < this.botMove.at) return;
       const { nonce, move } = this.botMove;
       this.botMove = null;
+      if (move.fumble) return this.unlock(BOT, nonce);
       const a = ANCHORS[move.anchor];
       try {
         this.deploy(BOT, nonce, move.x, move.y, a.description, a, '');

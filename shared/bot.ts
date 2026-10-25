@@ -13,6 +13,7 @@ export interface BotConfig {
   cooldown: number; // seconds after a drop lands before it thinks again
   reaction: number; // seconds a threat must be on its half before it defends
   designTime: number; // seconds from lock to deploy, as if it were describing the troop
+  fumble: number; // chance a locked drop never comes, like a troop that got misheard
   saveChance: number; // chance, when it could push, to save up for a big troop instead
   minPush: number; // elixir it holds before attacking; defending spends whatever it has
   jitter: number; // tiles of placement noise
@@ -20,9 +21,9 @@ export interface BotConfig {
 }
 
 export const BOT_LEVELS: Record<BotLevel, BotConfig> = {
-  easy: { thinkEvery: 3, cooldown: 9, reaction: 2, designTime: 1.6, saveChance: 0.1, minPush: 3, jitter: 1.5, counters: false },
-  normal: { thinkEvery: 1.5, cooldown: 6, reaction: 0.8, designTime: 1.2, saveChance: 0.3, minPush: 5, jitter: 0.8, counters: true },
-  hard: { thinkEvery: 1, cooldown: 3, reaction: 0.4, designTime: 0.8, saveChance: 0.5, minPush: 7, jitter: 0.3, counters: true },
+  easy: { thinkEvery: 3, cooldown: 10, reaction: 2, designTime: 4, fumble: 0.3, saveChance: 0.1, minPush: 3, jitter: 1.5, counters: false },
+  normal: { thinkEvery: 1.5, cooldown: 6, reaction: 0.8, designTime: 1.2, fumble: 0.1, saveChance: 0.3, minPush: 5, jitter: 0.8, counters: true },
+  hard: { thinkEvery: 1, cooldown: 3, reaction: 0.4, designTime: 0.8, fumble: 0, saveChance: 0.5, minPush: 7, jitter: 0.3, counters: true },
 };
 
 // What the bot remembers between decisions.
@@ -40,6 +41,7 @@ export interface BotMove {
   x: number;
   y: number;
   why: 'defend' | 'push';
+  fumble: boolean; // lock it, then give up: the drop is telegraphed but nothing lands
 }
 
 // How far past the river y is, toward `side`'s back line. Negative on the other half.
@@ -167,5 +169,5 @@ export function weakestBridge(s: SimState, side: Side, rand = Math.random): numb
 
 function place(side: Side, anchor: number, x: number, y: number, why: BotMove['why'], cfg: BotConfig, rand: () => number): BotMove {
   const [px, py] = clampToHalf(side, x + (rand() - 0.5) * 2 * cfg.jitter, y + (rand() - 0.5) * 2 * cfg.jitter);
-  return { anchor, x: px, y: py, why };
+  return { anchor, x: px, y: py, why, fumble: rand() < cfg.fumble };
 }
