@@ -637,8 +637,9 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 /* setup's point-and-pinch step: the two hand diagrams (input/handart.ts) on dark stone tiles */
 #setup .steps li[data-step="hands"] { align-items: flex-start; }
 #setup .steps li[data-step="hands"] .stepDot { margin-top: 1px; }
-#setup .howHands { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 8px; }
-#setup .howHands figure { margin: 0; display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 4px; background: #0a0d1b;
+/* Three steps across, each with its picture above a short caption. */
+#setup .howHands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 8px; }
+#setup .howHands figure { margin: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 6px 6px 8px; background: #0a0d1b;
   clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
 #setup .howHands figcaption { font-size: 13px; line-height: 1.3; color: #b9c0d8; }
 .handArt { flex: none; display: block; width: 64px; height: 77px; }

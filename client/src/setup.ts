@@ -3,7 +3,7 @@
 // controller turns the camera and mic back on by itself. "Run setup again" in the camera panel's
 // ⋯ menu reopens it.
 import { TOUCH, type InputController } from './input/controller';
-import { pinchArt, pointArt } from './input/handart';
+import { pinchArt, pointArt, sayArt } from './input/handart';
 import { initPractice, practiceDone } from './practice';
 import { logEvent } from './telemetry';
 
@@ -47,6 +47,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     movedOn = false;
     q('[data-art="point"]').innerHTML = pointArt();
     q('[data-art="pinch"]').innerHTML = pinchArt();
+    q('[data-art="say"]').innerHTML = sayArt();
     q('[data-act="skip"]').textContent = !first ? 'Close' : TOUCH ? 'Skip, I’ll type' : 'Skip, use mouse and keys';
     cancelAnimationFrame(raf);
     render();
