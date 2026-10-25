@@ -1,8 +1,9 @@
-// Point-and-pinch practice, the last part of setup. It starts by fitting the pinch to this
-// player's hand: a second pointing as they would to aim, then a pinch held, and the thresholds go
-// between the two (pose.ts fitPinch), since a pinch tuned to one hand misses on others. The ⋯
-// menu's "Fit pinch to my hand" runs that part alone. Then three targets across the screen, one at a
-// time; pinch, move onto each and let go to hit it. Only a real pinch counts (not the mouse or Space), so
+// Pinch-move-let-go practice, the last part of setup: three targets across the screen, one at a
+// time; pinch, move onto each and let go to hit it. The defaults work for most hands, so fitting
+// the pinch to this player's hand (a second pointing as they would to aim, then a pinch held; the
+// thresholds go between the two, pose.ts fitPinch) only runs when the pinch isn't registering:
+// near misses (nearmiss.ts), or the "Pinch not working?" button. The ⋯ menu's "Fit pinch to my
+// hand" runs it alone. Only a real pinch counts (not the mouse or Space), so
 // finishing shows the camera can see you aim and pinch. A meter shows how close thumb and finger
 // are, and pinches that almost close (nearmiss.ts) get told to close all the way. Skip any time.
 import type { InputController } from './input/controller';
@@ -38,7 +39,7 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
   const el = document.getElementById('handPractice')!;
   const q = <T extends HTMLElement = HTMLElement>(sel: string) => el.querySelector<T>(sel)!;
   const field = q('.practiceField'), msg = q('[data-msg]'), count = q('[data-count]'), meter = q('.pinchMeter i');
-  const art = q('[data-art="pinch"]'), title = q('#practiceTitle');
+  const art = q('[data-art="pinch"]'), title = q('#practiceTitle'), fitBtn = q<HTMLButtonElement>('[data-act="fit"]');
   const near = new NearMiss({ count: 2, cooldownMs: 0, maxShows: Infinity });
   let target: HTMLElement | null = null;
   let hits = 0;
@@ -52,6 +53,7 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
   let holdFrom = 0; // when the current hold began, 0 while not holding
   let phaseAt = 0;
   let pointing = 0; // the measure with the hand pointing, once taken
+  let nearHints = 0; // near-miss hints this run; the second starts a fit
 
   const center = (t: HTMLElement): Pt => {
     const r = t.getBoundingClientRect();
@@ -67,7 +69,8 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
 
   function render() {
     const now = performance.now();
-    title.textContent = phase === 'targets' ? 'Practice: point and pinch' : 'Fit the pinch to your hand';
+    title.textContent = phase === 'targets' ? 'Practice: pinch, move, let go' : 'Fit the pinch to your hand';
+    fitBtn.hidden = phase !== 'targets' || hits >= SPOTS.length;
     if (phase === 'fitted') return void (msg.textContent = 'Pinch fitted to your hand.', count.textContent = '');
     msg.textContent = hits >= SPOTS.length ? 'All three hit. You’re set.'
       : now < sayUntil ? say
@@ -152,6 +155,15 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
     setTimeout(place, 600);
   }
 
+  // The pinch isn't registering for this hand: fit it, then back to the targets.
+  function startFit(why: string) {
+    target?.remove();
+    target = null;
+    logEvent('practice:fit-start', why);
+    enter('point');
+    tell('Let’s fit the pinch to your hand.', 2500);
+  }
+
   function end(how: PracticeEnd) {
     if (!finish) return;
     logEvent(`practice:${how}`);
@@ -185,6 +197,8 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
         return render();
       }
       if (near.push(s.t, r, true)) {
+        // Twice now the pinch came close and didn't close: once more and it gets fitted.
+        if (++nearHints >= 2) return startFit('near-miss');
         tell('Almost. Touch your thumb all the way to a finger.', 3500);
         art.classList.remove('nudge');
         void art.offsetWidth;
@@ -205,6 +219,9 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
     if (b?.dataset.act === 'skip') {
       b.blur();
       end('skipped');
+    } else if (b?.dataset.act === 'fit' && phase === 'targets') {
+      b.blur();
+      startFit('button');
     }
   });
   addEventListener('keydown', e => {
@@ -223,10 +240,12 @@ export function initPractice(input: InputController): { run(o?: { fitOnly?: bool
       sayUntil = 0;
       near.fit(input.pinchThresholds);
       near.reset();
+      nearHints = 0;
       field.replaceChildren();
       el.hidden = false;
       logEvent(fitOnly ? 'practice:fit-start' : 'practice:start');
-      enter('point');
+      enter(fitOnly ? 'point' : 'targets');
+      if (!fitOnly) place();
       return new Promise(res => (finish = res));
     },
   };

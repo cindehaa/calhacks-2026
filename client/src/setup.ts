@@ -1,4 +1,4 @@
-// First-visit setup: camera and mic on, a quick voice check, then how to point and pinch, with a
+// First-visit setup: camera and mic on, a quick voice check, then how to pinch, move and let go, with a
 // short practice (practice.ts). Done or skipped once (remembered in localStorage); after that the
 // controller turns the camera and mic back on by itself. "Run setup again" in the camera panel's
 // ⋯ menu reopens it.
@@ -119,7 +119,7 @@ export function initSetup(input: InputController, onClose: () => void): { open()
     step('hands', practiced,
       !s.cameraReady ? 'No camera? Click or press Space instead of pinching.'
       : practiced ? 'Practice done. Thumbs down cancels a troop.'
-      : 'Fit the pinch to your hand, then hit three targets. About 20 seconds.');
+      : 'Grab three targets: pinch, move onto each, let go. About 15 seconds.');
     const prac = q<HTMLButtonElement>('[data-act="practice"]');
     prac.hidden = !s.cameraReady;
     prac.textContent = practiced ? 'Again' : 'Practice';

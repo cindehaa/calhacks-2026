@@ -678,6 +678,9 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 #handPractice > [data-act="skip"] { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); height: 42px; padding: 0 16px; border: 0; background: transparent;
   font: 700 15px var(--chakra); letter-spacing: .06em; color: var(--muted); cursor: pointer; }
 #handPractice > [data-act="skip"]:hover { color: #fff; }
+#handPractice > [data-act="fit"] { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); height: 36px; padding: 0 14px; border: 0; background: transparent; color: #9aa6c8; font: 600 14px var(--chakra); text-decoration: underline; cursor: pointer; }
+#handPractice > [data-act="fit"]:hover { color: #fff; }
+#handPractice > [data-act="fit"][hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .pTarget, .pTarget.hit, .practiceHead .handArt.nudge { animation: none; transition: none; } .pTarget.hit { opacity: 0; } }
 @media (max-width: 640px) {
   #setup .howHands { grid-template-columns: 1fr; }
