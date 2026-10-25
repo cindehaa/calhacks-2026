@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { ANCHORS } from '../shared/anchors.js';
 import { hasCartesiaKey } from './_lib/cartesia.js';
 import { designerName, hasKey } from './_lib/designer.js';
-import { HEADERS, PNG_HEADERS, ROUTES, failure, parseBody, png } from './_lib/routes.js';
+import { HEADERS, PNG_HEADERS, ROUTES, failure, healthReport, parseBody, png } from './_lib/routes.js';
 import { hasFalKey, sprite } from './_lib/sprites.js';
 
 const envFile = new URL('../.env', import.meta.url);
@@ -29,6 +29,7 @@ function send(res: ServerResponse, status: number, body: unknown) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+  if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, await healthReport());
   if (req.method === 'GET') {
     const file = await png(url);
     if (!file) return send(res, 404, { error: 'not found' });
@@ -40,8 +41,8 @@ const server = createServer(async (req, res) => {
   try {
     send(res, 200, await route(parseBody(await readBody(req))));
   } catch (e) {
-    const { status, error } = failure(req.url ?? '', e);
-    send(res, status, { error });
+    const { status, body } = failure(req.url ?? '', e);
+    send(res, status, body);
   }
 });
 

@@ -79,6 +79,10 @@ Every round is logged to private SpacetimeDB tables that only the database owner
 
 `npm run logs` prints the last rounds as timelines (each deploy next to what the player said after it) plus a summary: input mix, outcomes and cancel reasons, design wait p50/p90, art on time, mismatch rate, damage per elixir. `npm run logs -- --jsonl > attempts.jsonl` writes one joined line per attempt for tuning the prompt and the art. `npm run logs -- --wishes` lists what the designer wished the lists had (the design's `wish`, logged on `generation`), counted by times and distinct players with sample descriptions, and mismatch flags per `on_hit`, `trait` and `element` value. Options: `--last 20`, `--server maincloud --db <name>`.
 
+## Debugging a drop
+
+Open DevTools → Console: each pipeline stage logs as `[MIC]`, `[STT]`, `[HAND]`, `[DESIGN]`, `[ART]`, `[DB]`, `[DEPLOY]`, warnings and errors always, step-by-step detail with `?debug` in the URL or `localStorage.debug = 1`; run `__diag()` for the last 20 drops and the startup health check, and `GET /api/health` for which api keys are set (booleans) plus a 1-token Anthropic check.
+
 ## Checks
 
 ```sh

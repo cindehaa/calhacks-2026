@@ -8,6 +8,7 @@
 // Each socket is one epoch of audio, so cut() (a fire) splits the words exactly where it happened:
 // everything sent before it is finalised on the old socket, everything after goes to the new one.
 import { cartesiaUrl, openSocket } from '../cartesia';
+import { diag } from '../diag';
 import { PreRoll } from './ptt';
 import { WebSpeechSource, type Cut, type SpeechSource } from './speech';
 
@@ -70,7 +71,10 @@ export class CartesiaSpeechSource implements SpeechSource {
     const stream = this.stream();
     if (!stream) return this.giveUp('no mic stream');
     this.on = true;
-    this.capture(stream).catch(e => this.giveUp(`audio capture: ${(e as Error).message}`));
+    this.capture(stream).catch(e => {
+      diag.error('MIC', `audio capture failed: ${(e as Error).message}`);
+      this.giveUp(`audio capture: ${(e as Error).message}`);
+    });
     this.warm();
   }
 
@@ -243,14 +247,16 @@ export class CartesiaSpeechSource implements SpeechSource {
     }
     const ws = await openSocket(url);
     if (!ws) {
+      diag.warn('STT', `Cartesia STT socket failed to open (attempt ${this.fails + 1} of 2)`);
       if (++this.fails >= 2) this.giveUp('could not connect');
       return null;
     }
     this.fails = 0;
     const s: Sock = { ws, flushed: null, epoch: -1 };
     ws.onmessage = e => this.message(s, e.data);
-    ws.onerror = () => {};
-    ws.onclose = () => {
+    ws.onerror = () => diag.warn('STT', 'Cartesia STT socket error');
+    ws.onclose = (ev: CloseEvent) => {
+      if (ev.code !== 1000 && ev.code !== 1005) diag.warn('STT', `Cartesia STT socket closed ${ev.code}${ev.reason ? `: ${ev.reason}` : ''}`);
       s.flushed?.();
       if (this.live === s) this.live = null;
       // An idle spare that Cartesia closed: forget it, a fresh one opens when it's needed.
@@ -267,6 +273,7 @@ export class CartesiaSpeechSource implements SpeechSource {
     try {
       m = JSON.parse(data);
     } catch {
+      diag.warn('STT', `Cartesia sent non-JSON: ${data.slice(0, 80)}`);
       return;
     }
     if (m.type === 'transcript') {
@@ -282,6 +289,7 @@ export class CartesiaSpeechSource implements SpeechSource {
     } else if (m.type === 'flush_done') {
       s.flushed?.();
     } else if (m.type === 'error') {
+      diag.error('STT', `Cartesia STT error message: ${m.message ?? 'error'}`, m);
       this.onError(`Cartesia STT: ${m.message ?? 'error'}`);
     }
   }
@@ -320,7 +328,7 @@ export class AutoSpeech implements SpeechSource {
     this.cartesia.onUnavailable = why => {
       if (this.cur !== this.cartesia) return;
       this.cur = this.web;
-      console.warn(`Cartesia STT unavailable (${why}), using the browser's speech recognition`);
+      diag.warn('STT', `Cartesia STT unavailable (${why}), using the browser's speech recognition`);
       this.onFallback();
       if (this.on) {
         this.web.start();

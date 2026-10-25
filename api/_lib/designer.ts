@@ -39,8 +39,12 @@ export async function designTroop(description: string): Promise<Designed> {
     try {
       ({ design, raw } = await p.design(description, TIMEOUT_MS));
     } catch (e) {
-      error = e instanceof Error ? e.message.slice(0, 300) : String(e);
-      console.warn(`${p.name} designer failed, using offline:`, error.slice(0, 160));
+      const any = e as { status?: number; error?: { error?: { message?: string } } };
+      const raw = e instanceof Error ? e.message : String(e);
+      const status = typeof any?.status === 'number' ? any.status : Number(raw.match(/\b([45]\d\d)\b/)?.[1] ?? 0);
+      const msg = (any?.error?.error?.message ?? raw).replace(/\s+/g, ' ').replace(/\b(sk-ant-[\w-]{6})[\w-]+/g, '$1***');
+      error = `${p.name === 'claude' ? 'anthropic' : p.name} ${status || 'error'}: ${msg}`.slice(0, 300);
+      console.error(`[api] stage=design provider=${p.name} upstream=${status || '-'} ${msg.slice(0, 200)} → offline troop`);
     }
   }
   const source = design ? p.name : 'offline';

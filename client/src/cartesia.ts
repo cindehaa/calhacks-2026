@@ -1,3 +1,4 @@
+import { diag, explain } from './diag';
 // Cartesia websocket URLs for the browser. The api mints a 60 s access token (the key stays in
 // api/), and a token is only checked when a socket opens, so one is reused until close to expiry.
 
@@ -11,11 +12,15 @@ export async function cartesiaUrl(path: '/stt/websocket', params: Record<string,
     if (now < unavailableUntil) return null;
     try {
       const r = await fetch('/api/voice-token', { method: 'POST' });
-      if (!r.ok) throw new Error(`voice token: ${r.status}`);
+      if (!r.ok) {
+        const t = await r.text().catch(() => '');
+        throw new Error(`voice token: ${r.status} ${t.slice(0, 160)}`);
+      }
       const b = await r.json();
       cached = { token: b.token, version: b.version, until: now + (b.expiresIn - 10) * 1000 };
     } catch (e) {
-      console.warn('Cartesia unavailable:', (e as Error).message);
+      const m = (e as Error).message;
+      diag.warn('STT', `Cartesia token route failed, browser speech instead (retry in 30 s): ${explain(m)}`, m);
       unavailableUntil = now + 30_000;
       return null;
     }
@@ -33,15 +38,19 @@ export function openSocket(url: string, timeoutMs = 4000): Promise<WebSocket | n
     const ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
     const timer = setTimeout(() => {
+      diag.warn('STT', `Cartesia STT socket did not open within ${timeoutMs} ms`);
       ws.close();
       res(null);
     }, timeoutMs);
     ws.onopen = () => {
       clearTimeout(timer);
+      diag.info('STT', 'Cartesia STT socket open');
       res(ws);
     };
-    ws.onerror = ws.onclose = () => {
+    ws.onerror = ws.onclose = (ev: Event) => {
       clearTimeout(timer);
+      const c = ev as CloseEvent;
+      diag.error('STT', `Cartesia STT socket failed to open${c.code ? ` (close ${c.code}${c.reason ? `: ${c.reason}` : ''})` : ''} — bad/expired token or Cartesia down`);
       res(null);
     };
   });

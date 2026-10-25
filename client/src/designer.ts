@@ -1,5 +1,6 @@
 import { designOffline } from '../../shared/offline_designer';
 import { normalise, price, type TroopDesign } from '../../shared/troop';
+import { diag, explain } from './diag';
 
 export interface Designed {
   design: TroopDesign;
@@ -69,11 +70,18 @@ async function request(description: string): Promise<Designed> {
       body: JSON.stringify({ description }),
       signal: ctl.signal,
     });
-    const body = await r.json();
-    if (!r.ok || body.error || !body.design) throw new Error(body.error ?? `api returned ${r.status}`);
+    const text = await r.text();
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      throw new Error(`api returned ${r.status}, not JSON: ${text.slice(0, 80).replace(/\s+/g, ' ')}`);
+    }
+    if (!r.ok || body.error || !body.design) throw new Error(`${body.error ?? 'no design'} (api returned ${r.status}${body.status ? `, upstream ${body.status}` : ''})`);
     return { ...body, source: String(body.source ?? 'offline') } as Designed;
   } catch (e) {
-    console.warn('designer api failed, using offline designer:', e);
+    const m = e instanceof Error ? (e.name === 'AbortError' ? `timed out after ${API_TIMEOUT_MS} ms` : e.message) : String(e);
+    diag.warn('DESIGN', `api /api/troop failed, using the browser's offline designer: ${explain(m)}`, m);
     return offline(description, t0, `browser: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300));
   } finally {
     clearTimeout(timer);
@@ -82,5 +90,8 @@ async function request(description: string): Promise<Designed> {
 
 // Open connections and compile the schema before the first real deploy (~2-3 s cold).
 export function warmDesigner(): void {
-  fetch('/api/warm', { method: 'POST' }).catch(() => {});
+  fetch('/api/warm', { method: 'POST' })
+    .then(r => r.json())
+    .then(b => diag.info('DESIGN', `warmed: ${b.source} ${b.ms} ms`))
+    .catch(e => diag.warn('DESIGN', `warm-up failed: ${explain((e as Error).message)}`));
 }

@@ -1,5 +1,6 @@
 // Camera + MediaPipe hand landmarks. The wasm and model are ~17 MB, so they start downloading
 // while the menu is up (preloadHandModel) and the camera status counts the bytes in.
+import { diag } from '../diag';
 import type { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import type { Pt2 } from './homography';
 import { sideFromLabel, type Side } from './handpick';
@@ -119,6 +120,7 @@ export class HandTracker {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
     });
+    diag.info('HAND', `camera stream open: ${stream.getVideoTracks()[0]?.label ?? ''}`);
     this.video.srcObject = stream;
     await this.video.play();
     const show = (pct: number) => onStatus(`loading hand model… ${pct}%`);
@@ -143,11 +145,13 @@ export class HandTracker {
     let lmk: HandLandmarker;
     try {
       lmk = await HandLandmarker.createFromOptions(loaded.fileset, opts('GPU'));
-    } catch {
+    } catch (e) {
+      diag.warn('HAND', `GPU hand tracker failed, falling back to CPU (slower): ${(e as Error)?.message ?? e}`);
       lmk = await HandLandmarker.createFromOptions(loaded.fileset, opts('CPU'));
     }
     if (this.stopped) return lmk.close(); // turned off while loading
     this.landmarker = lmk;
+    diag.info('HAND', `camera ready: ${(stream.getVideoTracks()[0]?.label) || 'camera'}, hand tracker running`);
   }
 
   // Undefined when there's no new video frame yet, else every hand in view (up to two).

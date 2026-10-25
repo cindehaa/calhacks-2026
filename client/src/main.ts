@@ -19,7 +19,9 @@ import { burnSticks, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initSetup, setupDone } from './setup';
-import { prefetchSprite, requestSprite } from './sprites';
+import { prefetchSprite, requestSprite, spriteError } from './sprites';
+import { diag, dropArtDone, dropBegin, dropCancelled, dropDeployed, dropDesigned, dropFailed, dropStep, dropWords, explain } from './diag';
+import { runHealthCheck } from './health';
 import { Attempt, attachLogs, logBotEnd, logBotStart, logEvent, logUtterance } from './telemetry';
 import { crownSvg, shieldSvg, type House } from './art';
 import { clock } from './chronicle';
@@ -70,6 +72,7 @@ function dial() {
   );
 }
 dial();
+runHealthCheck();
 
 // The connection dropped: "reconnecting…" while it redials every few seconds, and if that's
 // taking a while mid-match, an offer to switch to Play vs Bot. Clears once it's back.
@@ -726,8 +729,11 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
   const had = m.elixir; // for the burnt sticks, before the payment shows
   if (cancelledNonces.has(nonce)) return false; // cancelled while it was being designed: never sent, nothing paid
   input.deploySent(nonce);
+  dropStep(nonce, 'DB', `deploy_troop sent (${d.name}, cost ${price(d)}${spriteUrl ? ', with art' : ''})`);
   try {
     await m.deployTroop(nonce, x, y, description, d, spriteUrl);
+    dropStep(nonce, 'DB', 'deploy_troop ok');
+    dropDeployed(nonce, true);
     settle(nonce, 'deployed');
     round.deploys++;
     round.elixirSpent += price(d);
@@ -737,8 +743,11 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     return true;
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
+    const expected = /too expensive|not enough elixir/.test(msg);
+    dropStep(nonce, 'DB', `deploy_troop refused by reducer: ${msg}`, expected ? 'info' : 'error', e);
+    dropDeployed(nonce, false, `deploy_troop: ${msg}`);
     settle(nonce, msg);
-    call(match()?.cancelDeploy(nonce), () => {});
+    call(match()?.cancelDeploy(nonce), err => diag.warn('DB', `cancel_deploy #${nonce} failed: ${err}`));
     sfx.play('buzz');
     const m = msg.match(/(too expensive|not enough elixir): (\d+)/);
     if (m?.[1] === 'not enough elixir') {
@@ -781,11 +790,17 @@ function starve(need: number) {
 async function deployWithArt(nonce: number, spot: [number, number], description: string, d: TroopDesign, art: Promise<string | null>) {
   const m = match();
   attempts.get(nonce)?.waitForArt(art.then(url => url ?? ''));
+  void art.then(url => {
+    const why = spriteError(description);
+    if (url) dropStep(nonce, 'ART', `art ready ${url.slice(0, 60)}`);
+    else dropStep(nonce, 'ART', `no art: ${why ? explain(why) : 'art off (api has no FAL_KEY) or failed earlier'}`, why ? 'warn' : 'info', why || undefined);
+    dropArtDone(nonce);
+  });
   const ready = await Promise.race([art, Promise.resolve(undefined)]); // undefined: still drawing
   const ok = await sendDeploy(nonce, spot, description, d, ready ?? '');
   if (!ok || ready !== undefined) return;
   const url = await art;
-  if (url && m) call(m.attachSprite(description, url), () => {});
+  if (url && m) call(m.attachSprite(description, url), err => diag.warn('DB', `set_troop_sprite for "${description}" failed: ${err}`));
 }
 
 // Dev only: drop any anchor by name at a spot, and reach the local match (headless view checks).
@@ -808,7 +823,11 @@ if (import.meta.env.DEV) {
 function beginAt(spot: [number, number], by: string): number | null {
   if (match()?.status !== 'playing') return null;
   const nonce = ++nonceSeq;
-  call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => status(msg, true));
+  dropBegin(nonce, by);
+  call(match()?.beginDeploy(nonce, spot[0], spot[1]), msg => {
+    dropStep(nonce, 'DB', `begin_deploy failed: ${msg}`, 'error');
+    status(msg, true);
+  });
   attempt(nonce, by);
   drops.begin(nonce, spot, performance.now());
   return nonce;
@@ -823,7 +842,9 @@ function cancelAt(nonce: number, msg: string, transcript = '') {
   if (a) a.transcript ||= transcript;
   if (msg) settle(nonce, msg);
   else attempts.delete(nonce);
-  call(match()?.cancelDeploy(nonce), () => {});
+  if (transcript) dropWords(nonce, transcript);
+  dropCancelled(nonce, msg);
+  call(match()?.cancelDeploy(nonce), err => diag.warn('DB', `cancel_deploy #${nonce} failed: ${err}`));
   drops.cancelled(nonce);
   status(msg, !!msg);
 }
@@ -832,17 +853,26 @@ async function designAt(nonce: number, spot: [number, number], description: stri
   status(`designing “${description}”…`);
   attempts.get(nonce)?.released(description, how?.from ?? 'typed', how?.transcript, how?.by);
   drops.heard(nonce, description, performance.now());
+  dropWords(nonce, description);
+  dropStep(nonce, 'STT', `final words "${description}" (${how?.from ?? 'typed'}${how?.transcript && how.transcript !== description ? `, heard "${how.transcript}"` : ''})`);
+  dropStep(nonce, 'DESIGN', 'design request → /api/troop');
+  dropStep(nonce, 'ART', 'art request → /api/sprite');
   const art = requestSprite(description); // in parallel with the designer; often already started
   void art.then(url => url && drops.art(nonce, performance.now()));
   try {
     const d = await designTroop(description);
     attempts.get(nonce)?.gotDesign(d);
     const { design, ms, source, early } = d;
+    dropDesigned(nonce, source);
+    if (source === 'offline' && d.error) dropStep(nonce, 'DESIGN', `model NOT used, offline troop instead: ${explain(d.error)}`, 'warn', d.error);
+    dropStep(nonce, 'DESIGN', `design response: ${design.name} · source ${source}${d.model ? ` (${d.model})` : ''} · cost ${price(design)} · ${ms} ms${d.apiMs !== undefined ? ` (api ${d.apiMs} ms)` : ''}${early ? ' · early' : ''}`, ms > 3000 ? 'warn' : 'info');
     const tags = [source === 'offline' && 'improvised', early && 'early'].filter(Boolean).join(', ');
     drops.designed(nonce, design.name, tags, performance.now());
     status(`${design.name} · ${ms} ms${tags ? ` (${tags})` : ''}`); // the cost waits for the landing reveal
     void deployWithArt(nonce, spot, description, design, art);
   } catch (e) {
+    dropStep(nonce, 'DESIGN', `designer threw: ${(e as Error).message}`, 'error', e);
+    dropFailed(nonce, 'DESIGN', (e as Error).message);
     cancelAt(nonce, `designer failed: ${(e as Error).message}`);
   }
 }
@@ -866,14 +896,24 @@ const input = new InputController(board.canvas, {
   typedText: () => $<HTMLInputElement>('descInput').value,
   clearTyped: () => ($<HTMLInputElement>('descInput').value = ''),
   prefetch: words => {
+    dropStep(null, 'STT', `partial "${words}"`);
     prefetchDesign(words);
     prefetchSprite(words);
   },
-  released: (nonce, words) => drops.release(nonce, words, performance.now()),
-  heard: (text, nonce) => logUtterance(text, nonce),
+  released: (nonce, words) => {
+    dropStep(nonce, 'MIC', `fire cut (released) with "${words}"`);
+    drops.release(nonce, words, performance.now());
+  },
+  heard: (text, nonce) => {
+    dropStep(nonce || null, 'STT', `utterance "${text}"`);
+    logUtterance(text, nonce);
+  },
   mismatch: flagMismatch,
   dictate: dictateCode,
-  event: (kind, detail, nonce) => logEvent(kind, detail, nonce),
+  event: (kind, detail, nonce) => {
+    inputEvent(kind, detail ?? '');
+    logEvent(kind, detail, nonce);
+  },
 });
 
 // "That's wrong" (or X): the last troop isn't what the player asked for. The best signal the
@@ -891,7 +931,16 @@ function flagMismatch() {
 const setup = initSetup(input, showTutorialOnce);
 // The hand model is ~17 MB: fetch it while the title and menu are up, once the page itself has
 // loaded, so the camera starts quickly. Touch-only devices type instead, so they skip it.
-if (!TOUCH) addEventListener('load', () => setTimeout(() => void preloadHandModel().catch(() => {}), 500), { once: true });
+if (!TOUCH) addEventListener('load', () => setTimeout(() => void preloadHandModel().catch(e => diag.warn('HAND', `hand model preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });
+
+// Input events from the controller, in the console under their stage.
+function inputEvent(kind: string, detail: string) {
+  const [dev, what = ''] = kind.split(':');
+  const tag = dev === 'camera' || dev === 'hand' || dev === 'pinch' ? 'HAND' : dev === 'mic' ? 'MIC' : dev === 'speech' || dev === 'stt' ? 'STT' : null;
+  if (!tag) return diag.info('DEPLOY', `event ${kind}${detail ? `: ${detail}` : ''}`);
+  const bad = /fail|error|blocked|unavailable/i.test(`${what} ${detail}`);
+  (bad ? diag.error : diag.info)(tag, `${kind}${detail ? `: ${detail}` : ''}`);
+}
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('lab')) void import('./lab').then(m => m.openLab(input));
 
 $<HTMLFormElement>('describe').onsubmit = e => {

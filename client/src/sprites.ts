@@ -1,5 +1,6 @@
 import { normalise } from '../../shared/troop';
 import { toCanvas } from './render';
+import { diag, explain } from './diag';
 
 // Troop art requests. The api draws, cuts out and caches the sprite (api/_lib/sprites.ts) and answers
 // with a short same-origin URL that fits the troop row's spriteUrl. Art is slower than stats
@@ -31,6 +32,10 @@ export function spriteFailed(description: string | undefined): boolean {
   return off || failed.has(normalise(description));
 }
 
+// Why a sprite failed, by normalised description, for the drop's console group.
+const artErrors = new Map<string, string>();
+export const spriteError = (description: string) => artErrors.get(normalise(description)) ?? '';
+
 async function fetchSprite(description: string): Promise<string | null> {
   try {
     const r = await fetch('/api/sprite', {
@@ -41,10 +46,12 @@ async function fetchSprite(description: string): Promise<string | null> {
     });
     if (r.status === 503) off = true;
     const body = await r.json();
-    if (!r.ok || !body.url) throw new Error(body.error ?? `api returned ${r.status}`);
+    if (!r.ok || !body.url) throw new Error(`${body.error ?? 'no url'} (api returned ${r.status}${body.status ? `, upstream ${body.status}` : ''}${body.message ? `: ${body.message}` : ''})`);
     return String(body.url);
   } catch (e) {
-    console.warn('sprite failed, keeping the placeholder:', (e as Error).message);
+    const m = (e as Error).name === 'TimeoutError' ? 'timed out after 15 s' : (e as Error).message;
+    artErrors.set(normalise(description), m);
+    diag.warn('ART', `sprite for "${description}" failed, keeping the placeholder: ${explain(m)}`, m);
     return null;
   }
 }
@@ -100,7 +107,7 @@ async function fetchPose(description: string, flavor: string): Promise<string | 
     if (!r.ok || !body.url) throw new Error(body.error ?? `api returned ${r.status}`);
     return String(body.url);
   } catch (e) {
-    console.warn('pose failed, keeping the base sprite:', (e as Error).message);
+    diag.warn('ART', `pose for "${description}" failed, keeping the base sprite: ${explain((e as Error).message)}`, (e as Error).message);
     return null;
   }
 }
