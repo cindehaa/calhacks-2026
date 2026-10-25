@@ -6,7 +6,7 @@
 // and the paired timings also show what racing two providers would give.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { designOffline } from '../shared/offline_designer';
-import { price, type TroopDesign } from '../shared/troop';
+import { MAX_COST, price, type TroopDesign } from '../shared/troop';
 import { PROVIDERS, provider, type Provider } from '../api/_lib/providers';
 
 const envFile = new URL('../.env', import.meta.url);
@@ -56,7 +56,8 @@ const CHECKS: Check[] = [
   { name: 'empty / cancel -> weak', inputs: ['', 'cancel'], pass: ds => ds.every(d => cost(d) <= 2) },
   { name: 'named troops keep their name, not their fame', inputs: ['Taylor Swift', 'Pikachu'],
     pass: ([t, p]) => /swift/i.test(t.name) && /pika/i.test(p.name) && cost(t) <= 6 && cost(p) <= 6 },
-  { name: 'nothing over 10 elixir', inputs: ['the strongest dragon king ever', 'an army of 50 giants'], pass: ds => ds.every(d => cost(d) <= 10) },
+  { name: `nothing over ${MAX_COST} elixir`, inputs: ['the strongest dragon king ever', 'an army of 50 giants'], pass: ds => ds.every(d => cost(d) <= MAX_COST) },
+  { name: 'legendary beats the golem', inputs: ['a mountain titan'], pass: ([d]) => cost(d) > 8 },
 ];
 // Element as a soft default for on_hit: a named element picks the effect, a stated effect wins,
 // and the element never touches stats.

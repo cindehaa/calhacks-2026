@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { ANCHORS } from './anchors.js';
 import { BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, RIVER_HALF, TICK_HZ, TIEBREAK_AT, formation, type Side } from './arena.js';
 import { newMatch, newUnit, step, type SimState } from './sim.js';
-import { MAX_COST, TROOP_SCHEMA, clampStats, price, sanitizeDesign, sanitizeWish, type TroopStats } from './troop.js';
-import { SYSTEM_PROMPT } from './prompt.js';
+import { MAX_COST, PLAIN_QUIRKS, TROOP_SCHEMA, clampStats, price, sanitizeDesign, sanitizeWish, type TroopStats } from './troop.js';
+import { LEGENDS, SYSTEM_PROMPT } from './prompt.js';
 
 let nextId = 1000;
 function spawn(s: SimState, side: Side, stats: TroopStats, x: number, y: number) {
@@ -34,7 +34,7 @@ test('anchor stats sit inside the clamps', () => {
 test('clamps stop absurd stats and garbage', () => {
   const s = clampStats({ health: 99999, damage: -5, attack_speed: NaN, move_speed: 9, range: 0.2, count: 1000 });
   assert.deepEqual(s, { health: 3000, damage: 10, attack_speed: 0.3, move_speed: 2, range: 1, count: 12 });
-  assert.ok(price(s) > MAX_COST);
+  assert.ok(price({ health: 3000, damage: 600, attack_speed: 3, move_speed: 2, range: 6, count: 12 }) > MAX_COST);
 });
 
 test('sanitizeDesign trims the cry and fixes a bad voice', () => {
@@ -372,4 +372,11 @@ test('the king sleeps until a princess tower falls, and losing it ends the match
   assert.ok(r.over);
   assert.equal(r.winner, 0);
   assert.ok(s.towers.filter(t => t.side === 1).every(t => t.hp === 0), 'the king takes its side down with it');
+});
+
+test('legendary prompt examples cost more than the golem and fit under MAX_COST', () => {
+  for (const l of LEGENDS) {
+    const c = price({ ...l, ...PLAIN_QUIRKS, attack: l.attack });
+    assert.ok(c > 8 && c <= MAX_COST, `${l.name} costs ${c}`);
+  }
 });

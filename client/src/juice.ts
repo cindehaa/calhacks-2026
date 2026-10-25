@@ -25,17 +25,17 @@ export function impactSize(totalHp: number): number {
 // The cost reel: a run of numbers rolling up to the cost, the gaps between ticks growing.
 export const ROLL_TICKS = 9;
 const TAG_HOLD = 2.4, TAG_FADE = 0.5; // seconds after landing the name tag stays, then fades out
-export function rollDuration(cost: number): number { return 0.55 + 0.03 * Math.min(10, cost) }
+export function rollDuration(cost: number): number { return 0.55 + 0.03 * Math.min(15, cost) }
 // Which tick the reel is on, t seconds after landing: 0..ROLL_TICKS-1, the last one showing the cost.
 export function rollIndex(t: number, cost: number): number {
   if (t <= 0) return 0;
   const k = Math.min(1, t / rollDuration(cost));
   return Math.min(ROLL_TICKS - 1, Math.floor((ROLL_TICKS - 1) * Math.pow(k, 1 / 1.8) + 1e-9));
 }
-// The number on the reel at tick i: counting up through 0..10 and ending on the cost.
+// The number on the reel at tick i: counting up through 0..15 and ending on the cost.
 export function rollValue(i: number, cost: number): number {
   const back = ROLL_TICKS - 1 - i;
-  return (((cost - back) % 11) + 11) % 11;
+  return (((cost - back) % 16) + 16) % 16;
 }
 
 interface Track {

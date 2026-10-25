@@ -2,7 +2,7 @@ import { ANCHORS } from '../../shared/anchors';
 import { COUNTDOWN, ELIXIR, KING_LANE, MATCH_SECONDS, MID_Y, TIEBREAK_AT, canDeploy, elixirRate, type Side } from '../../shared/arena';
 import type { BotLevel } from '../../shared/bot';
 import { newTowers } from '../../shared/sim';
-import { price, type TroopDesign } from '../../shared/troop';
+import { MAX_COST, price, type TroopDesign } from '../../shared/troop';
 import { designTroop, prefetchDesign, warmDesigner } from './designer';
 import { elixirRules, initDevSettings } from './dev';
 import { Drops, releaseToStats, timingLines } from './drops';
@@ -766,10 +766,10 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
       status(`${d.name} needs ${need} embers, you have ${Math.floor(have)}`, true);
       notice(`Need ${need} embers, have ${Math.floor(have)} · ready in about ${secs} s`, { tone: 'bad', ms: 2600, key: 'elixir' });
       starve(need);
-      drops.refused(nonce, `need ${need} · have ${Math.floor(have)}`, performance.now()); // no coin: that's for over 10
+      drops.refused(nonce, `need ${need} · have ${Math.floor(have)}`, performance.now()); // no coin: that's for over MAX_COST
     } else {
-      status(m ? `${d.name} would cost ${m[2]} — over the 10 limit` : msg, true);
-      drops.refused(nonce, m ? `would cost ${m[2]}, over 10` : 'refused', performance.now());
+      status(m ? `${d.name} would cost ${m[2]} — over the ${MAX_COST} limit` : msg, true);
+      drops.refused(nonce, m ? `would cost ${m[2]}, over ${MAX_COST}` : 'refused', performance.now());
     }
     return false;
   }
