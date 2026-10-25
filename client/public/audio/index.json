@@ -12,7 +12,7 @@
     "kind": "music",
     "model": "fal-ai/elevenlabs/music",
     "prompt": "cosy winter fireside lobby theme, warm plucked strings, celesta and soft music-box bells, gentle frosty chimes, relaxed, 100 BPM, crackling fireplace texture underneath, instrumental, mobile strategy game soundtrack, sits under dialogue, no vocals, loopable",
-    "duration": 60,
+    "duration": 120,
     "loop": true
   },
   "music/overtime": {

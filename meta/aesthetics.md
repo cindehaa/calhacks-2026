@@ -35,7 +35,7 @@ Every music track carries a **crackling fireplace texture** underneath the instr
 
 | Track | Feel |
 |---|---|
-| Menu | Cosy winter fireside. Warm plucked strings, celesta and soft bells, a crackling hearth up front. Relaxed, 100 BPM. |
+| Menu | Cosy winter fireside. Warm plucked strings, celesta and soft bells, a crackling hearth up front. Relaxed, 100 BPM. Two minutes long, so the loop comes round slowly. |
 | Battle | Fire against the cold. Driving war drums and warm brass over icy strings and glockenspiel, fire crackle underneath. 120 BPM. |
 | Overtime | The same battle theme at its climax: faster drums, urgent strings, the fire roaring. 140 BPM. |
 
@@ -164,3 +164,4 @@ Designed in Paper ("Arena — UI design systems", row G) and built into the clie
 - **2026-10-24:** The point and pinch diagrams were redrawn from a recording of the real motions: aim with an L (thumb out to the side), pinch by folding the thumb onto the middle finger while the index stays up.
 - **2026-10-24:** Home drops the Join a room button (Play online's pop-up already has the code boxes to join). The virtual hand takes its place, right of Play online, mirroring Practice.
 - **2026-10-24:** The two side slots on home match: the virtual hand is drawn as the same stone slab as Practice, and with the camera off a Turn on camera slab stands in for it.
+- **2026-10-24:** The menu track is now two minutes instead of one, so it plays longer before it loops.
