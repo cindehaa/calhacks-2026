@@ -91,6 +91,7 @@ export function initOnboard(input: InputController, host: OnboardHost): { run():
   let landed = '';
   let framedAt = 0;
   let finish: ((how: OnboardEnd) => void) | null = null;
+  let holding = false; // a pinch is held (for engines whose words only come after it)
   let raf = 0;
   let timer = 0;
 
@@ -199,7 +200,13 @@ export function initOnboard(input: InputController, host: OnboardHost): { run():
   input.listeners.signal.push(s => {
     if (!finish || mode !== 'hand' && s.kind !== 'words') return;
     switch (s.kind) {
+      case 'voice':
+        // Speech that only becomes words after the release (the on-device model): talking while
+        // holding is enough to move on to aiming.
+        if (s.phase === 'start' && holding && step === 'say' && !input.speechStatus().live) enter('place');
+        break;
       case 'pinch':
+        holding = true;
         // A new pinch starts the words over (pinch to talk), so after one that went nowhere it's the words again.
         if (step === 'frame' || step === 'grab' || step === 'place') {
           heard = '';
@@ -213,6 +220,7 @@ export function initOnboard(input: InputController, host: OnboardHost): { run():
         else if (step === 'place') render();
         break;
       case 'release':
+        holding = false;
         // Let go before saying anything: the words have to come while the pinch is held.
         if (step === 'say') {
           retry('Say it while you’re still pinching, then let go', 'released-silent');

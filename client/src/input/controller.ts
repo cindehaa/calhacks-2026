@@ -23,7 +23,7 @@ import { ADVICE_TEXT, assessFraming, Framing, type Advice } from './framing';
 import { GHOST } from './handart';
 import { hidePinchHint, showPinchHint } from './pinchhint';
 import { AutoSpeech } from './cartesia_stt';
-import { chooseDescription, FIRE_WAIT_MS, fireWaits, isCancel, isMismatch, routeWords, Transcript } from './speech';
+import { chooseDescription, fireWaits, isCancel, isMismatch, routeWords, Transcript } from './speech';
 import { KEYS, load, save } from './store';
 import { CursorHistory, type Pt } from './trail';
 import { Mic, Vad, VAD_DEFAULTS } from './voice';
@@ -133,6 +133,7 @@ export class InputController {
   private lumaAt = 0;
   private lumaCanvas: HTMLCanvasElement | null = null;
   private speechWhy = ''; // why there's no speech recognition, '' while it works (as far as we know)
+  private modelPct = 0; // the on-device speech model's download, when that's the engine
   private speechTold = false; // the player has been told, in a notice
   private wordsAt = -Infinity; // when the recogniser last returned any words
   private silent = 0; // utterances in a row that should have made words and didn't
@@ -194,6 +195,7 @@ export class InputController {
     this.speech.onFinal = (t, e) => this.words(t, true, e);
     this.speech.onFallback = () => (this.fellBack = true); // told once a match is under way
     this.speech.onDead = why => this.speechDead(why);
+    this.speech.onProgress = pct => (this.modelPct = pct);
     this.speech.onError = msg => {
       this.heard = msg;
       this.host.event?.('speech:error', msg);
@@ -410,8 +412,14 @@ export class InputController {
   }
 
   // Whether speech is turning into words, and if not, why, in words for the player.
-  speechStatus(): { ok: boolean; engine: string; why: string } {
-    return { ok: !this.speechWhy && this.speech.available, engine: this.speech.engine, why: this.speechWhy || (this.speech.available ? '' : 'this browser has no speech recognition') };
+  // live: words come while you talk; otherwise only once you stop (the on-device model). loading:
+  // the model's download, 0..100, while it isn't ready.
+  speechStatus(): { ok: boolean; engine: string; why: string; live: boolean; loading: number | null } {
+    return {
+      ok: !this.speechWhy && this.speech.available, engine: this.speech.engine,
+      why: this.speechWhy || (this.speech.available ? '' : 'this browser has no speech recognition'),
+      live: this.speech.live, loading: this.speech.ready ? null : this.modelPct,
+    };
   }
 
   // No speech recognition after all: say why once, and point at typing.
@@ -644,7 +652,7 @@ export class InputController {
   // with no words ever this visit and the recogniser counts as broken, whatever it says about
   // itself. Once any words have come back it works, and silences are just a noisy room.
   private checkSilent(): void {
-    if (this.speechWhy || !this.mic.on || this.wordsAt > -Infinity) return;
+    if (this.speechWhy || !this.mic.on || !this.speech.ready || this.wordsAt > -Infinity) return;
     if (++this.silent < SILENT_COUNT) return;
     this.speechDead(`we can hear you, but ${this.speech.engine} isn’t returning any words`);
   }
@@ -858,7 +866,7 @@ export class InputController {
     const f = this.firing, grace = Math.max(0, t + FIRE_GRACE_MS - performance.now());
     const cutNow = () => {
       if (this.firing !== f) return;
-      const c = listening ? this.speech.cut(FIRE_WAIT_MS) : { epoch: this.dropped, done: Promise.resolve() };
+      const c = listening ? this.speech.cut(this.speech.finalWaitMs) : { epoch: this.dropped, done: Promise.resolve() };
       f.cut = c.epoch;
       f.done = c.done;
     };
@@ -889,7 +897,7 @@ export class InputController {
     // capped; past the cap the partials stand in.
     const grace = f.t + FIRE_GRACE_MS - performance.now();
     if (grace > 0) await new Promise(r => setTimeout(r, grace + 1));
-    await Promise.race([f.done, new Promise(r => setTimeout(r, FIRE_WAIT_MS))]);
+    await Promise.race([f.done, new Promise(r => setTimeout(r, this.speech.finalWaitMs))]);
     if (this.firing !== f) return; // cancelled meanwhile
     this.firing = null;
     if (Number.isFinite(f.cut)) this.dropped = Math.max(this.dropped, f.cut);

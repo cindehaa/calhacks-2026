@@ -107,7 +107,9 @@ export function initSetup(input: InputController, onClose: (next: SetupNext) => 
     const starting = s.camera && !s.cameraReady;
     const errors = [s.camStatus, s.micStatus].filter(m => m.includes('failed'));
 
-    const mute = s.mic && !s.speech.ok ? `mic is on, but speech isn’t working: ${s.speech.why}. You can type your troops.` : '';
+    const mute = !s.mic ? ''
+      : !s.speech.ok ? `mic is on, but speech isn’t working: ${s.speech.why}. You can type your troops.`
+      : s.speech.loading !== null ? `mic is on · getting speech ready on this device (${s.speech.loading}%), a one-time download` : '';
     step('devices', TOUCH ? s.mic : s.cameraReady && s.mic,
       asking ? 'allow the camera and mic when the browser asks'
       : mute && !starting ? mute

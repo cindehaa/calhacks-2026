@@ -9,33 +9,14 @@
 // everything sent before it is finalised on the old socket, everything after goes to the new one.
 import { cartesiaTokenProblem, cartesiaUrl, openSocket } from '../cartesia';
 import { diag } from '../diag';
+import { capture16k, RATE } from './pcm';
 import { PreRoll } from './ptt';
-import { WebSpeechSource, type Cut, type SpeechSource } from './speech';
+import { LOCAL_WAIT_MS, LocalSpeechSource } from './localstt';
+import { FIRE_WAIT_MS, WebSpeechSource, type Cut, type SpeechSource } from './speech';
 
-const RATE = 16000;
-const CHUNK = 800; // 50 ms, so a release waits at most this long for its last chunk
 const QUEUE_MAX = 40; // chunks held while no socket is open (2 s), oldest dropped first
 const PREROLL = 6; // 300 ms kept from before a push-to-talk hold
 const TAIL_MS = 80; // after a release, wait for the chunk still filling before finalising
-
-// Runs on the audio thread: linear resample to 16 kHz, convert to int16, post CHUNK-sized buffers.
-const WORKLET = `
-class Pcm16k extends AudioWorkletProcessor {
-  constructor() { super(); this.step = sampleRate / ${RATE}; this.pos = 0; this.buf = new Int16Array(${CHUNK}); this.n = 0; }
-  process(inputs) {
-    const ch = inputs[0] && inputs[0][0];
-    if (!ch) return true;
-    for (; this.pos < ch.length; this.pos += this.step) {
-      const i = Math.floor(this.pos), f = this.pos - i, a = ch[i], b = i + 1 < ch.length ? ch[i + 1] : a;
-      const v = Math.max(-1, Math.min(1, a + (b - a) * f));
-      this.buf[this.n++] = v < 0 ? v * 0x8000 : v * 0x7fff;
-      if (this.n === ${CHUNK}) { this.port.postMessage(this.buf.buffer, [this.buf.buffer]); this.buf = new Int16Array(${CHUNK}); this.n = 0; }
-    }
-    this.pos -= ch.length;
-    return true;
-  }
-}
-registerProcessor('pcm16k', Pcm16k);`;
 
 interface Sock { ws: WebSocket; flushed: (() => void) | null; epoch: number }
 
@@ -184,17 +165,7 @@ export class CartesiaSpeechSource implements SpeechSource {
 
   private async capture(stream: MediaStream): Promise<void> {
     const ctx = (this.ctx = new AudioContext());
-    const url = URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }));
-    await ctx.audioWorklet.addModule(url);
-    URL.revokeObjectURL(url);
-    if (this.ctx !== ctx) return;
-    const node = new AudioWorkletNode(ctx, 'pcm16k');
-    node.port.onmessage = e => this.audio(e.data as ArrayBuffer);
-    // A worklet only runs when it reaches the destination; a muted gain keeps it silent.
-    const sink = ctx.createGain();
-    sink.gain.value = 0;
-    ctx.createMediaStreamSource(stream).connect(node).connect(sink).connect(ctx.destination);
-    await ctx.resume();
+    await capture16k(ctx, stream, c => this.audio(c), () => this.ctx === ctx);
   }
 
   private audio(chunk: ArrayBuffer): void {
@@ -307,54 +278,90 @@ export class CartesiaSpeechSource implements SpeechSource {
   }
 }
 
-// Cartesia when the api has a key and the sockets connect, otherwise the browser recogniser.
+// Cartesia when the api has a key and the sockets connect; else the browser's own recogniser
+// (Chrome, Edge, Safari); else the speech model running on this machine (localstt.ts: Arc, Brave,
+// Firefox, offline). Brave's recogniser is known not to work, so Brave goes straight to the model.
 // The controller only sees one SpeechSource either way.
+type Engine = 'cartesia' | 'web' | 'local';
+const ENGINE_NAME: Record<Engine, string> = { cartesia: 'Cartesia', web: 'browser speech', local: 'the speech model on this device' };
+const isBrave = () => !!(navigator as unknown as { brave?: unknown }).brave;
+
 export class AutoSpeech implements SpeechSource {
   onPartial = (_: string, _epoch: number) => {};
   onFinal = (_: string, _epoch: number) => {};
   onError = (_: string) => {};
-  onFallback = () => {}; // Cartesia gave up and the browser's recogniser took over
-  onDead = (_why: string) => {}; // and the browser's recogniser doesn't work either: no speech at all
+  onFallback = () => {}; // Cartesia gave up and another engine took over
+  onDead = (_why: string) => {}; // and nothing else works either: no speech at all
+  onProgress = (_pct: number) => {}; // the on-device model downloading
   private cartesia: CartesiaSpeechSource;
   private web = new WebSpeechSource();
-  private cur: SpeechSource;
+  private local: LocalSpeechSource;
+  private engines: Record<Engine, SpeechSource>;
+  private engineNow: Engine = 'cartesia';
   private on = false;
-  private cartesiaWhy = '';
+  private why: string[] = []; // why each engine before this one gave up
 
   constructor(stream: () => MediaStream | null) {
     this.cartesia = new CartesiaSpeechSource(stream);
-    this.cur = this.cartesia;
-    for (const s of [this.cartesia, this.web]) {
-      // Epochs are per engine; after a fallback the browser's start over a million on, so they
-      // still sort after Cartesia's.
-      const base = s === this.web ? 1e6 : 0;
-      s.onPartial = (t, e) => s === this.cur && this.onPartial(t, e + base);
-      s.onFinal = (t, e) => s === this.cur && this.onFinal(t, e + base);
-      s.onError = msg => s === this.cur && this.onError(msg);
+    this.local = new LocalSpeechSource(stream);
+    this.engines = { cartesia: this.cartesia, web: this.web, local: this.local };
+    // Epochs are per engine; each later one starts a million on, so its words still sort after.
+    const base: Record<Engine, number> = { cartesia: 0, web: 1e6, local: 2e6 };
+    for (const k of Object.keys(this.engines) as Engine[]) {
+      const s = this.engines[k];
+      s.onPartial = (t, e) => k === this.engineNow && this.onPartial(t, e + base[k]);
+      s.onFinal = (t, e) => k === this.engineNow && this.onFinal(t, e + base[k]);
+      s.onError = msg => k === this.engineNow && this.onError(msg);
     }
-    this.web.onUnavailable = why => {
-      if (this.cur === this.web) this.onDead(`${this.cartesiaWhy || 'Cartesia unavailable'}, and ${why}`);
-    };
-    this.cartesia.onUnavailable = why => {
-      if (this.cur !== this.cartesia) return;
-      this.cartesiaWhy = why;
-      this.cur = this.web;
-      diag.warn('STT', `Cartesia STT unavailable (${why}), using the browser's speech recognition`);
-      this.onFallback();
-      if (!this.web.available) this.onDead(`${why}, and this browser has no speech recognition`);
-      if (this.on) {
-        this.web.start();
-        this.onError(this.web.available ? 'listening (browser speech; Cartesia unavailable)' : 'no speech recognition: voice locks, typed text describes');
-      }
-    };
+    this.cartesia.onUnavailable = why => this.next('cartesia', why);
+    this.web.onUnavailable = why => this.next('web', why);
+    this.local.onUnavailable = why => this.next('local', why);
+    this.local.onProgress = pct => this.onProgress(pct);
+  }
+
+  private get cur(): SpeechSource {
+    return this.engines[this.engineNow];
+  }
+
+  // `from` gave up: on to the next engine that can run here, or no speech at all.
+  private next(from: Engine, why: string): void {
+    if (from !== this.engineNow) return;
+    this.why.push(why);
+    const order: Engine[] = from === 'cartesia' ? ['web', 'local'] : from === 'web' ? ['local'] : [];
+    const to = order.find(k => this.engines[k].available && !(k === 'web' && isBrave()));
+    if (from === 'cartesia') this.onFallback();
+    if (!to) return this.onDead(this.why.join(', and '));
+    diag.warn('STT', `${ENGINE_NAME[from]} unavailable (${why}), using ${ENGINE_NAME[to]}`);
+    this.engines[from].stop();
+    this.engineNow = to;
+    if (to === 'local') this.local.load();
+    if (this.on) {
+      this.cur.start();
+      this.onError(`listening (${ENGINE_NAME[to]})`);
+    }
   }
 
   get engine(): string {
-    return this.cur === this.cartesia ? 'Cartesia' : 'browser speech';
+    return ENGINE_NAME[this.engineNow];
   }
 
   get available(): boolean {
     return this.cur.available;
+  }
+
+  // Words while you talk (Cartesia, the browser), or only once an utterance ends (the model).
+  get live(): boolean {
+    return this.engineNow !== 'local';
+  }
+
+  // Able to turn speech into words now: false while the model is still downloading.
+  get ready(): boolean {
+    return this.engineNow !== 'local' || this.local.ready;
+  }
+
+  // How long a fire waits for its last words to be final.
+  get finalWaitMs(): number {
+    return this.engineNow === 'local' ? LOCAL_WAIT_MS : FIRE_WAIT_MS;
   }
 
   start(): void {
@@ -368,17 +375,19 @@ export class AutoSpeech implements SpeechSource {
   }
 
   warm(): void {
-    if (this.cur === this.cartesia) this.cartesia.warm();
+    if (this.engineNow === 'cartesia') this.cartesia.warm();
+    if (this.engineNow === 'local') this.local.load();
   }
 
   // Push to talk. The browser recogniser can't be gated, so it keeps listening and the lock's
   // transcript only takes words heard after the lock, as before.
   setGated(on: boolean): void {
     this.cartesia.setGated(on);
+    this.local.setGated(on);
   }
 
   hold(on: boolean): Promise<void> {
-    return this.cur === this.cartesia ? this.cartesia.hold(on) : Promise.resolve();
+    return this.engineNow === 'cartesia' ? this.cartesia.hold(on) : this.engineNow === 'local' ? this.local.hold(on) : Promise.resolve();
   }
 
   flush(timeoutMs: number): Promise<void> {
@@ -387,6 +396,6 @@ export class AutoSpeech implements SpeechSource {
 
   cut(timeoutMs: number): Cut {
     const c = this.cur.cut(timeoutMs);
-    return this.cur === this.web ? { ...c, epoch: c.epoch + 1e6 } : c;
+    return { ...c, epoch: c.epoch + (this.engineNow === 'web' ? 1e6 : this.engineNow === 'local' ? 2e6 : 0) };
   }
 }
