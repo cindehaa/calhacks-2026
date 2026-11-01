@@ -5,7 +5,7 @@ import { micRing, wordsFlash, wordsPill } from './wordfx';
 export type CursorState = 'open' | 'fire' | 'cancel';
 
 export interface InputView {
-  cursor: { x: number; y: number; state: CursorState; fade?: number } | null; // hand cursor only; the mouse has its own ring
+  cursor: { x: number; y: number; state: CursorState; fade?: number; pinch?: number } | null; // hand cursor only; the mouse has its own ring. pinch: 0..1, how near closed
   prompt: { x: number; y: number; text: string; speaking: boolean } | null; // at the cursor, hand or mouse
   flashes: { x: number; y: number; kind: 'deploy' | 'cancel' | 'miss'; label: string; t: number; words?: string }[]; // words: what was sent or cleared, for wordfx.ts
   mic?: { x: number; y: number; db: number; speaking: boolean } | null; // mic on: its level, at the cursor
@@ -40,20 +40,32 @@ export function drawInput(g: CanvasRenderingContext2D, v: InputView, now = perfo
   if (v.mic) micRing(g, v.mic.x, v.mic.y, v.mic.db, v.mic.speaking);
   if (v.cursor) {
     g.globalAlpha = v.cursor.fade ?? 1;
-    drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.state);
+    drawCursor(g, v.cursor.x, v.cursor.y, v.cursor.state, v.cursor.pinch);
     g.globalAlpha = 1;
   }
   if (v.hint) text(g, v.hint, innerWidth / 2, 70, 13, C.warn);
   g.restore();
 }
 
-// The hand cursor: a soft glow, a ring, a filled centre just after a pinch, amber while a thumbs down.
-export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, state: CursorState): void {
+// The hand cursor: a soft glow, a ring, a filled centre just after a pinch, amber while a thumbs
+// down. pinch (0..1) closes an arc round the ring as thumb and finger come together, so the
+// player sees the pinch coming and knows when it counted (the arc full, the centre filled).
+export function drawCursor(g: CanvasRenderingContext2D, x: number, y: number, state: CursorState, pinch = 0): void {
   const glow = g.createRadialGradient(x, y, 0, x, y, 42);
   glow.addColorStop(0, state === 'cancel' ? 'rgba(251,191,36,0.5)' : 'rgba(74,163,255,0.5)');
   glow.addColorStop(1, 'rgba(74,163,255,0)');
   circle(g, x, y, 42, null, 0, glow);
   circle(g, x, y, 14, state === 'cancel' ? C.warn : '#bfe0ff', 2.5, state === 'fire' ? C.mine : 'rgba(13,16,32,0.35)');
+  const k = state === 'fire' ? 1 : state === 'cancel' ? 0 : Math.max(0, Math.min(1, pinch));
+  if (k > 0.02) {
+    g.beginPath();
+    g.arc(x, y, 20, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
+    g.strokeStyle = k >= 1 ? '#ffd27a' : 'rgba(255,210,122,0.75)';
+    g.lineWidth = 3;
+    g.lineCap = 'round';
+    g.stroke();
+    g.lineCap = 'butt';
+  }
   circle(g, x, y, 3, null, 0, '#fff');
 }
 

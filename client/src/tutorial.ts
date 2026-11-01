@@ -2,7 +2,7 @@
 // closes itself after 10 s or when the match starts, and the "?" button or key reopens it.
 
 import { TOUCH } from './input/controller';
-import { pinchArt, pointArt, sayArt } from './input/handart';
+import { loopArt, pinchArt, pointArt, sayArt } from './input/handart';
 
 const SEEN_KEY = 'arena.tutorialSeen';
 const SHOW_MS = 10_000;
@@ -22,7 +22,7 @@ function markSeen() {
 function open(auto: boolean) {
   if (!el) return;
   el.hidden = false;
-  const art: Record<string, () => string> = { say: sayArt, point: pointArt, pinch: pinchArt };
+  const art: Record<string, () => string> = { say: sayArt, point: pointArt, pinch: pinchArt, loop: loopArt };
   el.querySelectorAll<HTMLElement>('[data-art]').forEach(a => { a.innerHTML = art[a.dataset.art!]?.() ?? '' });
   clearTimeout(tick);
   timer?.classList.remove('run');

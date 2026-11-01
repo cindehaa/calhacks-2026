@@ -29,7 +29,7 @@ export class LocalMatch implements MatchSource {
   foe = ''; // the opponent's name when it isn't the bot (film.ts)
 
   protected s!: SimState;
-  private locks: Lock[] = [];
+  protected locks: Lock[] = [];
   private troopRows = new Map<bigint, DrawTroop>();
   private unitTroop = new Map<number, bigint>();
   private spellLook = new Map<number, Pick<DrawSpell, 'name' | 'cost' | 'element' | 'flavor'>>();

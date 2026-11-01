@@ -383,19 +383,19 @@ body:not(.devMode) .devSettings { display: none; }
 @media (prefers-reduced-motion: reduce) { .home .gBg, .home .mist.back, .home .islandWrap { translate: none; transform: none; } }
 
 /* first-run overlays (setup, how to play) in the same faceted stone as the menus */
-#setup, #tutorial { font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #05060cb8, #020308f0 80%); }
-#setup .panel, #tutorial .panel { --c: 18px; border: 0; border-radius: 0; border-bottom: 8px solid #0e1230; padding: 30px 32px 28px; gap: 16px;
+#setup, #tutorial, #onboardDone { font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #05060cb8, #020308f0 80%); }
+#setup .panel, #tutorial .panel, #onboardDone .panel { --c: 18px; border: 0; border-radius: 0; border-bottom: 8px solid #0e1230; padding: 30px 32px 28px; gap: 16px;
   clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
   background: linear-gradient(160deg, #212853 0 56%, #1a2045 56% 100%); box-shadow: inset 0 1px 0 #ffffff26; }
-#setup .panel h1, #tutorial .panel h1 { font: 800 30px/1.1 var(--cinzel); letter-spacing: .03em; color: #fff; }
-#setup .sub, #tutorial .sub { font-size: 16px; line-height: 1.4; }
+#setup .panel h1, #tutorial .panel h1, #onboardDone .panel h1 { font: 800 30px/1.1 var(--cinzel); letter-spacing: .03em; color: #fff; }
+#setup .sub, #tutorial .sub, #onboardDone .sub { font-size: 16px; line-height: 1.4; }
 #setup .panel .sub + .sub { margin-top: 6px; }
-#setup .panel button, #tutorial .panel button { height: 42px; padding: 0 18px; border: 0; border-radius: 0; border-bottom: 4px solid #0b0e22; font: 700 15px var(--chakra); letter-spacing: .06em; color: #fff;
+#setup .panel button, #tutorial .panel button, #onboardDone .panel button { height: 42px; padding: 0 18px; border: 0; border-radius: 0; border-bottom: 4px solid #0b0e22; font: 700 15px var(--chakra); letter-spacing: .06em; color: #fff;
   clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); background: linear-gradient(160deg, #2e3558 0 56%, #252b4a 56% 100%); }
-#setup .panel button:hover, #tutorial .panel button:hover { background: linear-gradient(160deg, #38406a 0 56%, #2e3558 56% 100%); }
-#setup .panel button.ghost { color: var(--muted); background: transparent; border-bottom-color: transparent; padding: 0 4px; }
-#setup .panel button.ghost:hover { color: #fff; background: transparent; }
-#setup [data-act="done"], #setup [data-act="devices"], #tutClose { color: #1a0e00 !important; border-bottom-color: var(--amberSide) !important; background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%) !important; }
+#setup .panel button:hover, #tutorial .panel button:hover, #onboardDone .panel button:hover { background: linear-gradient(160deg, #38406a 0 56%, #2e3558 56% 100%); }
+#setup .panel button.ghost, #onboardDone .panel button.ghost { color: var(--muted); background: transparent; border-bottom-color: transparent; padding: 0 4px; }
+#setup .panel button.ghost:hover, #onboardDone .panel button.ghost:hover { color: #fff; background: transparent; }
+#setup [data-act="done"], #setup [data-act="devices"], #tutClose, #onboardDone [data-act="bot"] { color: #1a0e00 !important; border-bottom-color: var(--amberSide) !important; background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%) !important; }
 #setup .panel button:disabled { color: var(--muted) !important; border-bottom-color: #0b0e22 !important; background: linear-gradient(160deg, #252b4a 0 56%, #1c2140 56% 100%) !important; opacity: 1; }
 #setup .setupCam { border: 0; border-radius: 0; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background: #0a0d1b; }
 #setup .setupHint { font: 600 14px var(--chakra); letter-spacing: .14em; text-transform: uppercase; color: #8e96b3a0; }
@@ -634,27 +634,24 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .spoils .emberReward .erDelta b { font-size: 34px; }
 .result .mvpCard > .gFace { width: min(560px, calc(100vw - 2 * (min(18vw, 31vh, 260px) + 4.3vw + 24px))); }
 
-/* setup's point-and-pinch step: the two hand diagrams (input/handart.ts) on dark stone tiles */
-#setup .steps li[data-step="hands"] { align-items: flex-start; }
-#setup .steps li[data-step="hands"] .stepDot { margin-top: 1px; }
-/* Three steps across, each with its picture above a short caption. */
-#setup .howHands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 8px; }
-#setup .howHands figure { margin: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 6px 6px 8px; background: #0a0d1b;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
-#setup .howHands figcaption { font-size: 13px; line-height: 1.3; color: #b9c0d8; }
 .handArt { flex: none; display: block; width: 64px; height: 77px; }
 .handArt svg { display: block; width: 100%; height: 100%; }
-#setup [data-act="practice"]:not(.ghost) { color: #1a0e00 !important; border-bottom-color: var(--amberSide) !important; background: linear-gradient(160deg, var(--amber) 0 56%, var(--amber2) 56% 100%) !important; }
-#setup [data-act="practice"][hidden] { display: none; }
-/* which hand aims: three big buttons after a short label, the chosen one lit green */
-#setup .handPick { display: grid; grid-template-columns: auto repeat(3, 1fr); align-items: center; gap: 8px; margin: 2px 0 4px; }
-#setup .panel .handPick button { height: 46px; padding: 0 8px; font-size: 16px; color: #c9cfe4; }
-#setup [data-step="hands"] { align-items: flex-start; }
-#setup .stepHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* the whole move on a loop (handart.ts loopArt): setup, the how-to card, home's "How it works" */
+.handArt.loopArt { width: 150px; height: 90px; }
+#tutorial .tutHead + .loopArt { width: 100%; height: 120px; background: #0a0d1b; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+
+/* setup's hand step: live advice, which hand aims, and the loop beside them */
+#setup .steps li[data-step="frame"] { align-items: flex-start; }
+#setup .steps li[data-step="frame"] .stepDot { margin-top: 1px; }
+#setup .steps li[data-step="frame"] .loopArt { background: #0a0d1b; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+#setup .steps li[data-step="devices"] .setupMeter { display: block; margin-top: 6px; max-width: 220px; }
+/* which hand aims: three buttons after a short label, the chosen one lit green */
+#setup .handPick { display: grid; grid-template-columns: auto repeat(3, 1fr); align-items: center; gap: 6px; margin: 8px 0 2px; }
+#setup .panel .handPick button { height: 34px; padding: 0 8px; font-size: 14px; color: #c9cfe4; }
 #setup .panel .handPick button.on { color: #0b1a10; border-bottom-color: #1d5a3c; background: linear-gradient(160deg, #6fe3a0 0 56%, #4ac987 56% 100%); }
 
-/* point-and-pinch practice (practice.ts): targets across the screen under a stone header */
-#handPractice { position: fixed; inset: 0; z-index: 9; font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #0d1124f2, #020308 80%); }
+/* fitting the pinch (practice.ts): a stone header over a dark screen */
+#handPractice { position: fixed; inset: 0; z-index: 11; font-family: var(--chakra); background: radial-gradient(ellipse at 50% 50%, #0d1124f2, #020308 80%); }
 #handPractice[hidden] { display: none; }
 .practiceHead { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: min(580px, calc(100vw - 32px)); display: flex; align-items: center; gap: 14px; padding: 12px 18px 14px 10px;
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); border-bottom: 6px solid #0e1230;
@@ -666,35 +663,51 @@ body[data-ending="lose"] #freeze .frostCorner { display: block; animation: creep
 .practiceText h2 { margin: 0; font: 800 21px/1.15 var(--cinzel); letter-spacing: .03em; color: #fff; }
 .practiceText .sub { margin: 4px 0 8px; font-size: 16px; line-height: 1.35; color: #b9c0d8; min-height: 1.35em; }
 .pinchMeter { height: 8px; background: #0a0d1b; overflow: hidden; }
+.pinchMeter[hidden] { display: none; }
 .pinchMeter i { display: block; height: 100%; width: 0; background: var(--ice2); transition: width .08s linear; }
 .pinchMeter i.shut { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
 .practiceCount { flex: none; font: 800 18px var(--cinzel); color: var(--amber); white-space: nowrap; }
-.practiceField { position: absolute; inset: 0; pointer-events: none; }
-/* a target: frost octagon, dark inner face, amber diamond; lights amber with the cursor on it */
-.pTarget { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; display: grid; place-items: center; background: #9cc3e0;
-  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); animation: targetIn .32s cubic-bezier(.2, 1.4, .4, 1) backwards;
-  transition: background .12s, transform .12s; }
-.pTarget i { width: 86%; height: 86%; display: grid; place-items: center; background: linear-gradient(160deg, #212853 0 56%, #1a2045 56% 100%);
-  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
-.pTarget i::after { content: ''; width: 22px; height: 22px; transform: rotate(45deg); background: var(--amber); box-shadow: 0 0 12px var(--amber); }
-.pTarget.on { background: var(--amber); transform: scale(1.08); }
-.pTarget.hit { animation: targetHit .42s ease-out forwards; background: #fff1c4; }
-@keyframes targetIn { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
-@keyframes targetHit { to { opacity: 0; transform: scale(1.5); } }
-#handPractice > [data-act="skip"] { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); height: 42px; padding: 0 16px; border: 0; background: transparent;
-  font: 700 15px var(--chakra); letter-spacing: .06em; color: var(--muted); cursor: pointer; }
-#handPractice > [data-act="skip"]:hover { color: #fff; }
-#handPractice > [data-act="fit"] { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); height: 36px; padding: 0 14px; border: 0; background: transparent; color: #9aa6c8; font: 600 14px var(--chakra); text-decoration: underline; cursor: pointer; }
-#handPractice > [data-act="fit"]:hover { color: #fff; }
-#handPractice > [data-act="fit"][hidden] { display: none; }
-@media (prefers-reduced-motion: reduce) { .pTarget, .pTarget.hit, .practiceHead .handArt.nudge { animation: none; transition: none; } .pTarget.hit { opacity: 0; } }
+#handPractice > [data-act="skip"], #onboard > [data-act="skip"] { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); height: 42px; padding: 0 16px; border: 0; background: transparent;
+  font: 700 15px var(--chakra); letter-spacing: .06em; color: var(--muted); cursor: pointer; pointer-events: auto; }
+#handPractice > [data-act="skip"]:hover, #onboard > [data-act="skip"]:hover { color: #fff; }
+
+/* the first summon (onboard.ts): the coach over the live arena, which stays playable under it */
+#onboard { position: fixed; inset: 0; z-index: 9; font-family: var(--chakra); pointer-events: none; }
+#onboard[hidden] { display: none; }
+#onboard > [data-act="skip"] { top: 20px; bottom: auto; left: 20px; transform: none; text-shadow: 0 1px 4px #000; }
+/* the first summon has no clock: it never runs out */
+body.onboarding #hudTop { visibility: hidden; }
+#onboard > [data-act="fit"] { position: absolute; top: 136px; left: 50%; transform: translateX(-50%); height: 32px; padding: 0 12px; border: 0; background: transparent; color: #c9d6ef;
+  font: 600 14px var(--chakra); text-decoration: underline; text-shadow: 0 1px 4px #000; cursor: pointer; pointer-events: auto; }
+#onboard > [data-act="fit"]:hover { color: #fff; }
+#onboard > [data-act="fit"][hidden] { display: none; }
+#onboardRing { position: fixed; z-index: 2; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none; }
+#onboardRing[hidden] { display: none; }
+#onboardRing::before, #onboardRing i { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 4px solid var(--amber); box-shadow: 0 0 22px var(--amber), inset 0 0 18px #ffb02e66; }
+#onboardRing i { animation: ringOut 1.6s ease-out infinite; }
+@keyframes ringOut { from { transform: scale(.6); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+#onboardDone { z-index: 10; }
+#onboardDone .tutFoot { justify-content: flex-end; }
+
+/* home: after a while with nothing happening, how it works */
+#howItWorks { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 14px; padding: 10px 18px 10px 10px;
+  font-family: var(--chakra); color: #b9c0d8; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  background: linear-gradient(160deg, #212853f0 0 56%, #1a2045f0 56% 100%); border-bottom: 5px solid #0e1230; animation: howIn .6s ease-out; pointer-events: none; }
+#howItWorks[hidden] { display: none; }
+#howItWorks b { display: block; font: 800 18px var(--cinzel); color: #fff; }
+#howItWorks .sub { font-size: 15px; }
+@keyframes howIn { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) { .practiceHead .handArt.nudge, #onboardRing i, #howItWorks { animation: none; } }
 @media (max-width: 640px) {
-  #setup .howHands { grid-template-columns: 1fr; }
   .practiceHead { top: 12px; padding: 10px 12px 12px 6px; gap: 10px; }
   .practiceHead .handArt { width: 46px; height: 55px; }
   .practiceText h2 { font-size: 17px; }
   .practiceText .sub { font-size: 14px; }
-  .pTarget { width: 92px; height: 92px; margin: -46px 0 0 -46px; }
+  #onboard .practiceHead { top: 62px; } /* under the corner tools */
+  #onboard > [data-act="skip"] { top: 12px; left: 8px; }
+  #onboard > [data-act="fit"] { top: 170px; }
+  #setup .steps li[data-step="frame"] .loopArt { display: none; }
 }
 
 /* setup: the camera (the only place the raw feed shows) beside what the game makes of it */

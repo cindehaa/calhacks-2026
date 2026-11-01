@@ -16,8 +16,11 @@ import { HAND_CONNECTIONS, HandTracker, pointerOf, releaseHandTracker, type Hand
 import { drawHandView, drawScreenInset } from './handview';
 import { HandPicker, type HandPref } from './handpick';
 import { applyH, DEFAULT_H, invertH, type Pt2 } from './homography';
-import { PINCH_DEFAULTS, PinchDetector, extension, thumbDownScore, type PinchShot, type PinchThresholds } from './pose';
+import { PINCH_DEFAULTS, PinchDetector, extension, handSize, thumbDownScore, type PinchShot, type PinchThresholds } from './pose';
 import { NearMiss } from './nearmiss';
+import { AutoFit } from './autofit';
+import { ADVICE_TEXT, assessFraming, Framing, type Advice } from './framing';
+import { GHOST } from './handart';
 import { hidePinchHint, showPinchHint } from './pinchhint';
 import { AutoSpeech } from './cartesia_stt';
 import { chooseDescription, FIRE_WAIT_MS, fireWaits, isCancel, isMismatch, routeWords, Transcript } from './speech';
@@ -66,8 +69,9 @@ export interface DeployHow {
   transcript: string;
 }
 
-// pinch: thresholds fitted to the player's hand (practice.ts) or set in the ⋯ menu, null for the defaults.
-interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref; pinch: PinchThresholds | null }
+// pinch: thresholds fitted to the player's hand (practice.ts, or autofit.ts while playing) or set
+// in the ⋯ menu, null for the defaults. pinchSource: 'manual' ones are never refitted by autofit.
+interface Prefs { preview: boolean; vadDb: number; camera: boolean; mic: boolean; mouseKeys: boolean; hand: HandPref; pinch: PinchThresholds | null; pinchSource?: 'auto' | 'manual' }
 
 // A fire waiting for the recogniser to finish its last words: those from audio up to cut. The cut
 // happens FIRE_GRACE_MS after the fire (cut is Infinity until then: every word is the troop's).
@@ -97,6 +101,8 @@ const LOST_MS = 1000; // hand out of view this long before "show your hand"
 const FADE_MS = 450; // the cursor fades out over this when the hand goes
 const FIRE_SHOW_MS = 180; // the cursor fills this long after a pinch
 const SCREEN_IN_CAMERA = invertH(DEFAULT_H); // the screen's edges in camera coords, for the preview
+const LUMA_MS = 500; // how often the frame's brightness is sampled, for the framing advice
+const IGNORED_MIN_MS = 500; // talking outside a pinch this long counts as talking to the game
 
 export class InputController {
   private tracker: HandTracker | null = null;
@@ -117,6 +123,15 @@ export class InputController {
   private speechAt = -Infinity; // when the mic last heard speech start (VAD)
   private firedAt = -Infinity; // when the last deploy began
   private nearMiss = new NearMiss(); // pinches that almost close, for the pinch guide
+  private autoFit = new AutoFit(); // fits the pinch to this hand from how it pinches
+  private framer = new Framing(); // is the hand where the camera can use it
+  private size: number | undefined; // the control hand's size over the frame height
+  private aimUv: [number, number] | undefined; // where it aims on screen, 0..1, unclamped
+  private luma: number | null = null; // the frame's mean brightness
+  private lumaAt = 0;
+  private lumaCanvas: HTMLCanvasElement | null = null;
+  private talkFrom: number | null = null; // talking began outside a pinch (pinch to talk), for the ignored signal
+  private ignoredText = ''; // what the browser recogniser made of it
   private trail = new CursorHistory(); // the hand cursor, to aim from before a pinch
 
   readonly scheme: Scheme = pinch;
@@ -253,9 +268,12 @@ export class InputController {
         // A whole frame: drives the hand signal (and the intent gate) without a camera. thumbDown
         // is the score (0..1), pinched what the pinch measure says.
         // ratio drives the pinch measure instead (pose.ts pinchMetric): pinches, near misses and all.
-        frame: (x: number, y: number, o: { thumbDown?: number; pinched?: boolean; ratio?: number } = {}) => {
+        // size: the hand over the frame height, for the framing advice (framing.ts).
+        frame: (x: number, y: number, o: { thumbDown?: number; pinched?: boolean; ratio?: number; size?: number } = {}) => {
           const now = performance.now();
           this.handCursor = { x, y };
+          this.aimUv = [x / innerWidth, y / innerHeight];
+          this.size = o.size ?? 0.25;
           this.thumbDown = o.thumbDown ?? 0;
           if (o.ratio === undefined) return void this.publish(this.handSignal(now, this.handCursor, null, o.pinched ?? false));
           this.ratio = o.ratio;
@@ -272,6 +290,7 @@ export class InputController {
         },
         lost: () => {
           this.handCursor = null;
+          this.size = this.aimUv = undefined;
           this.publish({ kind: 'hand', t: performance.now(), visible: false });
         },
         clear: () => (this.handCursor = null),
@@ -283,6 +302,12 @@ export class InputController {
           return { control: this.hand ? hs.findIndex(h => h.lm === this.hand!.lm) : -1, reasons: this.lastPick, cursor: this.handCursor };
         },
         setPref: (p: HandPref) => this.setHandPref(p),
+        // A camera that's on and ready but sees nothing, so the camera paths (setup, the first
+        // summon, pinch to talk) run on frame() and hands().
+        fakeCamera: () => {
+          this.tracker = { ready: true, video: document.createElement('video'), detect: () => undefined, stop() {} } as unknown as HandTracker;
+          this.renderPanel();
+        },
         // Every intent the scheme emitted, and whether it did anything.
         intents: (() => { const a: (Intent & { ok: boolean })[] = []; this.listeners.intent.push((i, ok) => a.push({ ...i, ok })); return a; })(),
         // Words as if the recogniser heard them, each call its own utterance.
@@ -323,9 +348,12 @@ export class InputController {
     return this.prefs.pinch ?? PINCH_DEFAULTS;
   }
 
-  // null goes back to the defaults. The next person at the laptop fits their own in setup.
-  setPinch(t: PinchThresholds | null): void {
+  // null goes back to the defaults. The next person at the laptop fits their own in setup, or
+  // autofit does as they play. A manual fit (practice.ts, the ⋯ menu) is never refitted.
+  setPinch(t: PinchThresholds | null, source: 'auto' | 'manual' = 'manual'): void {
     this.prefs.pinch = t;
+    this.prefs.pinchSource = t ? source : undefined;
+    if (!t || source === 'manual') this.autoFit.reset();
     save(KEYS.prefs, this.prefs);
     this.applyPinch();
     this.syncPinchUi();
@@ -368,7 +396,22 @@ export class InputController {
       speaking: this.vad.speaking,
       heardWords: this.heardWords,
       heardSound: this.heardSound,
+      framing: this.framing(),
     };
+  }
+
+  // Is the hand where the camera can use it: null without the camera (or before it's ready).
+  framing(): Advice | null {
+    return this.tracker?.ready ? this.framer.advice : null;
+  }
+
+  // How near closed the pinch is, 0 (open) to 1 (at the line where it closes), for the cursor's arc
+  // and the meters. The same scale as the practice screen's meter.
+  pinchProgress(): number {
+    const r = this.ratio;
+    if (r === null) return 0;
+    const { on, off } = this.pinchThresholds, empty = Math.max(0.95, off + 0.15);
+    return clamp01((empty - r) / (empty - on));
   }
 
   // Setup's camera feed, the one place the raw camera shows, and next to it what the game makes
@@ -397,7 +440,7 @@ export class InputController {
     const playing = this.host.playing(), at = this.cursor();
     const words = this.firing ? '' : this.prompt.text;
     return {
-      cursor: this.handCursor && playing && !this.menus() ? { ...this.handCursor, state: this.cursorState(performance.now()) }
+      cursor: this.handCursor && playing && !this.menus() ? { ...this.handCursor, state: this.cursorState(performance.now()), pinch: this.pinchProgress() }
         : this.lostCursor && playing && performance.now() - this.lostAt < FADE_MS ? { ...this.lostCursor, state: 'open', fade: 1 - (performance.now() - this.lostAt) / FADE_MS } : null,
       prompt: playing && at && (words || this.vad.speaking) ? { x: at.x, y: at.y, text: words, speaking: this.vad.speaking } : null,
       flashes: this.flashes,
@@ -411,6 +454,10 @@ export class InputController {
   private tick(now: number): void {
     const f = this.tracker?.detect(now);
     if (f !== undefined) this.onHandFrames(f, now);
+    if (this.tracker?.ready) {
+      if (now - this.lumaAt > LUMA_MS) this.sampleLuma(now);
+      this.framer.push(now, assessFraming({ visible: !!this.handCursor, size: this.size, aim: this.aimUv, luma: this.luma }));
+    } else this.framer.reset();
     this.speech.setGated(this.pinchToTalk());
     if (this.mic.on) {
       const db = this.mic.levelDb();
@@ -419,8 +466,15 @@ export class InputController {
       if (ev?.kind === 'start') {
         this.speechAt = ev.t;
         this.heardSound = true;
+        this.talkFrom = this.pinchToTalk() && !this.held && !this.firing ? ev.t : null;
+        this.ignoredText = '';
       }
       if (ev) this.publish({ kind: 'voice', t: ev.t, phase: ev.kind });
+      // Talked to the game without pinching: those words are dropped, so say so (onboard.ts, coach.ts).
+      if (ev?.kind === 'end' && this.talkFrom !== null) {
+        if (!this.held && this.pinchToTalk() && ev.t - this.talkFrom >= IGNORED_MIN_MS) this.publish({ kind: 'ignored', t: ev.t, text: this.ignoredText });
+        this.talkFrom = null;
+      }
       // Close each utterance when the talking stops, so its words are final before the next fire.
       if (ev?.kind === 'end') void this.speech.flush(FLUSH_MS);
     }
@@ -466,6 +520,8 @@ export class InputController {
     }
     if (this.lostAt) { this.lostAt = 0; this.lostCursor = null; clearNotice('hand') }
     const [u, v] = applyH(DEFAULT_H, pointerOf(f.lm));
+    this.aimUv = [u, v];
+    this.size = handSize(f.lm, f.vw, f.vh) / f.vh;
     this.handCursor = { x: this.fx.filter(u * innerWidth, now / 1000), y: this.fy.filter(v * innerHeight, now / 1000) };
     this.trail.push(now, this.handCursor);
     this.thumbDown = thumbDownScore(f.lm, f.world, f.vw, f.vh);
@@ -536,8 +592,32 @@ export class InputController {
       showPinchHint();
       this.host.event?.('hint:pinch');
     }
+    if (this.prefs.pinchSource === 'manual') return;
+    const fit = this.autoFit.push(now, this.ratio, this.pinchThresholds);
+    if (fit) {
+      const was = this.pinchThresholds;
+      this.setPinch(fit, 'auto');
+      this.host.event?.('autofit:applied', `on ${was.on}→${fit.on} off ${was.off}→${fit.off}`);
+    }
   }
 
+
+  // The frame's mean brightness, from a tiny copy of it: too dark, and tracking gets unreliable.
+  private sampleLuma(now: number): void {
+    this.lumaAt = now;
+    const v = this.tracker?.video;
+    if (!v?.videoWidth) return;
+    const c = (this.lumaCanvas ??= document.createElement('canvas'));
+    c.width = 16;
+    c.height = 9;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    if (!g) return;
+    g.drawImage(v, 0, 0, 16, 9);
+    const d = g.getImageData(0, 0, 16, 9).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    this.luma = sum / (d.length / 4);
+  }
 
   // The hand left the camera (or the camera stopped): the cursor fades where it was, and after a
   // second a gentle "show your hand" holds until it's back.
@@ -545,12 +625,13 @@ export class InputController {
     if (!this.host.playing() || !this.tracker?.ready) return clearNotice('hand');
     if (!this.lostAt) this.lostAt = now;
     if (now - this.lostAt > LOST_MS && !noticeShowing('hand')) {
-      notice('Show your hand to the camera to aim', { tone: 'warn', hold: true, key: 'hand' });
+      notice(this.framer.advice === 'light' ? ADVICE_TEXT.light : 'Show your hand to the camera to aim', { tone: 'warn', hold: true, key: 'hand' });
     }
   }
 
   private resetHand(): void {
     this.handCursor = null;
+    this.size = this.aimUv = undefined;
     this.fx.reset();
     this.fy.reset();
     this.trail.clear();
@@ -818,7 +899,10 @@ export class InputController {
     }
     // Pinch to talk: words outside a hold aren't for a troop. Cartesia is gated already; this is
     // for the browser recogniser, which can't be.
-    if (epoch !== -Infinity && this.pinchToTalk() && !this.held) return;
+    if (epoch !== -Infinity && this.pinchToTalk() && !this.held) {
+      if (final && text) this.ignoredText = `${this.ignoredText} ${text}`.trim();
+      return;
+    }
     // Act on interim words too: waiting for the final result adds most of a second.
     const sig = (cancel: boolean) => this.publish({ kind: 'words', t: performance.now(), text, final, waiting: this.prompt.text, cancel });
     if (isCancel(text)) {
@@ -952,7 +1036,7 @@ export class InputController {
     const g = c.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
-    if (p && (!this.host.playing() || this.menus())) drawCursor(g, p.x, p.y, this.cursorState(now));
+    if (p && (!this.host.playing() || this.menus())) drawCursor(g, p.x, p.y, this.cursorState(now), this.pinchProgress());
     if (p && dwell > 0) drawDwell(g, p.x, p.y, dwell);
     this.overlayDrawn = !!p;
   }
@@ -1162,6 +1246,28 @@ export class InputController {
       g.closePath();
       g.stroke();
       g.setLineDash([]);
+      // Where to hold your hand: a faint aiming hand in the middle of that area, until the hand
+      // is there and well placed.
+      if (video && this.framer.advice !== 'ok') {
+        const [x0, y0] = applyH(inv, [0, 0]), [x1, y1] = applyH(inv, [1, 1]);
+        const bh = (y1 - y0) * h * 0.85, s = bh / 120, ox = ((x0 + x1) / 2) * w - 50 * s, oy = ((y0 + y1) / 2) * h - 60 * s + bh * 0.1;
+        const G = (i: number): Pt2 => [ox + GHOST.pose[i][0] * s, oy + GHOST.pose[i][1] * s];
+        g.save();
+        g.globalAlpha = 0.3 + 0.12 * Math.sin(performance.now() / 400);
+        g.strokeStyle = '#dbe9f4';
+        g.lineWidth = Math.max(2, 5 * s);
+        g.lineCap = g.lineJoin = 'round';
+        for (const c of GHOST.chains) {
+          g.beginPath();
+          c.forEach((i, k) => (k ? g.lineTo(...G(i)) : g.moveTo(...G(i))));
+          g.stroke();
+        }
+        g.beginPath();
+        GHOST.palm.forEach((i, k) => (k ? g.lineTo(...G(i)) : g.moveTo(...G(i))));
+        g.closePath();
+        g.stroke();
+        g.restore();
+      }
     }
     const bones = (lm: HandFrame['lm']) => {
       g.beginPath();

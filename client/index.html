@@ -96,6 +96,7 @@
         <div id="handSlot" class="handSlot"><button id="handBtn" class="slab stone small"><span class="face"><i class="ico" data-icon="camera" data-tone="gold" data-size="40"></i><b>Turn on camera</b><small>Aim with your hand</small></span></button></div>
       </div>
     </div>
+    <aside id="howItWorks" hidden aria-label="How it works"><span class="handArt loopArt" data-art="loop"></span><span><b>How it works</b><span class="sub">Pinch, say any troop out loud, let go. It fights.</span></span></aside>
     <p id="lobbyError" class="error homeError"></p>
     <footer class="hubFoot"><span class="hubCredit">Built at Cal Hacks 13.0 with Claude, Cartesia and SpacetimeDB</span></footer>
   </div>
@@ -218,40 +219,53 @@
 
   <div id="setup" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="setupTitle">
     <div class="panel setup">
-      <div><h1 id="setupTitle">Set up your controls</h1><p class="sub">Mouse and keys always work too.</p><p class="sub">What you say during play and the troops it makes are saved to help us improve the game.</p></div>
+      <div><h1 id="setupTitle">Let the game see and hear you</h1><p class="sub">You aim with your hand and say your troops out loud. Mouse and keys always work too.</p><p class="sub">What you say during play and the troops it makes are saved to help us improve the game.</p></div>
       <div class="setupViews">
         <figure class="setupCam"><canvas></canvas><span class="setupHint"></span><figcaption>Camera</figcaption></figure>
         <figure class="setupSeen"><canvas></canvas><figcaption>What the game sees<b data-seen></b></figcaption></figure>
       </div>
       <ol class="steps">
-        <li data-step="devices"><span class="stepDot"></span><div><b>Camera and mic</b><span class="sub" data-msg></span></div><button data-act="devices">Turn on</button></li>
-        <li data-step="voice"><span class="stepDot"></span><div><b>Say hello</b><span class="sub" data-msg></span></div><span class="setupMeter"><i></i></span></li>
-        <li data-step="hands"><span class="stepDot"></span><div><div class="stepHead"><b>Pinch, say it, let go</b><button data-act="practice">Practice</button></div><span class="sub" data-msg></span>
-          <div class="howHands">
-            <figure><span class="handArt" data-art="pinch"></span><figcaption><b>Pinch</b> any finger and hold</figcaption></figure>
-            <figure><span class="handArt" data-art="say"></span><figcaption><b>Say</b> the troop as you aim</figcaption></figure>
-            <figure><span class="handArt" data-art="point"></span><figcaption><b>Let go</b> to place it</figcaption></figure>
-          </div>
-          <div class="handPick" role="radiogroup" aria-label="Which hand aims"><span class="sub">Aim with</span><button data-hand="left" role="radio">Left</button><button data-hand="auto" role="radio">Either</button><button data-hand="right" role="radio">Right</button></div></div></li>
+        <li data-step="devices"><span class="stepDot"></span><div><b>Camera and mic</b><span class="sub" data-msg></span><span class="setupMeter" title="Mic level"><i></i></span></div><button data-act="devices">Turn on</button></li>
+        <li data-step="frame"><span class="stepDot"></span><div><b>Hold up your hand</b><span class="sub" data-msg></span>
+          <div class="handPick" role="radiogroup" aria-label="Which hand aims"><span class="sub">Aim with</span><button data-hand="left" role="radio">Left</button><button data-hand="auto" role="radio">Either</button><button data-hand="right" role="radio">Right</button></div></div>
+          <span class="handArt loopArt" data-art="loop"></span></li>
       </ol>
-      <div class="tutFoot"><button data-act="skip" class="ghost">Skip, use mouse and keys</button><button data-act="done" data-primary>Let’s play</button></div>
+      <div class="tutFoot"><button data-act="skip" class="ghost">Skip, use mouse and keys</button><button data-act="done" data-primary>Continue</button></div>
     </div>
   </div>
 
-  <div id="handPractice" hidden role="dialog" aria-modal="true" aria-labelledby="practiceTitle">
+  <div id="handPractice" hidden role="dialog" aria-modal="true" aria-labelledby="fitTitle">
     <div class="practiceHead">
       <span class="handArt" data-art="pinch"></span>
-      <div class="practiceText"><h2 id="practiceTitle">Practice: pinch, move, let go</h2><p class="sub" data-msg></p><div class="pinchMeter" title="How close your thumb is to your finger"><i></i></div></div>
+      <div class="practiceText"><h2 id="fitTitle">Fit the pinch to your hand</h2><p class="sub" data-msg></p><div class="pinchMeter" title="How close your thumb is to your finger"><i></i></div></div>
       <span class="practiceCount" data-count></span>
     </div>
-    <div class="practiceField"></div>
+    <button data-act="skip" class="ghost">Cancel</button>
+  </div>
+
+  <!-- The first summon (onboard.ts): a coach over the live arena, a ring where to send the troop, and a card when it's done. -->
+  <div id="onboard" hidden role="status" aria-live="polite">
+    <div class="practiceHead">
+      <span class="handArt"></span>
+      <div class="practiceText"><h2 data-title></h2><p class="sub" data-msg></p><div class="pinchMeter" title="How close your thumb is to your finger"><i></i></div></div>
+      <span class="practiceCount" data-count></span>
+    </div>
     <button data-act="fit" class="ghost">Pinch not working? Fit it to my hand</button>
-    <button data-act="skip" class="ghost">Skip practice</button>
+    <button data-act="skip" class="ghost">Skip tutorial</button>
+  </div>
+  <div id="onboardRing" hidden aria-hidden="true"><i></i></div>
+  <div id="onboardDone" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="onboardDoneTitle">
+    <div class="panel tut">
+      <div class="tutHead"><h1 id="onboardDoneTitle">You summoned your first troop</h1></div>
+      <p class="sub">Every troop is a bet: the cost shows only once it lands. Anything you can describe, you can summon.</p>
+      <div class="tutFoot"><button data-act="home" class="ghost">Home</button><button data-act="bot" data-primary>Play vs Bot (easy)</button></div>
+    </div>
   </div>
 
   <div id="tutorial" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="tutTitle">
     <div class="panel tut">
       <div class="tutHead"><h1 id="tutTitle">How to play</h1></div>
+      <span class="handArt loopArt" data-art="loop"></span>
       <ol>
         <li><span class="handArt" data-art="pinch"></span><span><b>Pinch</b> and hold. Only what you say while pinching counts.</span></li>
         <li><span class="handArt" data-art="say"></span><span><b>Say</b> a troop, like “wizard with fire”, and move your hand to <b>aim</b>.</span></li>

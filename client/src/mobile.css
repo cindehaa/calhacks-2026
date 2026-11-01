@@ -42,7 +42,7 @@ html { touch-action: manipulation; } /* no double-tap zoom on the board or the b
 }
 
 /* Touch-only devices: no camera aiming, so setup is just the mic and the how-to says tap. */
-body.touch #setup .setupViews, body.touch #setup [data-step="hands"] { display: none; }
+body.touch #setup .setupViews, body.touch #setup [data-step="frame"] { display: none; }
 body.touch #tutorial ol { grid-template-columns: repeat(2, 1fr); }
 body.touch #tutorial li:nth-child(3) { display: none; } /* the pinch: a tap does it here */
 canvas#board { touch-action: none; } /* a finger drags the aim instead of scrolling or zooming */

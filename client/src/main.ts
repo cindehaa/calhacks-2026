@@ -19,6 +19,9 @@ import { Recorder } from './recorder';
 import { burnSticks, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
+import { initCoach } from './coach';
+import { initHowItWorks } from './howitworks';
+import { initOnboard, TutorialMatch } from './onboard';
 import { initSetup, setupDone } from './setup';
 import { prefetchSprite, requestSprite, spriteError } from './sprites';
 import { diag, dropArtDone, dropBegin, dropCancelled, dropDeployed, dropDesigned, dropFailed, dropStep, dropWords, explain } from './diag';
@@ -177,7 +180,7 @@ function enter() {
   else show();
   sfx.unlock();
   if (setupDone()) showTutorialOnce();
-  else setup.open();
+  else setup.open(true);
 }
 $('title').addEventListener('pointerdown', enter);
 if (TOUCH) $('enterBtn').textContent = 'Tap to start';
@@ -1079,8 +1082,26 @@ function flagMismatch() {
   if (a?.description) board.juice.flag(a.description);
 }
 
-// First visit (after the title screen): camera and mic, then the how-to card.
-const setup = initSetup(input, showTutorialOnce);
+// First visit (after the title screen): camera and mic and the hand in frame, then the first
+// summon (onboard.ts), which ends offering a match against the easy bot. Skipping setup shows the
+// how-to card instead.
+const onboard = initOnboard(input, {
+  start: m => {
+    lock = aim = null;
+    ravenOpen = false;
+    local = m;
+  },
+  stop: () => { if (local instanceof TutorialMatch) local = null },
+  toScreen: (x, y) => board.toScreen(x, y),
+  playBot: () => startBot('easy'),
+});
+const setup = initSetup(input, next => {
+  if (next === 'onboard') void onboard.run();
+  else if (next === 'skipped') showTutorialOnce();
+});
+initHowItWorks(() => input.handPoint());
+// The first few matches with the camera: a line of help when the player looks stuck.
+initCoach(input, () => !(local instanceof TutorialMatch) && match()?.status === 'playing' && (match()?.time ?? -1) > 0.5);
 // The hand model is ~17 MB: fetch it while the title and menu are up, once the page itself has
 // loaded, so the camera starts quickly. Touch-only devices type instead, so they skip it.
 if (!TOUCH) addEventListener('load', () => setTimeout(() => void warmHandTracker().catch(e => diag.warn('HAND', `hand tracker preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });

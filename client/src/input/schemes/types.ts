@@ -26,6 +26,9 @@ export type Signal =
   | { kind: 'level'; t: number; db: number; loud: boolean } // every frame while the mic is on
   // Transcript: one partial or final segment, and everything waiting to be sent.
   | { kind: 'words'; t: number; text: string; final: boolean; waiting: string; cancel: boolean } // cancel: it was "cancel"
+  // Talking while pinch to talk is on and no pinch is held: dropped. t is when the talking stopped;
+  // text is what the browser recogniser made of it ('' with Cartesia, which hears nothing then).
+  | { kind: 'ignored'; t: number; text: string }
   | { kind: 'key'; t: number; key: 'Space' | 'Escape'; repeat: boolean }
   | { kind: 'mouse'; t: number; at: Pt; phase: 'down' | 'move' } // down: left button on the board
   // The deploy pipeline. pending: begin_deploy sent, nothing paid yet (cancel refunds it all).

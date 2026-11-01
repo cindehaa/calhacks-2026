@@ -7,6 +7,8 @@
 //                                    any mismatch flag and how the troop fought: input for tuning
 //   npm run logs -- --wishes         what the designer wished the lists had, by players, and
 //                                    mismatch flags per on_hit, trait and element: input for `npm run learn`
+//   npm run logs -- --funnel         first-visit onboarding: how far players got through setup
+//                                    and the first summon, step by step, plus coaching and autofits
 //   npm run logs -- --server maincloud --db <name>
 import { execFileSync } from 'node:child_process';
 
@@ -123,6 +125,49 @@ if (args.includes('--wishes')) {
       .map(([v, e]) => `${v} ${e.flagged}/${e.n}`).join(' · ');
     console.log(`  ${key.padEnd(8)} ${line || '-'}`);
   }
+  process.exit(0);
+}
+
+// ---------- onboarding funnel ----------
+
+if (args.includes('--funnel')) {
+  // In order; a player counts at a step once they've reached it. frame and grab are camera only.
+  const STEPS = ['setup:open', 'onboard:start', 'onboard:frame', 'onboard:grab', 'onboard:say', 'onboard:place', 'onboard:summon', 'onboard:landed', 'onboard:done', 'onboard:after:bot'];
+  const mid = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[xs.length >> 1] : 0);
+  const reached = new Map<string, Map<string, number>>(); // player → step → first time
+  const modes = new Map<string, string>();
+  for (const e of [...events].sort((a, b) => n(a.at) - n(b.at))) {
+    const k = String(e.kind), p = String(e.player);
+    if (!STEPS.includes(k)) continue;
+    const r = reached.get(p) ?? new Map<string, number>();
+    if (!r.has(k)) r.set(k, n(e.at));
+    reached.set(p, r);
+    if (k === 'onboard:start') modes.set(p, String(e.detail));
+  }
+  const show = (label: string, players: string[]) => {
+    console.log(`━━ onboarding funnel, ${label}: ${players.length} players`);
+    let prev = players.length;
+    STEPS.forEach((step, i) => {
+      const at = players.filter(p => reached.get(p)?.has(step));
+      if (!at.length && (step === 'onboard:frame' || step === 'onboard:grab')) return;
+      const gaps = i ? at.map(p => (reached.get(p)!.get(step)! - (reached.get(p)!.get(STEPS[i - 1]) ?? NaN))).filter(Number.isFinite) : [];
+      const share = prev ? `${Math.round((100 * at.length) / prev)}%` : '-';
+      console.log(`  ${step.padEnd(18)} ${String(at.length).padStart(5)}  ${share.padStart(4)} of the step before${gaps.length ? `  · median ${(mid(gaps) / 1000).toFixed(1)} s after it` : ''}`);
+      prev = at.length || prev;
+    });
+  };
+  const all = [...reached.keys()];
+  show('everyone', all);
+  for (const m of new Set(modes.values())) show(`first summon by ${m}`, all.filter(p => modes.get(p) === m));
+  const tally = (prefix: string) => {
+    const c = new Map<string, number>();
+    for (const e of events) if (String(e.kind).startsWith(prefix)) c.set(String(e.kind), (c.get(String(e.kind)) ?? 0) + 1);
+    return [...c].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k.slice(prefix.length)} ${v}`).join(', ') || '-';
+  };
+  console.log(`\n  skipped at       ${tally('onboard:skipped:')}`);
+  console.log(`  sent back        ${tally('onboard:retry:')}`);
+  console.log(`  coaching shown   ${tally('coach:')}`);
+  console.log(`  pinch autofits   ${events.filter(e => e.kind === 'autofit:applied').length}`);
   process.exit(0);
 }
 

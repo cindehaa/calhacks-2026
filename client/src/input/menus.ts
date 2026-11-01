@@ -16,7 +16,7 @@ export const DWELL_MS = 1000;
 const TARGETS = 'button:not(:disabled), input[type=checkbox]:not(:disabled), input.codeIn';
 const MATCH_TARGETS = '#tools button:not(:disabled)'; // all the hand can reach mid-match
 // Dialogs over a match: while one is open the hand works menus, not the board.
-const DIALOGS = ['pause', 'forfeitAsk', 'tutorial', 'setup', 'handPractice', 'raven'];
+const DIALOGS = ['pause', 'forfeitAsk', 'tutorial', 'setup', 'handPractice', 'raven', 'onboardDone'];
 const PRESS_MS = 140;
 
 const shown = (id: string) => {
