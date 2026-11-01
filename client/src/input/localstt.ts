@@ -6,7 +6,7 @@
 // timer (flush). A clip is transcribed in about 0.2 s, inside the deploy delay. The model is
 // ~60 MB, fetched once when this engine is first needed and cached by the browser.
 import { diag } from '../diag';
-import { capture16k, CHUNK, RATE } from './pcm';
+import { capture16k, CHUNK, RATE, speechSpan } from './pcm';
 import { PreRoll } from './ptt';
 import type { Cut, SpeechSource } from './speech';
 import type { FromWorker, ToWorker } from './localstt.worker';
@@ -16,7 +16,7 @@ const TAIL_MS = 80; // after a release, wait for the chunk still filling
 const MAX_CHUNKS = (12 * RATE) / CHUNK; // a clip keeps at most its last 12 s
 const PAD_BEFORE = 0.3, PAD_AFTER = 0.5; // s of silence round a clip: without them it clips words at the edges
 const MIN_SECS = 0.25; // shorter is a click, not words
-const MIN_RMS = 0.004; // quieter is the room, not someone talking
+const MIN_RMS = 0.004; // no 50 ms of a clip louder than this: the room, not someone talking
 export const LOCAL_WAIT_MS = 2500; // how long a fire waits for its words (the first may wait on the model)
 
 export class LocalSpeechSource implements SpeechSource {
@@ -157,20 +157,19 @@ export class LocalSpeechSource implements SpeechSource {
 
   // Take the clip so far and turn it into words for `epoch`. Quiet or very short clips are skipped.
   private async transcribe(epoch: number): Promise<void> {
-    const chunks = this.clip.splice(0);
-    const n = chunks.length * CHUNK;
-    if (!this.worker || n < MIN_SECS * RATE) return;
-    const audio = new Float32Array(Math.round((PAD_BEFORE + PAD_AFTER) * RATE) + n);
-    let at = Math.round(PAD_BEFORE * RATE), sum = 0;
+    const all = this.clip.splice(0);
+    if (!this.worker || all.length * CHUNK < MIN_SECS * RATE) return;
+    // Just the speech in it, padded with silence: the model hears nothing in a long quiet clip.
+    const pcm = all.map(c => Array.from(new Int16Array(c), v => v / 0x8000));
+    const span = speechSpan(pcm.map(c => Math.sqrt(c.reduce((s, v) => s + v * v, 0) / c.length)), MIN_RMS);
+    if (!span) return;
+    const chunks = pcm.slice(...span);
+    const audio = new Float32Array(Math.round((PAD_BEFORE + PAD_AFTER) * RATE) + chunks.length * CHUNK);
+    let at = Math.round(PAD_BEFORE * RATE);
     for (const c of chunks) {
-      const s = new Int16Array(c);
-      for (let i = 0; i < s.length; i++) {
-        const v = s[i] / 0x8000;
-        audio[at++] = v;
-        sum += v * v;
-      }
+      audio.set(c, at);
+      at += c.length;
     }
-    if (Math.sqrt(sum / n) < MIN_RMS) return;
     const id = ++this.nextId;
     const text = await new Promise<string>(res => {
       this.runs.set(id, res);

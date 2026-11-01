@@ -44,3 +44,18 @@ export async function capture16k(ctx: AudioContext, stream: MediaStream, onChunk
   }
   void ctx.resume();
 }
+
+// Where the speech is in a clip, as a range of its chunks [start, end): from a little before the
+// first chunk loud enough to be speech to a little after the last. Loud enough is relative to the
+// clip's loudest chunk, so a quiet voice still counts and room noise doesn't. Null if nothing in
+// it is louder than minRms. A speech model handed a short phrase inside seconds of silence (a
+// pinch held a while, or listening all the time) hears nothing at all, so clips are cut to this.
+export function speechSpan(rms: number[], minRms: number, lead = 3, tail = 5): [number, number] | null {
+  const peak = Math.max(0, ...rms);
+  if (peak < minRms) return null;
+  const loud = Math.max(minRms * 2, peak * 0.12);
+  const first = rms.findIndex(r => r >= loud);
+  let last = rms.length - 1;
+  while (rms[last] < loud) last--;
+  return [Math.max(0, first - lead), Math.min(rms.length, last + 1 + tail)];
+}
