@@ -179,6 +179,13 @@ export function initOnboard(input: InputController, host: OnboardHost): { run():
       } else framedAt = 0;
       render();
     }
+    // Speech turned out not to work here (speech.ts, the controller's watchdog): type it instead.
+    if (mode !== 'type' && step !== 'summon' && step !== 'landed' && !input.speechStatus().ok) {
+      mode = 'type';
+      logEvent('onboard:typing', input.speechStatus().why);
+      enter('say', true);
+      tell(`Speech isn’t working here (${input.speechStatus().why}). Type it instead.`, 8000, 'no-speech');
+    }
     if (mode === 'type' && step === 'say' && document.querySelector<HTMLInputElement>('#descInput')?.value.trim()) enter('place');
     meter.style.width = `${input.pinchProgress() * 100}%`;
     const p = host.toScreen(...RING);
@@ -253,7 +260,7 @@ export function initOnboard(input: InputController, host: OnboardHost): { run():
   return {
     run() {
       const s = input.setupState();
-      mode = s.cameraReady ? 'hand' : s.mic && input.listening ? 'voice' : 'type';
+      mode = !s.speech.ok ? 'type' : s.cameraReady ? 'hand' : s.mic && input.listening ? 'voice' : 'type';
       step = 'summon'; // never the first step, so enter() below always takes
       heard = landed = say = '';
       sayUntil = framedAt = 0;

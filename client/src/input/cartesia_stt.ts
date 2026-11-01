@@ -7,7 +7,7 @@
 // wait on a ~0.5 s connect. The socket opens straight to Cartesia with a token from api/.
 // Each socket is one epoch of audio, so cut() (a fire) splits the words exactly where it happened:
 // everything sent before it is finalised on the old socket, everything after goes to the new one.
-import { cartesiaUrl, openSocket } from '../cartesia';
+import { cartesiaTokenProblem, cartesiaUrl, openSocket } from '../cartesia';
 import { diag } from '../diag';
 import { PreRoll } from './ptt';
 import { WebSpeechSource, type Cut, type SpeechSource } from './speech';
@@ -242,13 +242,13 @@ export class CartesiaSpeechSource implements SpeechSource {
   private async open(): Promise<Sock | null> {
     const url = await cartesiaUrl('/stt/websocket', { model: 'ink-2', encoding: 'pcm_s16le', sample_rate: String(RATE) });
     if (!url) {
-      this.giveUp('no Cartesia token');
+      this.giveUp(cartesiaTokenProblem() || 'no Cartesia token');
       return null;
     }
     const ws = await openSocket(url);
     if (!ws) {
       diag.warn('STT', `Cartesia STT socket failed to open (attempt ${this.fails + 1} of 2)`);
-      if (++this.fails >= 2) this.giveUp('could not connect');
+      if (++this.fails >= 2) this.giveUp('couldn’t connect to Cartesia (key refused or out of credit?)');
       return null;
     }
     this.fails = 0;
@@ -286,11 +286,16 @@ export class CartesiaSpeechSource implements SpeechSource {
       if (m.is_final) {
         if (text.trim()) this.onFinal(text, s.epoch);
       } else this.onPartial(text, s.epoch);
+      if (text.trim()) this.fails = 0;
     } else if (m.type === 'flush_done') {
       s.flushed?.();
     } else if (m.type === 'error') {
+      // Cartesia ends a socket it won't serve (out of credit, a bad token) with an error: twice
+      // running and it's given up on, so the browser's recogniser takes over instead of silence.
       diag.error('STT', `Cartesia STT error message: ${m.message ?? 'error'}`, m);
       this.onError(`Cartesia STT: ${m.message ?? 'error'}`);
+      s.ws.close();
+      if (++this.fails >= 2) this.giveUp(`Cartesia: ${m.message ?? 'error'}`);
     }
   }
 
@@ -309,10 +314,12 @@ export class AutoSpeech implements SpeechSource {
   onFinal = (_: string, _epoch: number) => {};
   onError = (_: string) => {};
   onFallback = () => {}; // Cartesia gave up and the browser's recogniser took over
+  onDead = (_why: string) => {}; // and the browser's recogniser doesn't work either: no speech at all
   private cartesia: CartesiaSpeechSource;
   private web = new WebSpeechSource();
   private cur: SpeechSource;
   private on = false;
+  private cartesiaWhy = '';
 
   constructor(stream: () => MediaStream | null) {
     this.cartesia = new CartesiaSpeechSource(stream);
@@ -325,11 +332,16 @@ export class AutoSpeech implements SpeechSource {
       s.onFinal = (t, e) => s === this.cur && this.onFinal(t, e + base);
       s.onError = msg => s === this.cur && this.onError(msg);
     }
+    this.web.onUnavailable = why => {
+      if (this.cur === this.web) this.onDead(`${this.cartesiaWhy || 'Cartesia unavailable'}, and ${why}`);
+    };
     this.cartesia.onUnavailable = why => {
       if (this.cur !== this.cartesia) return;
+      this.cartesiaWhy = why;
       this.cur = this.web;
       diag.warn('STT', `Cartesia STT unavailable (${why}), using the browser's speech recognition`);
       this.onFallback();
+      if (!this.web.available) this.onDead(`${why}, and this browser has no speech recognition`);
       if (this.on) {
         this.web.start();
         this.onError(this.web.available ? 'listening (browser speech; Cartesia unavailable)' : 'no speech recognition: voice locks, typed text describes');

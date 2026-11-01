@@ -35,10 +35,22 @@ interface SR {
 }
 type SRCtor = new () => SR;
 
+// Browsers that have the recogniser but can't run it: Arc, Brave and other Chromium builds without
+// Google's speech service fail every start with 'network'. Two in a row with no words between
+// means it isn't coming back; a blocked or unsupported one is final at once.
+const DEAD_ERRORS: Record<string, string> = {
+  'not-allowed': 'speech recognition is blocked in this browser',
+  'service-not-allowed': 'speech recognition is blocked in this browser',
+  'language-not-supported': 'this browser’s speech recognition doesn’t do English',
+};
+const NETWORK_WHY = 'this browser’s speech recognition can’t reach its service (Arc and Brave block it; Chrome works)';
+
 export class WebSpeechSource implements SpeechSource {
   onPartial = (_: string, _epoch: number) => {};
   onFinal = (_: string, _epoch: number) => {};
   onError = (_: string) => {};
+  onUnavailable = (_: string) => {}; // it stopped working for good
+  private netFails = 0;
   private Ctor: SRCtor | undefined;
   private rec: SR | null = null;
   private pending = new Map<number, string>(); // interim words not yet final, by epoch
@@ -68,6 +80,7 @@ export class WebSpeechSource implements SpeechSource {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i], text = r[0].transcript.trim();
         const ep = (this.epochOf[i] ??= this.epoch);
+        this.netFails = 0;
         // Each result is whole words, so it carries a leading space like Cartesia's segments.
         if (r.isFinal) {
           if (text) this.onFinal(` ${text}`, ep);
@@ -79,8 +92,12 @@ export class WebSpeechSource implements SpeechSource {
     };
     rec.onerror = e => {
       if (e.error === 'no-speech' || e.error === 'aborted') return;
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') this.Ctor = undefined;
+      const dead = DEAD_ERRORS[e.error] ?? (e.error === 'network' && ++this.netFails >= 2 ? NETWORK_WHY : '');
       this.onError(`speech recognition: ${e.error}`);
+      if (dead) {
+        this.Ctor = undefined; // onend sees this and doesn't restart
+        this.onUnavailable(dead);
+      }
     };
     // Chrome ends a continuous session after a stretch of silence; keep it alive.
     rec.onend = () => {

@@ -4,6 +4,20 @@ import { diag, explain } from './diag';
 
 let cached: { token: string; version: string; until: number } | null = null;
 let unavailableUntil = 0; // after a 503 (no key) or failure, don't ask again for a while
+let tokenWhy = ''; // why the last token request failed, for the player
+
+// Why Cartesia can't be used, in words for the player: no key on the api, a key Cartesia refused
+// (wrong, revoked or out of credit), or the api itself unreachable.
+export function cartesiaTokenProblem(): string {
+  return tokenWhy;
+}
+function tokenProblem(status: number, body: string): string {
+  if (status === 503 && /CARTESIA_API_KEY/.test(body)) return 'no Cartesia key on the server';
+  if (status === 401 || status === 402 || status === 403 || /401|402|403|credit|quota|unauthori[sz]ed/i.test(body)) return 'Cartesia refused the key (wrong, revoked or out of credit)';
+  if (status === 429) return 'Cartesia is rate limiting';
+  if (status === 502) return 'Cartesia refused the token request (check the key and its credit)';
+  return `the game’s API couldn’t get a Cartesia token (${status || 'unreachable'})`;
+}
 
 // Null when Cartesia can't be used (no key in .env, api down); callers fall back.
 export async function cartesiaUrl(path: '/stt/websocket', params: Record<string, string> = {}): Promise<string | null> {
@@ -14,12 +28,14 @@ export async function cartesiaUrl(path: '/stt/websocket', params: Record<string,
       const r = await fetch('/api/voice-token', { method: 'POST' });
       if (!r.ok) {
         const t = await r.text().catch(() => '');
+        tokenWhy = tokenProblem(r.status, t);
         throw new Error(`voice token: ${r.status} ${t.slice(0, 160)}`);
       }
       const b = await r.json();
       cached = { token: b.token, version: b.version, until: now + (b.expiresIn - 10) * 1000 };
     } catch (e) {
       const m = (e as Error).message;
+      if (!m.startsWith('voice token:')) tokenWhy = 'the game’s API is unreachable';
       diag.warn('STT', `Cartesia token route failed, browser speech instead (retry in 30 s): ${explain(m)}`, m);
       unavailableUntil = now + 30_000;
       return null;

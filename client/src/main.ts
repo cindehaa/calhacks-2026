@@ -16,7 +16,7 @@ import type { InputView } from './input/draw';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
 import { Recorder } from './recorder';
-import { burnSticks, initKindling, updateKindling } from './kindling';
+import { burnCoals, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initCoach } from './coach';
@@ -164,9 +164,11 @@ function call(p: Promise<unknown> | undefined, onErr?: (msg: string) => void) {
 
 // ---------- title and hub ----------
 
-// The title screen's press also unlocks audio, so the menu music can start.
+// The game opens straight past the title (enter(true), below): into setup on a first visit, else
+// home. The title stays as the loading screen and for /#pavilion and film mode, where a press
+// enters. Sound starts on the first click or key anywhere (sfx.ts), so the press isn't needed for it.
 let entered = false, entering = false;
-function enter() {
+function enter(auto = false) {
   if (entering) return;
   entering = true;
   // The title's wordmark glides up into the home screen's (view-transition-name: wordmark). The
@@ -176,13 +178,13 @@ function enter() {
     $('title').hidden = true;
     renderLobby();
   };
-  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(show);
+  if (!auto && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(show);
   else show();
   sfx.unlock();
   if (setupDone()) showTutorialOnce();
   else setup.open(true);
 }
-$('title').addEventListener('pointerdown', enter);
+$('title').addEventListener('pointerdown', () => enter());
 if (TOUCH) $('enterBtn').textContent = 'Tap to start';
 addEventListener('keydown', e => {
   if (entered) return;
@@ -773,7 +775,7 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     settle(nonce, 'no match');
     return false;
   }
-  const had = m.elixir; // for the burnt sticks, before the payment shows
+  const had = m.elixir; // for the burnt coals, before the payment shows
   if (cancelledNonces.has(nonce)) return false; // cancelled while it was being designed: never sent, nothing paid
   input.deploySent(nonce);
   dropStep(nonce, 'DB', `deploy_troop sent (${d.name}, cost ${price(d)}${spriteUrl ? ', with art' : ''})`);
@@ -785,7 +787,7 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     round.deploys++;
     round.elixirSpent += price(d);
     const to = board.toScreen(x, y);
-    if (to) burnSticks(had - price(d), price(d), to[0], to[1]);
+    if (to) burnCoals(had - price(d), price(d), to[0], to[1]);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
@@ -1102,6 +1104,8 @@ const setup = initSetup(input, next => {
 initHowItWorks(() => input.handPoint());
 // The first few matches with the camera: a line of help when the player looks stuck.
 initCoach(input, () => !(local instanceof TutorialMatch) && match()?.status === 'playing' && (match()?.time ?? -1) > 0.5);
+// Straight in: no "press any key" between opening the game and playing it.
+if (!FILM && location.hash !== '#pavilion') enter(true);
 // The hand model is ~17 MB: fetch it while the title and menu are up, once the page itself has
 // loaded, so the camera starts quickly. Touch-only devices type instead, so they skip it.
 if (!TOUCH) addEventListener('load', () => setTimeout(() => void warmHandTracker().catch(e => diag.warn('HAND', `hand tracker preload failed (will retry when the camera starts): ${(e as Error).message}`)), 500), { once: true });

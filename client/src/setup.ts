@@ -107,8 +107,10 @@ export function initSetup(input: InputController, onClose: (next: SetupNext) => 
     const starting = s.camera && !s.cameraReady;
     const errors = [s.camStatus, s.micStatus].filter(m => m.includes('failed'));
 
+    const mute = s.mic && !s.speech.ok ? `mic is on, but speech isn’t working: ${s.speech.why}. You can type your troops.` : '';
     step('devices', TOUCH ? s.mic : s.cameraReady && s.mic,
       asking ? 'allow the camera and mic when the browser asks'
+      : mute && !starting ? mute
       : starting ? s.camStatus
       : s.cameraReady && s.mic ? 'camera and mic are on'
       : TOUCH ? (s.mic ? 'mic is on' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'so you can say your troops')

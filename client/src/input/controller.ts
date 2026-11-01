@@ -103,6 +103,8 @@ const FIRE_SHOW_MS = 180; // the cursor fills this long after a pinch
 const SCREEN_IN_CAMERA = invertH(DEFAULT_H); // the screen's edges in camera coords, for the preview
 const LUMA_MS = 500; // how often the frame's brightness is sampled, for the framing advice
 const IGNORED_MIN_MS = 500; // talking outside a pinch this long counts as talking to the game
+const SILENT_AFTER_MS = 2500; // speech that should have made words, and none by this long after it ended
+const SILENT_COUNT = 3; // that many, with no words ever: the recogniser isn't working
 
 export class InputController {
   private tracker: HandTracker | null = null;
@@ -130,6 +132,11 @@ export class InputController {
   private luma: number | null = null; // the frame's mean brightness
   private lumaAt = 0;
   private lumaCanvas: HTMLCanvasElement | null = null;
+  private speechWhy = ''; // why there's no speech recognition, '' while it works (as far as we know)
+  private speechTold = false; // the player has been told, in a notice
+  private wordsAt = -Infinity; // when the recogniser last returned any words
+  private silent = 0; // utterances in a row that should have made words and didn't
+  private heardFrom: number | null = null; // the utterance in progress should be transcribed (watchdog)
   private talkFrom: number | null = null; // talking began outside a pinch (pinch to talk), for the ignored signal
   private ignoredText = ''; // what the browser recogniser made of it
   private trail = new CursorHistory(); // the hand cursor, to aim from before a pinch
@@ -186,6 +193,7 @@ export class InputController {
     this.speech.onPartial = (t, e) => this.words(t, false, e);
     this.speech.onFinal = (t, e) => this.words(t, true, e);
     this.speech.onFallback = () => (this.fellBack = true); // told once a match is under way
+    this.speech.onDead = why => this.speechDead(why);
     this.speech.onError = msg => {
       this.heard = msg;
       this.host.event?.('speech:error', msg);
@@ -397,7 +405,30 @@ export class InputController {
       heardWords: this.heardWords,
       heardSound: this.heardSound,
       framing: this.framing(),
+      speech: this.speechStatus(),
     };
+  }
+
+  // Whether speech is turning into words, and if not, why, in words for the player.
+  speechStatus(): { ok: boolean; engine: string; why: string } {
+    return { ok: !this.speechWhy && this.speech.available, engine: this.speech.engine, why: this.speechWhy || (this.speech.available ? '' : 'this browser has no speech recognition') };
+  }
+
+  // No speech recognition after all: say why once, and point at typing.
+  private speechDead(why: string): void {
+    if (this.speechWhy) return;
+    this.speechWhy = why;
+    this.heard = `no speech: ${why}`;
+    this.host.event?.('speech:dead', why);
+    this.renderPanel();
+    if (this.mic.on) this.tellSpeech();
+  }
+
+  private tellSpeech(): void {
+    if (this.speechTold || !this.speechWhy) return;
+    this.speechTold = true;
+    const why = this.speechWhy.charAt(0).toUpperCase() + this.speechWhy.slice(1);
+    notice(`Speech isn’t working: ${why}. Type your troops instead.`, { tone: 'warn', ms: 7000, key: 'speechDead', rank: 2 });
   }
 
   // Is the hand where the camera can use it: null without the camera (or before it's ready).
@@ -468,6 +499,12 @@ export class InputController {
         this.heardSound = true;
         this.talkFrom = this.pinchToTalk() && !this.held && !this.firing ? ev.t : null;
         this.ignoredText = '';
+        // Speech the recogniser should turn into words: always listening, or said during a pinch.
+        this.heardFrom = this.speech.available && !this.speechWhy && (!this.pinchToTalk() || this.held) ? ev.t : null;
+      }
+      if (ev?.kind === 'end' && this.heardFrom !== null) {
+        if (ev.t - this.heardFrom >= IGNORED_MIN_MS) setTimeout(() => this.checkSilent(), SILENT_AFTER_MS);
+        this.heardFrom = null;
       }
       if (ev) this.publish({ kind: 'voice', t: ev.t, phase: ev.kind });
       // Talked to the game without pinching: those words are dropped, so say so (onboard.ts, coach.ts).
@@ -483,8 +520,9 @@ export class InputController {
     menuPointer.update(now, this.handCursor, this.host.playing());
     // A round under way without the camera: the warm tracker isn't wanted, so give its GPU memory back.
     if (!this.tracker && this.host.playing() && (this.host.started?.() ?? true)) releaseHandTracker();
+    if (this.speechWhy && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) this.tellSpeech();
     // Once the countdown is over, so it isn't missed under the versus card.
-    if (this.fellBack && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) {
+    if (this.fellBack && !this.speechWhy && this.mic.on && this.host.playing() && (this.host.started?.() ?? true)) {
       this.fellBack = false;
       notice(this.speech.available ? 'Using your browser’s speech instead · same game, a touch slower' : 'No speech here · type the troop instead', { tone: 'warn', ms: 3400, key: 'speech', rank: 1 });
     }
@@ -601,6 +639,15 @@ export class InputController {
     }
   }
 
+
+  // Watchdog: someone spoke where words were due and none came back. A few times
+  // with no words ever this visit and the recogniser counts as broken, whatever it says about
+  // itself. Once any words have come back it works, and silences are just a noisy room.
+  private checkSilent(): void {
+    if (this.speechWhy || !this.mic.on || this.wordsAt > -Infinity) return;
+    if (++this.silent < SILENT_COUNT) return;
+    this.speechDead(`we can hear you, but ${this.speech.engine} isn’t returning any words`);
+  }
 
   // The frame's mean brightness, from a tiny copy of it: too dark, and tracking gets unreliable.
   private sampleLuma(now: number): void {
@@ -887,6 +934,10 @@ export class InputController {
   private words(raw: string, final: boolean, epoch: number): void {
     const text = raw.trim(); // the Transcript gets raw, which keeps the source's own spacing
     this.heard = text ? `heard: “${text}”` : this.heard;
+    if (text && epoch !== -Infinity) {
+      this.wordsAt = performance.now();
+      this.silent = 0;
+    }
     if (text) this.heardWords = true;
     const f = this.firing, to = epoch === -Infinity ? 'prompt' : routeWords(epoch, f?.cut ?? null, this.dropped);
     if (final && text) this.host.heard?.(text, to === 'firing' ? f!.nonce : 0);
@@ -1170,7 +1221,7 @@ export class InputController {
     if (!this.mic.on) return this.heard.startsWith('mic failed') ? `${this.heard} · allow it from the address bar, then press Mic` : `Turn on the Mic (${DEV_MODE ? 'top left' : 'camera button, top right'}) to speak troops in`;
     const send = this.tracker ? 'pinch, aim, let go' : TOUCH ? 'hold your half, drag to aim, let go' : this.prefs.mouseKeys ? 'click or press Space' : 'press Space';
     const clear = this.tracker ? 'thumbs down' : TOUCH ? 'say “cancel”' : 'press Esc';
-    if (!this.speech.available) return `No speech recognition here: type the troop, then ${send}`;
+    if (!this.speech.available || this.speechWhy) return `No speech here (${this.speechStatus().why}): type the troop, then ${send}`;
     if (this.tracker) return this.scheme.howTo;
     return `Say the troop, then ${send} to send it · ${clear} to cancel`;
   }
