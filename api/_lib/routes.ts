@@ -3,7 +3,7 @@ import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { hasCartesiaKey, voiceToken } from './cartesia.js';
 import { designTroop, designerName, warm } from './designer.js';
 import { pose, poseFile } from './poses.js';
-import { RECORDING_MAX_BYTES, pruneRecordings } from './recordings.js';
+import { RECORDING_MAX_BYTES, RecordingsFull, pruneRecordings, recordingsOff } from './recordings.js';
 import { hasFalKey, sprite, spriteFile } from './sprites.js';
 
 type Body = Record<string, unknown>;
@@ -79,10 +79,16 @@ export const ROUTES: Record<string, (body: Body) => Promise<unknown>> = {
   // video straight to Blob, since a function body can't be over 4.5 MB.
   '/api/recording': async b => {
     needKey(!!process.env.BLOB_READ_WRITE_TOKEN, 'BLOB_READ_WRITE_TOKEN', 'recording');
+    if (recordingsOff()) throw new HttpError(503, 'recordings are off', { stage: 'recording', detail: 'RECORDINGS=off on the api' });
     const payload = (b.payload ?? {}) as Body;
     const pathname = String(payload.pathname ?? '');
     if (b.type !== 'blob.generate-client-token' || !/^recordings\/[\w/-]+\.(webm|mp4)$/.test(pathname)) throw new HttpError(400, 'bad recording request');
-    await pruneRecordings();
+    try {
+      await pruneRecordings();
+    } catch (e) {
+      if (e instanceof RecordingsFull) throw new HttpError(429, 'recordings full for today', { stage: 'recording', detail: e.message });
+      throw e;
+    }
     const clientToken = await generateClientTokenFromReadWriteToken({
       pathname,
       allowedContentTypes: ['video/webm', 'video/mp4'],

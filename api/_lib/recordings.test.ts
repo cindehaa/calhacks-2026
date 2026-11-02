@@ -1,16 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pruneRecordings, type RecordingsApi } from './recordings.js';
+import { RecordingsFull, pruneRecordings, type RecordingsApi } from './recordings.js';
 
 const MB = 1024 * 1024;
 
 // An in-memory store of recordings, listed two to a page so the cursor loop is exercised.
-function fakeStore(sizes: number[]) {
+function fakeStore(sizes: number[], at = new Date(2026, 10, 1)) {
   let blobs = sizes.map((size, i) => ({
     url: `https://store/recordings/${i}.webm`,
     pathname: `recordings/${i}.webm`,
     size: size * MB,
-    uploadedAt: new Date(2026, 10, 1, 0, i), // higher index = newer
+    uploadedAt: new Date(at.getTime() + i * 60_000), // higher index = newer
   }));
   const api = {
     list: (async ({ cursor }: { cursor?: string }) => {
@@ -43,4 +43,18 @@ test('deletes nothing when everything fits', async () => {
   const s = fakeStore([10, 10]);
   assert.deepEqual(await pruneRecordings(s.api, 100 * MB, 20 * MB), []);
   assert.equal(s.left().length, 2);
+});
+
+test('refuses a new recording once the daily quota is used, deleting nothing', async () => {
+  const now = new Date(2026, 10, 2, 12).getTime();
+  const s = fakeStore([1, 1, 1], new Date(now - 60 * 60_000)); // three in the last hour
+  await assert.rejects(pruneRecordings(s.api, 100 * MB, 20 * MB, 3, now), RecordingsFull);
+  assert.equal(s.left().length, 3);
+  await pruneRecordings(s.api, 100 * MB, 20 * MB, 4, now); // room for one more
+});
+
+test('recordings older than a day do not count toward the quota', async () => {
+  const now = new Date(2026, 10, 3).getTime();
+  const s = fakeStore([1, 1, 1], new Date(now - 2 * 24 * 60 * 60_000));
+  assert.deepEqual(await pruneRecordings(s.api, 100 * MB, 20 * MB, 3, now), []);
 });
