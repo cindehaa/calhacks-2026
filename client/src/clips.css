@@ -1,0 +1,31 @@
+/* The round's highlight clips on the result screen (clipsui.ts): a stone slab like the MVP card with
+   a row of small looping videos, each with its moment in plain words under it, and the large view
+   they open in. Gold on a win, ice on a loss, like the rest of the screen. */
+.clipsCard > .gFace { width: min(760px, calc(100vw - 2 * (14vw + 24px))); display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 14px; }
+.result.win .clipsCard { --a: #2a2312; --b: #201a0d; --side: #0b0906; }
+.result.lose .clipsCard { --a: #16283a; --b: #112131; --side: #08121c; }
+.result.win .clipsCard .gLabel { color: var(--gold); } .result.lose .clipsCard .gLabel { color: var(--ice2); }
+.clipRow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.clipThumb { position: relative; aspect-ratio: 16 / 9; padding: 0; border: 0; cursor: pointer; overflow: hidden; background: #0008;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); transition: transform .15s; }
+.clipThumb:hover:not(:disabled) { transform: translateY(-2px); }
+.clipThumb:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
+.clipThumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.clipName { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 8px 5px; text-align: left;
+  font: 700 12px/1.2 var(--chakra); color: #fff; background: linear-gradient(transparent, #000c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clipThumb.loading { cursor: default; display: grid; place-items: center; }
+.clipWait { font: 600 12px var(--chakra); color: var(--muted, #8e96b3); animation: clipPulse 1.2s ease-in-out infinite alternate; }
+@keyframes clipPulse { from { opacity: .45; } }
+.clipsCard { animation: mvpIn .5s 1.6s cubic-bezier(.2, .9, .3, 1.2) both; }
+
+.clipPanel > .gFace { width: min(880px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; }
+.clipPanel h2 { margin: 0; }
+.clipPanel video { width: 100%; max-height: 62vh; background: #000; display: block; }
+.clipNote { margin: 0; font: 600 15px var(--chakra); color: var(--gold, #f3d58a); }
+.clipActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.clipActions .slab { flex: 1 1 140px; }
+.clipActions .slab[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) { .clipsCard { animation: none; } .clipWait { animation: none; } }
+@media (max-width: 900px) { .clipsCard > .gFace { width: calc(100vw - 32px); } .clipRow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-height: 820px) and (min-width: 901px) { .clipsCard > .gFace { padding: 8px 14px 10px; gap: 6px; } .clipRow { grid-template-columns: repeat(4, minmax(0, 120px)); } }

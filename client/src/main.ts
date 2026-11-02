@@ -37,6 +37,9 @@ import { icon, mountIcons } from './icons';
 import { homeDim } from './homedim';
 import { showTutorialOnce } from './tutorial';
 import { MvpTracker, renderMvp } from './mvp';
+import { HighlightTracker, pick, AFTER_MS, type Window } from './highlights';
+import { cutClips } from './clips';
+import { clipsAdd, clipsDrop, clipsExpect, clipsReset } from './clipsui';
 import { clearNotice, notice } from './notice';
 import { boardReactions, homeReactions, menuReactions } from './react';
 import { closePavilion, mountPavilion, openPavilion, pavilionOpen } from './pavilion';
@@ -60,6 +63,17 @@ let warmedFor = '';
 const drops = new Drops(); // your drops from let-go to landing: board feedback and timings
 const arted = new WeakSet<DrawTroop>(); // bot-match troops already sent for art
 const mvp = new MvpTracker(); // your best troop this round, for the result screen
+const highlights = new HighlightTracker(); // the round's moments worth a clip
+// Set when a round ends: the clips to cut from the take that began at t0, once the recorder hands it over.
+let clipPlan: { t0: number; windows: Window[]; token: number } | null = null;
+let clipToken = clipsReset();
+recorder.onTake = (video, t0) => {
+  const plan = clipPlan;
+  if (!plan || plan.t0 !== t0) return;
+  clipPlan = null;
+  clipsExpect(plan.token, plan.windows.length);
+  void cutClips(video, t0, plan.windows, (c, i) => (c ? clipsAdd(plan.token, c, i) : clipsDrop(plan.token, i)));
+};
 
 // ---------- connection ----------
 
@@ -554,6 +568,11 @@ function renderResult() {
   // The match ends on a frozen board: it holds for a moment, then the result screen fades in over it.
   if (done && !endAt) {
     endAt = performance.now();
+    const t0 = recorder.startAt;
+    // The blow that ended it lands on this frame, after the last one that was 'playing'.
+    highlights.observe({ side: m.side, units: m.units(), towers: m.towers(), spells: m.spells(), troops: m.troops() }, endAt);
+    highlights.end(endAt, byForfeit(m));
+    if (t0 !== null) clipPlan = { t0, windows: pick(highlights.moments, t0, endAt + AFTER_MS), token: clipToken };
     document.body.dataset.ending = m.winner === -1 ? 'draw' : m.winner === m.side ? 'win' : 'lose';
   }
   if (!done) {
@@ -656,6 +675,9 @@ function renderVersus(m: MatchSource | null) {
   if (show && !vsShown) {
     iForfeited = false;
     round = newRound();
+    highlights.reset();
+    clipPlan = null;
+    clipToken = clipsReset();
     // Blue on the left, red on the right, whichever you are.
     const me = myName(), them = foeName(m!);
     const [blue, red] = m!.side === 0 ? [me, them] : [them, me];
@@ -1229,6 +1251,7 @@ function frame() {
   const units = m.units();
   const troops = m.troops();
   if (m.status === 'playing') mvp.observe(units, troops, m.time);
+  if (m.status === 'playing' && m.time >= 0) highlights.observe({ side, units, towers: m.towers(), spells: m.spells(), troops }, performance.now());
   if (local) artForBot(local);
 
   board.draw({

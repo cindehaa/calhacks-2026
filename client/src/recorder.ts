@@ -2,7 +2,8 @@
 // (recordings/<date>/...) when it ends. Only the two board canvases and the game's own audio go in,
 // so the browser asks for no permission; the HTML HUD on top (clock, embers, dock) isn't in it.
 // Each frame the 3D scene and the 2D overlay are drawn into one smaller canvas, which is what
-// MediaRecorder sees. Off in local dev, where there's no store to send to.
+// MediaRecorder sees. The finished take also goes to onTake, which cuts the round's highlight
+// clips from it (clips.ts). Not uploaded in local dev, where there's no store to send to.
 import { upload } from '@vercel/blob/client';
 import { sfx } from './sfx';
 
@@ -16,6 +17,7 @@ interface Take {
   rec: MediaRecorder;
   chunks: Blob[];
   name: string;
+  startAt: number; // performance.now() at its first frame
   endAt: number; // 0 while the match is live
 }
 
@@ -24,9 +26,16 @@ export class Recorder {
   private out = document.createElement('canvas');
   private g = this.out.getContext('2d')!;
   private readonly on: boolean;
+  onTake: ((video: Blob, startAt: number) => void) | null = null;
 
   constructor(private gl: HTMLCanvasElement, private overlay: HTMLCanvasElement) {
-    this.on = !import.meta.env.DEV && typeof MediaRecorder !== 'undefined' && 'captureStream' in this.out;
+    // Off for film renders (?film), which record the screen themselves.
+    this.on = !new URLSearchParams(location.search).has('film') && typeof MediaRecorder !== 'undefined' && 'captureStream' in this.out;
+  }
+
+  // performance.now() when the take being recorded began, or null when there's none.
+  get startAt(): number | null {
+    return this.take?.startAt ?? null;
   }
 
   // Called once a frame, right after the board is drawn (the WebGL buffer is only readable then).
@@ -61,7 +70,7 @@ export class Recorder {
       rec.start(1000);
       const ext = rec.mimeType.includes('mp4') ? 'mp4' : 'webm';
       const iso = new Date().toISOString();
-      this.take = { rec, chunks, name: `recordings/${iso.slice(0, 10)}/${iso.slice(11, 19).replace(/:/g, '')}.${ext}`, endAt: 0 };
+      this.take = { rec, chunks, name: `recordings/${iso.slice(0, 10)}/${iso.slice(11, 19).replace(/:/g, '')}.${ext}`, startAt: performance.now(), endAt: 0 };
     } catch (e) {
       console.warn('recording unavailable:', e);
       stream.getVideoTracks().forEach(tr => tr.stop());
@@ -76,7 +85,9 @@ export class Recorder {
       t.rec.stream.getVideoTracks().forEach(tr => tr.stop()); // the audio track is sfx's, kept
       const type = t.rec.mimeType.split(';')[0] || 'video/webm';
       const body = new Blob(t.chunks, { type });
-      if (body.size) save(t.name, body);
+      if (!body.size) return;
+      this.onTake?.(body, t.startAt);
+      if (!import.meta.env.DEV) save(t.name, body);
     };
     t.rec.stop();
   }
