@@ -16,7 +16,7 @@ import type { InputView } from './input/draw';
 import { connect, type Net } from './net';
 import { PovBoard } from './pov';
 import { Recorder } from './recorder';
-import { burnCoals, initKindling, updateKindling } from './kindling';
+import { burnSticks, initKindling, updateKindling } from './kindling';
 import type { DrawTroop } from './render';
 import { sfx } from './sfx';
 import { initCoach } from './coach';
@@ -787,7 +787,7 @@ async function sendDeploy(nonce: number, [x, y]: [number, number], description: 
     round.deploys++;
     round.elixirSpent += price(d);
     const to = board.toScreen(x, y);
-    if (to) burnCoals(had - price(d), price(d), to[0], to[1]);
+    if (to) burnSticks(had - price(d), price(d), to[0], to[1]);
     drops.deployed(nonce, performance.now());
     return true;
   } catch (e) {
