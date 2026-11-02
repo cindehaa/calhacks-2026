@@ -69,9 +69,9 @@ export function initSetup(input: InputController, onClose: (next: SetupNext) => 
   }
 
   // One prompt for both instead of two back to back; each device is then started on its own.
-  // Phones only get the mic: nobody aims a phone's camera at their own hand.
+  // Phones start with the mic; the front camera is an extra the player asks for ("Try camera").
   async function turnOn() {
-    if (TOUCH) return input.setMic(true);
+    if (TOUCH) return input.setupState().mic ? input.setCamera(true) : input.setMic(true);
     asking = true;
     try {
       (await navigator.mediaDevices.getUserMedia({ video: true, audio: true })).getTracks().forEach(t => t.stop());
@@ -115,12 +115,13 @@ export function initSetup(input: InputController, onClose: (next: SetupNext) => 
       : mute && !starting ? mute
       : starting ? s.camStatus
       : s.cameraReady && s.mic ? 'camera and mic are on'
-      : TOUCH ? (s.mic ? 'mic is on' : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'so you can say your troops')
+      : TOUCH ? (s.mic ? (s.camStatus.includes('failed') ? `mic is on · ${s.camStatus}` : 'mic is on. Want to aim with your hand? Try the front camera.') : errors.length ? `${errors.join(' · ')}. Allow it in the browser’s site settings, then try again.` : 'so you can say your troops')
       : errors.length ? `${errors.join(' · ')}. Allow ${errors.length > 1 ? 'them' : 'it'} from the address bar, then try again.`
       : s.mic ? 'mic is on, no camera: you’ll aim with the mouse'
       : 'aim with your hand, say your troops out loud');
     const dev = q<HTMLButtonElement>('[data-act="devices"]');
-    dev.hidden = TOUCH ? s.mic : s.cameraReady && s.mic;
+    dev.hidden = TOUCH ? s.mic && s.camera : s.cameraReady && s.mic;
+    el.classList.toggle('camOn', s.camera); // phones show the camera views only once it's on
     dev.disabled = asking || starting;
     dev.textContent = s.mic && !s.camera ? 'Try camera' : errors.length ? 'Try again' : 'Turn on';
     const lvl = q('.setupMeter i');
@@ -140,7 +141,7 @@ export function initSetup(input: InputController, onClose: (next: SetupNext) => 
   }
 
   if (TOUCH) {
-    q('[data-step="devices"] b').textContent = 'Mic';
+    q('[data-step="devices"] b').textContent = 'Mic, camera optional';
     q('.setup .sub').textContent = 'Say your troops out loud. Typing always works too.';
   }
   input.onSetup = () => open(true);

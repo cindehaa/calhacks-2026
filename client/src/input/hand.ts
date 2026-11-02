@@ -6,6 +6,9 @@ import type { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { sideFromLabel, type Side } from './handpick';
 import type { Landmark } from './pose';
 
+// Same test as controller.ts TOUCH (not imported from there: the controller imports this file).
+const PHONE = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+
 const VERSION = '0.10.14'; // keep in step with package.json
 const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}/wasm`;
 const MODEL_URL =
@@ -176,7 +179,10 @@ export class HandTracker {
     this.stopped = false;
     const camera = (async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
+        // Phones: the front camera, at a size a phone can track every frame alongside the board.
+        video: PHONE
+          ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }
+          : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
       });
       if (this.stopped) {
         stream.getTracks().forEach(t => t.stop()); // turned off while the permission prompt was up

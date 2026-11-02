@@ -47,7 +47,20 @@ if (el && TOUCH) {
   steps[0].innerHTML = '<b>Say</b> a troop with the mic, or <b>type</b> one, like “wizard with fire”.';
   steps[1].innerHTML = '<b>Hold</b> your half, drag to aim, <b>let go</b> to place. It costs <b>embers</b>.';
   el.querySelector('p.sub')!.textContent = 'Wrong troop? Say “cancel” before it lands.';
-  el.querySelector('.tutFoot .sub')!.textContent = 'Reopen with ?';
+  // The camera is optional on a phone, and this card (the ? button) is the one menu a phone has:
+  // a button here turns it on (main.ts opens setup to frame the hand) or off again.
+  const foot = el.querySelector('.tutFoot .sub')!;
+  foot.textContent = '';
+  const cam = document.createElement('button');
+  cam.className = 'textBtn tutCam';
+  foot.append(cam);
+  const label = () => (cam.textContent = document.getElementById('handView')?.hidden === false ? 'Turn camera off' : 'Aim with the camera');
+  label();
+  new MutationObserver(label).observe(el, { attributes: true, attributeFilter: ['hidden'] });
+  cam.onclick = () => {
+    close();
+    dispatchEvent(new Event('arena:camera'));
+  };
 }
 
 if (el) {

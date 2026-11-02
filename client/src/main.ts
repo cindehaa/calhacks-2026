@@ -320,6 +320,12 @@ $('camBtn').onclick = e => {
   if (TOUCH) void input.setMic(!input.setupState().mic);
   else setup.open();
 };
+// Phones: the how-to card's camera button (tutorial.ts). On, then setup to frame the hand; or off.
+addEventListener('arena:camera', async () => {
+  if (input.setupState().camera) return void input.setCamera(false);
+  setup.open();
+  await input.setCamera(true);
+});
 if (TOUCH) {
   $('camBtn').innerHTML = icon('mic', 'light', 20);
   $('camBtn').setAttribute('aria-label', 'Mic');
