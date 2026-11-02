@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { BlobNotFoundError, type GetBlobResult, type HeadBlobResult, type PutBlobResult } from '@vercel/blob';
-import { artStore, blobStore, diskStore, type ArtStore, type BlobApi } from './art_store.js';
+import { artStore, blobStore, diskStore, withFallback, type ArtStore, type BlobApi } from './art_store.js';
 import { artFile, cachedArt } from './sprites.js';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
@@ -136,5 +136,44 @@ test('artStore picks Blob only when BLOB_READ_WRITE_TOKEN is set, at first use',
   } finally {
     if (saved === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
     else process.env.BLOB_READ_WRITE_TOKEN = saved;
+  }
+});
+
+test('a suspended Blob store falls back to disk: art is still drawn and served (the prod 502)', async () => {
+  const { api } = fakeBlob();
+  const suspended = async () => {
+    throw new Error('Vercel Blob: This store has been suspended.');
+  };
+  api.head = suspended as BlobApi['head'];
+  api.get = suspended as BlobApi['get'];
+  api.put = suspended as BlobApi['put'];
+  const dir = mkdtempSync(join(tmpdir(), 'arena-art-'));
+  const err = console.error;
+  console.error = () => {};
+  try {
+    const store = withFallback(blobStore('sprites', api), diskStore(pathToFileURL(dir + '/')));
+    const { first, second, draws } = await drawTwice(store);
+    assert.equal(draws, 1);
+    assert.equal(first.url, `/api/sprite/${ID}.key.png?key`);
+    assert.equal(second.cached, true);
+    assert.deepEqual(await artFile(store, `${ID}.key.png`), PNG);
+  } finally {
+    console.error = err;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('with Blob working, the fallback stays out of the way', async () => {
+  const { api, blobs } = fakeBlob();
+  const dir = mkdtempSync(join(tmpdir(), 'arena-art-'));
+  try {
+    const disk = diskStore(pathToFileURL(dir + '/'));
+    const store = withFallback(blobStore('sprites', api), disk);
+    await store.write(`${ID}.png`, PNG);
+    assert.deepEqual(blobs.get(`sprites/${ID}.png`), PNG);
+    assert.equal(await disk.exists(`${ID}.png`), false);
+    assert.deepEqual(await store.read(`${ID}.png`), PNG);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

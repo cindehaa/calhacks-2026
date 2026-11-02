@@ -84,11 +84,50 @@ export function blobStore(prefix: string, api: BlobApi = { put, get, head }): Ar
 
 export const hasBlob = () => !!(process.env.BLOB_READ_WRITE_TOKEN ?? '').trim();
 
+// The Blob store, with disk behind it for when Blob itself fails (suspended past the Hobby limits,
+// down): art still gets drawn and served, from the instance that drew it, rather than every sprite
+// answering 502. A miss in Blob also looks on disk, for art drawn while Blob was failing.
+export function withFallback(primary: ArtStore, backup: ArtStore): ArtStore {
+  let warned = false;
+  const failed = (op: string, e: unknown) => {
+    if (warned) return;
+    warned = true;
+    console.error(`[art] blob ${op} failed, using this instance's disk:`, e instanceof Error ? e.message.slice(0, 160) : e);
+  };
+  return {
+    async exists(name) {
+      try {
+        if (await primary.exists(name)) return true;
+      } catch (e) {
+        failed('exists', e);
+      }
+      return backup.exists(name);
+    },
+    async read(name) {
+      try {
+        const png = await primary.read(name);
+        if (png) return png;
+      } catch (e) {
+        failed('read', e);
+      }
+      return backup.read(name);
+    },
+    async write(name, png) {
+      try {
+        await primary.write(name, png);
+      } catch (e) {
+        failed('write', e);
+        await backup.write(name, png);
+      }
+    },
+  };
+}
+
 // Blob when the project has a store (Vercel adds BLOB_READ_WRITE_TOKEN), disk otherwise. Picked on
 // first use rather than at import, since api/_dev.ts loads .env after its imports have run.
 export function artStore(name: string, api?: BlobApi): ArtStore {
   let store: ArtStore | undefined;
-  const pick = () => (store ??= hasBlob() ? blobStore(name, api) : diskStore(cacheDir(name)));
+  const pick = () => (store ??= hasBlob() ? withFallback(blobStore(name, api), diskStore(cacheDir(name))) : diskStore(cacheDir(name)));
   return {
     exists: n => pick().exists(n),
     read: n => pick().read(n),
