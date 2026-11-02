@@ -1,9 +1,9 @@
 // The round's highlight clips on the result screen: a row of looping thumbnails under the MVP card,
-// filled in as clips.ts finishes cutting them. A click opens one large, with Save, Share (the
-// system share sheet, where the phone has one with files: X is in it) and Post on X (saves the
-// file, then opens a post to attach it to; X takes no video through a link).
+// filled in as clips.ts finishes cutting them. A click opens one large, with Save and Share (the
+// system share sheet, where the browser has one that takes files).
 import './clips.css';
 import type { Clip } from './clips';
+import { fileName } from './clipname';
 
 const POST_TEXT = 'A highlight from my match in Artifice';
 
@@ -86,7 +86,6 @@ function viewer(): HTMLElement {
     <div class="clipActions">
       <button id="clipSave" class="slab amber"><span class="face"><b>Save</b></span></button>
       <button id="clipShare" class="slab stone"><span class="face"><b>Share</b></span></button>
-      <button id="clipX" class="slab stone"><span class="face"><b>Post on X</b></span></button>
       <button id="clipClose" class="slab stone"><span class="face"><b>Close</b></span></button>
     </div>
   </div></div>`;
@@ -97,10 +96,9 @@ function viewer(): HTMLElement {
   return el;
 }
 
-const fileName = (c: Clip, i: number) => `artifice-highlight-${i + 1}.${c.ext}`;
 
 function save(c: Clip, i: number): void {
-  const a = Object.assign(document.createElement('a'), { href: c.url, download: fileName(c, i) });
+  const a = Object.assign(document.createElement('a'), { href: c.url, download: fileName(c, i, clips) });
   document.body.append(a);
   a.click();
   a.remove();
@@ -116,20 +114,13 @@ function openClip(i: number): void {
   video.src = c.url;
   void video.play().catch(() => {});
   note.hidden = true;
-  const file = new File([c.blob], fileName(c, i), { type: c.blob.type });
+  const file = new File([c.blob], fileName(c, i, clips), { type: c.blob.type });
   const share = el.querySelector<HTMLButtonElement>('#clipShare')!;
   share.hidden = !navigator.canShare?.({ files: [file] });
   share.onclick = () => void navigator.share({ files: [file], text: POST_TEXT }).catch(() => {});
   el.querySelector<HTMLButtonElement>('#clipSave')!.onclick = () => {
     save(c, i);
     note.textContent = 'Clip saved.';
-    note.hidden = false;
-  };
-  el.querySelector<HTMLButtonElement>('#clipX')!.onclick = () => {
-    save(c, i);
-    const url = `https://x.com/intent/post?text=${encodeURIComponent(POST_TEXT)}&url=${encodeURIComponent(location.origin)}`;
-    open(url, '_blank', 'noopener');
-    note.textContent = c.ext === 'mp4' ? 'Clip saved. Attach it to your post on X.' : 'Clip saved as WebM, which X doesn’t accept. Try Chrome or Safari for an MP4.';
     note.hidden = false;
   };
   el.hidden = false;

@@ -753,3 +753,22 @@ body.touch #howItWorks { display: none !important; }
 #setup .setupSeen [data-seen][data-state="open"] { color: var(--amber); }
 #setup .setupSeen [data-seen][data-state="fire"] { color: #fff1c4; }
 #setup .setupSeen [data-seen][data-state="cancel"] { color: #ff9aa4; }
+
+/* Phones: no banners (they're hidden under 900 px), so the result column takes the width, and the
+   screen scrolls: the highlights push Rematch, Pavilion and Home below the fold. The backdrop stays put. */
+@media (max-width: 640px) {
+  .result { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .result > .rays, .result > .gGlow, .result > .hubSky, .result::before, #resultFrost { position: fixed; }
+  .resultCol { top: 60px; padding: 0 16px 32px; }
+  .resultCol h1 { font-size: clamp(48px, 15vw, 68px); }
+  .spoils, .spoils .emberReward { width: 100%; }
+  .result .mvpCard, .result .clipsCard { width: 100%; }
+  .result .mvpCard > .gFace, .result .clipsCard > .gFace { width: 100%; box-sizing: border-box; }
+  .result .mvpCard > .gFace { gap: 14px; padding: 12px 16px 12px 12px; }
+  .result .mvpWords { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; font-size: 15px; }
+  .result .actions { width: 100%; flex-wrap: wrap; gap: 14px 12px; }
+  .result .actions > .battle { flex: 1 0 100%; }
+  .result .actions > .battle .face { width: 100%; }
+  .result .actions > .slab.stone { flex: 1; --h: 60px; }
+  .result .actions > .slab.stone .face { width: 100%; }
+}
