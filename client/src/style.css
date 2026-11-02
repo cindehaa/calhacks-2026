@@ -275,6 +275,29 @@ body.inHub #dock, body.inHub #hud { visibility: hidden; }
 .houseRed .hHouse { color: var(--sun); }
 .houses .away .hName, .houses .away .hHouse { color: var(--muted); }
 .houses .away .shield { filter: grayscale(1); opacity: .45; }
+/* Phones: four code slabs that share the width, buttons full width under them, the two players in
+   columns that shrink (names cut with …) around a small VS, and a Start button sized to one line. */
+@media (max-width: 640px) {
+  .ravenPanel > .gFace { padding: 22px 18px; gap: 16px; }
+  .ravenPanel h2 { font-size: 28px; }
+  .ravenPanel .sub { font-size: 15px; }
+  .ravenHead .sub { margin-top: 6px; }
+  .codeRow { gap: 14px; }
+  .codeRow > .codeSlabs, .codeRow > .slab { flex: 1 1 100%; }
+  .codeRow > .slab .face { width: 100%; }
+  .codeSlabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .code, .codeIn { width: 100%; height: 66px; font-size: 34px; }
+  .houses { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; }
+  .houseBlue > div, .houseRed > div { min-width: 0; }
+  .hName { font-size: 16px; }
+  .hName.waiting { font-size: 14px; }
+  .hHouse { font-size: 11px; letter-spacing: .1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .houses .vs { font-size: 15px; }
+  #startBtn { --h: 76px; }
+  #startBtn .face { padding: 0 18px; gap: 14px; }
+  #startBtn .bLabel b { font-size: clamp(20px, 6.4vw, 26px); white-space: nowrap; }
+  #startBtn .bLabel small { font-size: 13px; }
+}
 .gDivider { display: flex; align-items: center; gap: 14px; }
 .gDivider i { flex: 1; height: 1px; background: #2a3266; }
 
@@ -354,14 +377,19 @@ body.devMode:not(.inHub) #camBtn { display: none; }
 @media (max-width: 640px) {
   .home .wordmark { top: 64px; --homeMark: 36px; }
   .islandWrap { top: 150px; width: min(92vw, 44vh); }
-  .orders { flex-wrap: wrap; gap: 14px 12px; padding: 0 16px; bottom: 44px; }
+  .orders { flex-wrap: wrap; gap: 22px 12px; padding: 0 16px; bottom: 44px; }
   .orders > .battle { order: -1; flex: 1 0 100%; --h: 88px; }
-  .orders > .battle .face { width: 100%; }
-  .orders .bLabel b { font-size: 30px; }
-  .orders .bLabel small { font-size: 15px; }
+  .orders > .battle .face { width: 100%; padding: 0 clamp(18px, 6vw, 26px); }
+  .orders .bLabel b { font-size: clamp(22px, 7vw, 30px); white-space: nowrap; } /* one line down to 320 px */
+  .orders .bLabel small { font-size: clamp(13px, 3.8vw, 15px); }
   .orderSide { flex: 1; padding-top: 0; }
-  .orderSide .slab.small { width: 100%; --h: 84px; }
-  .orderSide .slab.small .face { width: 100%; }
+  .orderSide .slab.small { width: 100%; --h: 76px; }
+  /* Practice laid out like Play online: the icon on the left, title and line beside it */
+  .orderSide .slab.small .face { width: 100%; display: grid; grid-template-columns: auto 1fr; column-gap: 18px; row-gap: 2px;
+    align-content: center; justify-items: start; text-align: left; padding: 0 clamp(18px, 6vw, 26px); }
+  .orderSide .slab.small .face > .ico { grid-row: 1 / 3; margin: 0 8px; }
+  .orderSide .slab.small .face b { font-size: 20px; align-self: end; }
+  .orderSide .slab.small .face small { font-size: 15px; align-self: start; }
   .orderSide.handSide { display: none; } /* no virtual hand on a phone's home */
   .hubCredit { display: none; }
   .frostCorner { width: 120px; }
@@ -694,6 +722,9 @@ body.onboarding #hudTop { visibility: hidden; }
   font-family: var(--chakra); color: #b9c0d8; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   background: linear-gradient(160deg, #212853f0 0 56%, #1a2045f0 56% 100%); border-bottom: 5px solid #0e1230; animation: howIn .6s ease-out; pointer-events: none; }
 #howItWorks[hidden] { display: none; }
+/* a laptop's idle tip about pinching: on a phone it covers the buttons and there's nothing to pinch */
+@media (max-width: 640px) { #howItWorks { display: none !important; } }
+body.touch #howItWorks { display: none !important; }
 #howItWorks b { display: block; font: 800 18px var(--cinzel); color: #fff; }
 #howItWorks .sub { font-size: 15px; }
 @keyframes howIn { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translateX(-50%); } }

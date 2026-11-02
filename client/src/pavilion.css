@@ -213,6 +213,12 @@
   .pavCard figcaption small { font-size: 12px; }
   .pavEntry .face small { display: none; }
 }
+/* narrow phones: small enough to clear the three corner tools */
+@media (max-width: 420px) {
+  .pavEntry { --h: 46px; left: 12px; top: 10px; }
+  .pavEntry .face { padding: 0 12px; gap: 8px; }
+  .pavEntry .face b { font-size: 13px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .pavPile.rise, .pavPile.fresh, .pavSpotCard, .pavToast.show, .pavCount b.bump, .pavGable, .pavCount,
   .pavFlame i, .pavSparks i, .pavGlowFire, .pavBeamL, .pavBeamR, .pavEmblem { animation: none; }
