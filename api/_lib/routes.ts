@@ -3,6 +3,7 @@ import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client';
 import { hasCartesiaKey, voiceToken } from './cartesia.js';
 import { designTroop, designerName, warm } from './designer.js';
 import { pose, poseFile } from './poses.js';
+import { RECORDING_MAX_BYTES, pruneRecordings } from './recordings.js';
 import { hasFalKey, sprite, spriteFile } from './sprites.js';
 
 type Body = Record<string, unknown>;
@@ -81,10 +82,11 @@ export const ROUTES: Record<string, (body: Body) => Promise<unknown>> = {
     const payload = (b.payload ?? {}) as Body;
     const pathname = String(payload.pathname ?? '');
     if (b.type !== 'blob.generate-client-token' || !/^recordings\/[\w/-]+\.(webm|mp4)$/.test(pathname)) throw new HttpError(400, 'bad recording request');
+    await pruneRecordings();
     const clientToken = await generateClientTokenFromReadWriteToken({
       pathname,
       allowedContentTypes: ['video/webm', 'video/mp4'],
-      maximumSizeInBytes: 300 * 1024 * 1024,
+      maximumSizeInBytes: RECORDING_MAX_BYTES,
       addRandomSuffix: true,
       validUntil: Date.now() + 60 * 60 * 1000,
     });
