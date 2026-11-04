@@ -1123,8 +1123,9 @@ board.canvas.addEventListener('click', () => {
 
 // ---------- frame ----------
 
-// The home screen's arena has a match's towers; the red side's princesses show the frost climbing.
-const HOME_TOWERS = newTowers().map(t => ({ ...t, hp: t.side === 1 && t.lane !== KING_LANE ? t.hp * (t.lane === 0 ? 0.5 : 0.1) : t.hp }));
+// The home screen's arena has a match's towers; each side's princesses show the frost climbing,
+// one half frozen and one nearly gone, crosswise so the two banks don't mirror each other.
+const HOME_TOWERS = newTowers().map(t => ({ ...t, hp: t.lane === KING_LANE ? t.hp : t.hp * ((t.lane === 0) === (t.side === 1) ? 0.5 : 0.1) }));
 
 function frame() {
   requestAnimationFrame(frame);

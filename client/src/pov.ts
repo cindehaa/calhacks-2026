@@ -3,6 +3,7 @@
 // The scene renders into its own canvas; names, bars, effects and the hand cursor go on a 2D
 // canvas on top, which is also the one that gets the mouse.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   ARENA_H, ARENA_W, BRIDGE_HALF, BRIDGE_X, DEPLOY_DELAY, KING_LANE, MID_Y, RIVER_HALF, UNIT_RADIUS, canDeploy, deployZones, onBoard, towerRadius, type Side,
 } from '../../shared/arena';
@@ -180,6 +181,7 @@ export class PovBoard {
   // Unit-radius tower parts, scaled per tower (the king is wider and taller).
   private body = new THREE.CylinderGeometry(1, 1.15, 2.2, 8);
   private crownGeo = new THREE.CylinderGeometry(1.15, 1, 0.5, 8);
+  private wallGeo = battlement();
   private gemGeo = new THREE.OctahedronGeometry(0.35);
   private shadowGeo = new THREE.CircleGeometry(1, 20);
   private shadowMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.35, depthWrite: false });
@@ -528,8 +530,12 @@ export class PovBoard {
         const crown = new THREE.Mesh(this.crownGeo, mat);
         crown.position.y = 2.45;
         crown.castShadow = true;
+        // Stone merlons round the crown's rim, sharing the body's material so they ghost with it.
+        const wall = new THREE.Mesh(this.wallGeo, base.material);
+        wall.castShadow = wall.receiveShadow = true;
+        crown.add(wall);
         const gem = new THREE.Mesh(this.gemGeo, mat);
-        gem.position.y = 3.25;
+        gem.position.y = 3.4;
         grp.add(base, crown, gem);
         this.scene.add(grp);
         t = { grp, base, crown, gem, mat, seen: 0, hp: tw.hp, frost, seed, shell };
@@ -1690,4 +1696,17 @@ function silhouetteTexture(): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+// The crown's battlement, in the crown's own frame (its top face at y = 0.25): a merlon on each
+// of the octagon's eight faces, flush with the rim, the gaps at the corners.
+function battlement(): THREE.BufferGeometry {
+  const apothem = 1.15 * Math.cos(Math.PI / 8), w = 0.5, h = 0.38, d = 0.26;
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i + 0.5) * (Math.PI / 4);
+    const r = apothem - d / 2;
+    parts.push(new THREE.BoxGeometry(w, h, d).rotateY(a).translate(Math.sin(a) * r, 0.25 + h / 2, Math.cos(a) * r));
+  }
+  return mergeGeometries(parts);
 }
