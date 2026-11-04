@@ -1,7 +1,8 @@
-// The embers bar drawn as a kindling pile: one stick per elixir over a bed of coals, glowing
-// brighter as it refills. Firing burns the spent sticks: they catch light and fly as embers to the summoning
-// circle. Display only; the resource is still `elixir` in code.
-let sticks: HTMLElement[] = [];
+// The embers bar drawn as a bed of coals: one coal per elixir, heating from dead grey to white-hot
+// as it refills. Past halfway its fire catches, rising from the bottom of the bed behind the coal,
+// and a full coal burns with a flickering flame. Firing burns the spent coals: their flames leap and
+// go out, and embers fly to the summoning circle. Display only; the resource is still `elixir` in code.
+let coals: HTMLElement[] = [];
 let pile: HTMLElement | null = null;
 let layer: HTMLElement | null = null;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -14,38 +15,60 @@ export function initKindling(bar: HTMLElement): void {
   document.body.appendChild(layer);
 }
 
-// Lit sticks at full heat, the one catching at its fraction, the rest cold; the row glows with the total.
+// Each coal at its own fraction; the row glows with the total.
 export function updateKindling(row: HTMLElement, elixir: number, max: number): void {
-  if (sticks.length !== Math.ceil(max)) lay(Math.ceil(max));
+  if (coals.length !== Math.ceil(max)) lay(Math.ceil(max));
   row.style.setProperty('--heat', (Math.max(0, Math.min(max, elixir)) / max).toFixed(3));
-  for (let i = 0; i < sticks.length; i++) sticks[i].style.setProperty('--lit', Math.max(0, Math.min(1, elixir - i)).toFixed(2));
+  for (let i = 0; i < coals.length; i++) {
+    const lit = Math.max(0, Math.min(1, elixir - i));
+    const c = coals[i], flame = c.lastElementChild as SVGElement;
+    c.style.setProperty('--lit', lit.toFixed(2));
+    c.classList.toggle('full', lit >= 1);
+    // The fire catches past halfway and grows while the coal finishes; a full one flickers (CSS).
+    const f = Math.max(0, Math.min(1, (lit - 0.5) / 0.5));
+    flame.style.transform = lit >= 1 ? '' : `scale(${f <= 0 ? 0 : (0.35 + 0.5 * f).toFixed(3)})`;
+    flame.style.opacity = f <= 0 ? '0' : lit < 1 ? (0.5 + 0.4 * f).toFixed(2) : '1';
+  }
 }
+
+const flameSvg = (i: number) => `<svg class="flame" viewBox="0 0 22 30" aria-hidden="true"><defs>
+<linearGradient id="kfo${i}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#d84a10"/><stop offset=".6" stop-color="#ff8a3d"/><stop offset="1" stop-color="#ffcf70"/></linearGradient>
+<linearGradient id="kfi${i}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#fff8e0"/></linearGradient></defs>
+<path fill="url(#kfo${i})" d="M11 1 C13 7 20 11 20 19 C20 25 16 29 11 29 C6 29 2 25 2 19 C2 14 6 12 7 7 C8 11 10 12 10 12 C10 8 10 4 11 1Z"/>
+<path class="core" fill="url(#kfi${i})" d="M11 12 C12 16 15 18 15 22 C15 26 13 28 11 28 C9 28 7 26 7 22 C7 19 9 17 11 12Z"/></svg>`;
 
 // Rebuilt when the cap changes (Practice can run on other elixir rules).
 function lay(n: number) {
-  for (const s of sticks) s.remove();
-  sticks = Array.from({ length: n }, (_, i) => {
-    const s = document.createElement('i');
-    s.className = 'stick';
-    s.style.left = `${(i / n) * 100}%`;
-    s.style.width = `${100 / n}%`;
-    s.style.setProperty('--tilt', `${((i * 37) % 11) - 5}deg`); // a little untidy, like a real pile
-    pile?.appendChild(s);
-    return s;
+  for (const c of coals) c.remove();
+  coals = Array.from({ length: n }, (_, i) => {
+    const c = document.createElement('div');
+    c.className = 'coalCell';
+    c.style.left = `${(i / n) * 100}%`;
+    c.style.width = `${100 / n}%`;
+    c.innerHTML = `<i class="coal"></i>${flameSvg(i)}`;
+    c.style.setProperty('--phase', `${-((i * 0.37) % 2.2)}s`); // so the pile doesn't pulse in step
+    pile?.appendChild(c);
+    return c;
   });
 }
 
-// Burn `cost` sticks starting at `from` (the whole embers left after paying) and send their embers
+// Burn `cost` coals starting at `from` (the whole embers left after paying) and send their embers
 // to the screen point (tx, ty).
-export function burnSticks(from: number, cost: number, tx: number, ty: number): void {
+export function burnCoals(from: number, cost: number, tx: number, ty: number): void {
   if (!layer) return;
-  const lo = Math.max(0, Math.floor(from)), hi = Math.min(sticks.length, lo + Math.max(1, Math.round(cost)));
+  const lo = Math.max(0, Math.floor(from)), hi = Math.min(coals.length, lo + Math.max(1, Math.round(cost)));
   const calm = reduced();
   for (let i = lo; i < hi; i++) {
-    const r = sticks[i].getBoundingClientRect();
-    const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
-    sticks[i].animate([{ filter: 'brightness(3)' }, { filter: 'brightness(1)' }], { duration: 380, easing: 'ease-out' });
+    const coal = coals[i].firstElementChild as HTMLElement, flame = coals[i].lastElementChild as SVGElement;
+    coal.animate([{ filter: 'brightness(2.4)', transform: 'scale(1.18)' }, { filter: 'brightness(1)', transform: 'scale(.86)' }], { duration: 450, easing: 'ease-out' });
     if (calm) continue;
+    flame.animate([
+      { transform: 'scale(1, 1)', opacity: 1 },
+      { transform: 'scale(1.4, 2.1) translateY(-6px)', opacity: 1, offset: 0.35 },
+      { transform: 'scale(.4, 2.4) translateY(-14px)', opacity: 0 },
+    ], { duration: 420, easing: 'ease-out' });
+    const r = coals[i].getBoundingClientRect();
+    const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
     for (let k = 0; k < 3; k++) {
       const e = document.createElement('span');
       e.className = 'emberMote';

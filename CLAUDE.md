@@ -1,0 +1,1 @@
+This is Artifice, Isaac's Cal Hacks 13 project. Its notes live in his vault: the hub is `/Users/caasi/Documents/BunOS/200 🧱 Workspaces/CalHacks/CalHacks.md`, with dated entries in `devlog/` beside it; read it first, and put decisions there, not in this repo.
